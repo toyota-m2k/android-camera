@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'io.github.toyota32k.tryCamera'
+    namespace 'io.github.toyota32k.monitor'
     compileSdk 33
 
     defaultConfig {
-        applicationId "io.github.toyota32k.tryCamera"
+        applicationId "io.github.toyota32k.monitor"
         minSdk 26
         targetSdk 33
         versionCode 1
@@ -53,6 +53,8 @@ dependencies {
 
     implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
+
+    implementation project(path: ':camera')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

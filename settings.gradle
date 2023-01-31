@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "TryCamera"
-include ':app'
+include ':monitor'
 include ':camera'

@@ -1,4 +1,4 @@
-package io.github.toyota32k.tryCamera
+package io.github.toyota32k.monitor
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

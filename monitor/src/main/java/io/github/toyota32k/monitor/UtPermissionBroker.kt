@@ -1,4 +1,4 @@
-package io.github.toyota32k.tryCamera
+package io.github.toyota32k.monitor
 
 import android.content.Context
 import android.content.pm.PackageManager
