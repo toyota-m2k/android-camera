@@ -8,7 +8,9 @@ import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 
 class CameraCreator(context: Context) {
-    lateinit var camera:Camera
+    data class CurrentCamera(val camera:Camera, val frontCamera:Boolean)
+
+    lateinit var currentCamera:CurrentCamera
         private set
     private val applicationContext = context.applicationContext
 
@@ -33,7 +35,7 @@ class CameraCreator(context: Context) {
         return prepareCameraExtensions(prepareCameraProvider(), if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA).capabilities
     }
 
-    suspend fun createCamera(lifecycleOwner:LifecycleOwner, previewView: PreviewView, frontCamera:Boolean=false, extensionMode: CameraExtensions.Mode = CameraExtensions.Mode.NONE):Camera {
+    suspend fun createCamera(lifecycleOwner:LifecycleOwner, previewView: PreviewView, frontCamera:Boolean=false, extensionMode: CameraExtensions.Mode = CameraExtensions.Mode.NONE):CurrentCamera {
         val cameraProvider = prepareCameraProvider()
         val baseCameraSelector = if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
         val cameraSelector = getCameraSelector(baseCameraSelector, extensionMode)
@@ -51,12 +53,12 @@ class CameraCreator(context: Context) {
         // Use this camera object to control various operations with the camera
         // Example: flash, zoom, focus metering etc.
         cameraProvider.unbindAll()
-        camera = cameraProvider.bindToLifecycle(
+        currentCamera = CurrentCamera(cameraProvider.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
             imageCapture,
             preview
-        )
-        return camera
+        ), frontCamera)
+        return currentCamera
     }
 }
