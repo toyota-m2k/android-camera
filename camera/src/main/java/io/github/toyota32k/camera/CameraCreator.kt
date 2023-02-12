@@ -16,7 +16,7 @@ class CameraCreator(context: Context) {
 
     private var cameraProvider_:ProcessCameraProvider? = null
     private suspend fun prepareCameraProvider():ProcessCameraProvider {
-        return cameraProvider_ ?: ProcessCameraProvider.getInstance(applicationContext).prepare(applicationContext).also { cameraProvider_ = it }
+        return cameraProvider_ ?: ProcessCameraProvider.getInstance(applicationContext).await(applicationContext).also { cameraProvider_ = it }
     }
 
     private var cameraExtensions_: CameraExtensions? = null

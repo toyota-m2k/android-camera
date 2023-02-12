@@ -1,7 +1,7 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
 //    ext.m2k_bind_it_version = "2.0.1"
-    ext.m2k_bind_it_version = "6e75ba7291"
+    ext.m2k_bind_it_version = "7156d5e486"
     ext.m2k_android_dialog_version = "3.4.0"
     ext.m2k_viewex_version = "0.0.1"
 }

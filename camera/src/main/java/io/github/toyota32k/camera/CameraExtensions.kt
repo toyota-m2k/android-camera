@@ -21,7 +21,7 @@ class CameraExtensions(val applicationContext: Context, val cameraProvider:Camer
 
     suspend fun prepare(): CameraExtensions {
         extensionsManager = ExtensionsManager.getInstanceAsync(applicationContext, cameraProvider)
-            .prepare(applicationContext)
+            .await(applicationContext)
         return this
     }
 

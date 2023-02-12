@@ -7,6 +7,7 @@ import androidx.camera.view.PreviewView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.*
+import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.camera.CameraCreator
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -46,7 +47,7 @@ class MainActivity : UtMortalActivity() {
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
             .actionBarVisibilityBinding(ConstantLiveData(false), interlockWithStatusBar = true)
-            .bindCommand(LiteUnitCommand(this::settingDialog), findViewById<PreviewView>(R.id.previewView))
+            .bindCommand(LongClickUnitCommand(this::settingDialog), findViewById<PreviewView>(R.id.previewView))
 
 
     }

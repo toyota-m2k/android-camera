@@ -6,10 +6,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-suspend fun <T> ListenableFuture<T>.prepare(context: Context) : T {
+suspend fun <T> ListenableFuture<T>.await(context: Context) : T {
     return suspendCoroutine { cont ->
         addListener({
             cont.resume(get())
-        }, ContextCompat.getMainExecutor(context))
+        }, ContextCompat.getMainExecutor(context.applicationContext))
     }
 }
