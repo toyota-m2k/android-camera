@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 
 interface ICameraGestureOwner {
     val context: Context
-    val lifecycleScope: CoroutineScope
+    val gestureScope: CoroutineScope
     val previewView: PreviewView?
     val camera: Camera?
 }

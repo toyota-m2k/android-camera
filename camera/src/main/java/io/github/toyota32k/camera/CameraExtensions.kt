@@ -6,7 +6,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 
-class CameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider, val cameraSelector:CameraSelector) {
+class CameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider) {
     enum class Mode(val mode:Int) {
         NONE(ExtensionMode.NONE),
         BOKEH(ExtensionMode.BOKEH),
@@ -16,7 +16,6 @@ class CameraExtensions(val applicationContext: Context, val cameraProvider:Camer
         AUTO(ExtensionMode.AUTO);
     }
 
-    private lateinit var availability:Map<Mode,Boolean>
     lateinit var extensionsManager:ExtensionsManager
 
     suspend fun prepare(): CameraExtensions {
@@ -25,10 +24,11 @@ class CameraExtensions(val applicationContext: Context, val cameraProvider:Camer
         return this
     }
 
-    val capabilities:List<Mode>
-        get() = Mode.values().filter { extensionsManager.isExtensionAvailable(cameraSelector, it.mode) }
+    fun capabilitiesOf(cameraSelector:CameraSelector):List<Mode> {
+        return Mode.values().filter { extensionsManager.isExtensionAvailable(cameraSelector, it.mode) }
+    }
 
-    fun applyExtension(mode: Mode):CameraSelector {
+    fun applyExtensionTo(mode: Mode, cameraSelector:CameraSelector) : CameraSelector {
         return if(extensionsManager.isExtensionAvailable(cameraSelector, mode.mode)) {
             extensionsManager.getExtensionEnabledCameraSelector(cameraSelector, mode.mode)
         } else {
@@ -36,15 +36,15 @@ class CameraExtensions(val applicationContext: Context, val cameraProvider:Camer
         }
     }
 
-    companion object {
-        suspend fun getCameraSelector(applicationContext: Context, cameraProvider:CameraProvider, cameraSelector:CameraSelector, mode: Mode):CameraSelector {
-            return if(mode== Mode.NONE) {
-                cameraSelector
-            } else {
-                CameraExtensions(applicationContext,cameraProvider,cameraSelector).prepare().applyExtension(mode)
-            }
-        }
-    }
+//    companion object {
+//        suspend fun getCameraSelector(applicationContext: Context, cameraProvider:CameraProvider, cameraSelector:CameraSelector, mode: Mode):CameraSelector {
+//            return if(mode== Mode.NONE) {
+//                cameraSelector
+//            } else {
+//                CameraExtensions(applicationContext,cameraProvider,cameraSelector).prepare().applyExtension(mode)
+//            }
+//        }
+//    }
 
 
 }
