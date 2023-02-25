@@ -4,13 +4,16 @@ import android.Manifest
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
+import android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.bindit.*
+import io.github.toyota32k.bindit.Binder
+import io.github.toyota32k.bindit.actionBarVisibilityBinding
+import io.github.toyota32k.bindit.headlessNonnullBinding
 import io.github.toyota32k.camera.CameraExtensions
 import io.github.toyota32k.camera.CameraManager
 import io.github.toyota32k.camera.gesture.CameraGestureManager
@@ -59,6 +62,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
             .actionBarVisibilityBinding(viewModel.showStatusBar, interlockWithStatusBar = true)
 //            .bindCommand(LongClickUnitCommand(this::settingDialog), previewView!!)
         cameraGestureManager = CameraGestureManager(this, true, true, customAction =  this::settingDialog)
+        window.addFlags(FLAG_KEEP_SCREEN_ON)
     }
 
     override fun onResume() {
@@ -92,7 +96,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
                 }
                 acc.append(mode.toString())
                 acc
-            }.toString()
+            }.insert(0,"capabilities = ").toString()
             logger.debug(modes)
 
             cameraMamager.createPreviewCamera(
