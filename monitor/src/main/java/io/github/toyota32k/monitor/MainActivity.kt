@@ -14,8 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.actionBarVisibilityBinding
 import io.github.toyota32k.bindit.headlessNonnullBinding
-import io.github.toyota32k.camera.CameraExtensions
-import io.github.toyota32k.camera.CameraManager
+import io.github.toyota32k.camera.UtCameraExtensions
+import io.github.toyota32k.camera.CameraManager0
 import io.github.toyota32k.camera.gesture.CameraGestureManager
 import io.github.toyota32k.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -35,8 +35,8 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
     }
 
     private val permissionsBroker = UtPermissionBroker(this)
-    private val cameraMamager: CameraManager by lazy { CameraManager(this) }
-    private val currentCamera:CameraManager.CurrentCamera?
+    private val cameraMamager: CameraManager0 by lazy { CameraManager0(this) }
+    private val currentCamera:CameraManager0.CurrentCamera?
         get() = cameraMamager.currentCamera
     private val binder = Binder()
     private val viewModel by viewModels<MainViewModel>()
@@ -103,7 +103,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
                 this,
                 findViewById<PreviewView>(R.id.previewView),
                 frontCamera = front,
-                CameraExtensions.Mode.NONE
+                UtCameraExtensions.Mode.NONE
             )
         } catch (e: Throwable) {
             logger.error(e)

@@ -54,8 +54,8 @@ dependencies {
 
     implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
+    implementation project(path: ':libCamera')
 
-    implementation project(path: ':camera')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

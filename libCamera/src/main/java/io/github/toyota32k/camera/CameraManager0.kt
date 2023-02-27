@@ -9,13 +9,27 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 
-class CameraManager(context: Context) {
-    data class CurrentCamera(val camera:Camera, val frontCamera:Boolean)
+class CameraManager0(context: Context) {
+    private val applicationContext = context.applicationContext
+
+    // region Currently Selected Camera
+    class CurrentCamera(val camera:Camera, val frontCamera:Boolean)
 
     var currentCamera:CurrentCamera? = null
         private set
 
-    suspend fun getCapabilitiesOfCamera(frontCamera: Boolean):List<CameraExtensions.Mode> {
+    //
+
+    private var mCameraProvider:ProcessCameraProvider? = null
+    private suspend fun getCameraProvider():ProcessCameraProvider {
+        return mCameraProvider ?: ProcessCameraProvider.getInstance(applicationContext).await(applicationContext).also { mCameraProvider = it }
+    }
+    private var mCameraExtensions:UtCameraExtensions? = null
+    private suspend fun getCameraExtensions():UtCameraExtensions {
+        return mCameraExtensions ?: UtCameraExtensions(applicationContext, getCameraProvider()).prepare().also { mCameraExtensions = it }
+    }
+
+    suspend fun getCapabilitiesOfCamera(frontCamera: Boolean):List<UtCameraExtensions.Mode> {
         return getCameraExtensions().capabilitiesOf(if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
     }
 
@@ -29,7 +43,7 @@ class CameraManager(context: Context) {
         }.firstOrNull()
     }
 
-    suspend fun createPreviewCamera(lifecycleOwner:LifecycleOwner, previewView: PreviewView, frontCamera:Boolean=false, extensionMode: CameraExtensions.Mode = CameraExtensions.Mode.NONE):CurrentCamera {
+    suspend fun createPreviewCamera(lifecycleOwner:LifecycleOwner, previewView: PreviewView, frontCamera:Boolean=false, extensionMode: UtCameraExtensions.Mode = UtCameraExtensions.Mode.NONE):CurrentCamera {
         val cameraProvider = getCameraProvider()
         val cameraSelector = getCameraSelector(frontCamera, extensionMode)
 
@@ -64,7 +78,7 @@ class CameraManager(context: Context) {
         return ImageCapture.Builder().setCaptureMode(if(highSpeed) ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build()
     }
 
-    suspend fun createCamera(lifecycleOwner:LifecycleOwner, frontCamera: Boolean, extensionMode: CameraExtensions.Mode= CameraExtensions.Mode.NONE, vararg useCases:UseCase):CurrentCamera {
+    suspend fun createCamera(lifecycleOwner:LifecycleOwner, frontCamera: Boolean, extensionMode: UtCameraExtensions.Mode= UtCameraExtensions.Mode.NONE, vararg useCases:UseCase):CurrentCamera {
         if(useCases.isEmpty()) throw java.lang.IllegalArgumentException("no use cases.")
 
         val cameraProvider = getCameraProvider()
@@ -79,18 +93,8 @@ class CameraManager(context: Context) {
         ), frontCamera).also { currentCamera = it }
     }
 
-    private val applicationContext = context.applicationContext
 
-    private var mCameraProvider:ProcessCameraProvider? = null
-    private suspend fun getCameraProvider():ProcessCameraProvider {
-        return mCameraProvider ?: ProcessCameraProvider.getInstance(applicationContext).await(applicationContext).also { mCameraProvider = it }
-    }
-    private var mCameraExtensions:CameraExtensions? = null
-    private suspend fun getCameraExtensions():CameraExtensions {
-        return mCameraExtensions ?: CameraExtensions(applicationContext, getCameraProvider()).prepare().also { mCameraExtensions = it }
-    }
-
-    private suspend fun getCameraSelector(frontCamera: Boolean, extensionMode: CameraExtensions.Mode):CameraSelector {
+    private suspend fun getCameraSelector(frontCamera: Boolean, extensionMode: UtCameraExtensions.Mode):CameraSelector {
         val baseCameraSelector = if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
         return getCameraExtensions().applyExtensionTo(extensionMode, baseCameraSelector)
     }

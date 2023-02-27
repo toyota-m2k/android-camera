@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TryCamera"
 include ':monitor'
-include ':camera'
+include ':libCamera'

@@ -6,7 +6,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 
-class CameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider) {
+class UtCameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider) {
     enum class Mode(val mode:Int) {
         NONE(ExtensionMode.NONE),
         BOKEH(ExtensionMode.BOKEH),
@@ -18,7 +18,7 @@ class CameraExtensions(val applicationContext: Context, val cameraProvider:Camer
 
     lateinit var extensionsManager:ExtensionsManager
 
-    suspend fun prepare(): CameraExtensions {
+    suspend fun prepare(): UtCameraExtensions {
         extensionsManager = ExtensionsManager.getInstanceAsync(applicationContext, cameraProvider)
             .await(applicationContext)
         return this
