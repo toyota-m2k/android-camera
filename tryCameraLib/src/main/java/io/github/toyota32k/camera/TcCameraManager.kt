@@ -13,15 +13,13 @@ import androidx.lifecycle.LifecycleOwner
 import io.github.toyota32k.camera.usecase.TcImageCapture
 import io.github.toyota32k.camera.usecase.TcVideoCapture
 
-class TcCameraManager(context: Context) {
+class TcCameraManager() {
     companion object {
         // region SINGLETON
 
         private var sInstance:TcCameraManager? = null
-        fun initialize(context:Context) {
-            if(sInstance==null) {
-                sInstance = TcCameraManager(context)
-            }
+        fun initialize(context:Context):TcCameraManager {
+            return sInstance?: TcCameraManager().apply { sInstance = this }
         }
         fun dispose() {
             sInstance = null
@@ -33,7 +31,7 @@ class TcCameraManager(context: Context) {
         // endregion
     }
 
-    val application: Application = context.applicationContext as Application
+    val application: Application = TcLib.applicationContext
 
     // region CameraProvider
 
