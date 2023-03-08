@@ -19,6 +19,7 @@ class TcCameraManager() {
 
         private var sInstance:TcCameraManager? = null
         fun initialize(context:Context):TcCameraManager {
+            TcLib.initialize(context)
             return sInstance?: TcCameraManager().apply { sInstance = this }
         }
         fun dispose() {
@@ -31,7 +32,18 @@ class TcCameraManager() {
         // endregion
     }
 
-    val application: Application = TcLib.applicationContext
+    private val application: Application = TcLib.applicationContext
+
+    // region Initialization
+
+    private var isReady:Boolean = false
+    suspend fun prepare() {
+        if(!isReady) {
+            prepareCameraProvider()
+            prepareCameraExtensions()
+        }
+    }
+
 
     // region CameraProvider
 

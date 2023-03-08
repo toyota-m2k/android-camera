@@ -121,7 +121,7 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
     @RequiresApi(Build.VERSION_CODES.Q)
     override suspend fun takePictureInMediaStore(fileName: String): Uri? {
         return try {
-            imageCapture.takeInMediaStore(fileName.ifBlank { defaultFileName("img-", ".jpeg") })
+            imageCapture.takeInMediaStore(fileName.ifBlank { ITcUseCase.defaultFileName("img-", ".jpeg") })
         } catch (e:Throwable) {
             TcLib.logger.error(e)
             null

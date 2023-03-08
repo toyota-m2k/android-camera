@@ -10,8 +10,16 @@ import java.util.*
 
 interface ITcUseCase {
     val useCase: UseCase
-    fun defaultFileName(prefix:String, extension:String):String {
-        return "$prefix${SimpleDateFormat("yyyyMMddHHmmss", Locale.US).format(Date())}$extension"
+
+    companion object {
+        fun defaultFileName(prefix: String, extension: String): String {
+            return "$prefix${
+                SimpleDateFormat(
+                    "yyyyMMddHHmmss",
+                    Locale.US
+                ).format(Date())
+            }$extension"
+        }
     }
 }
 

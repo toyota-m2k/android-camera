@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".CameraActivity">
+    <androidx.camera.view.PreviewView
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:id="@+id/previewView" />
+
+    <LinearLayout
+        android:id="@+id/control_panel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/translucent_white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        <ImageButton android:id="@+id/expand_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_chevron_left"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_expand_panel" />
+        <ImageButton android:id="@+id/collapse_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_chevron_right"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_collapse_panel" />
+        <ImageButton android:id="@+id/photo_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_photo"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_photo" />
+        <ImageButton android:id="@+id/video_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_video"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_video" />
+        <ImageButton android:id="@+id/flip_camera_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_flip"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_flip_camera" />
+        <ImageButton android:id="@+id/close_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_close"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/desc_hide_panel" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

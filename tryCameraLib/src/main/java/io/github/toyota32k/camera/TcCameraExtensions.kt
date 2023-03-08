@@ -5,6 +5,7 @@ import androidx.camera.core.CameraProvider
 import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
+import io.github.toyota32k.utils.UtLog
 
 class TcCameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider) {
     enum class Mode(val mode:Int) {
@@ -25,7 +26,13 @@ class TcCameraExtensions(val applicationContext: Context, val cameraProvider:Cam
     }
 
     fun capabilitiesOf(cameraSelector:CameraSelector):List<Mode> {
-        return Mode.values().filter { extensionsManager.isExtensionAvailable(cameraSelector, it.mode) }
+        return Mode.values().filter {
+            extensionsManager.isExtensionAvailable(cameraSelector, it.mode)
+        }
+    }
+
+    fun capabilitiesOf(front:Boolean):List<Mode> {
+        return capabilitiesOf(if(front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
     }
 
     fun applyExtensionTo(mode: Mode, cameraSelector:CameraSelector) : CameraSelector {
@@ -34,6 +41,10 @@ class TcCameraExtensions(val applicationContext: Context, val cameraProvider:Cam
         } else {
             cameraSelector
         }
+    }
+
+    companion object {
+        val logger: UtLog = TcLib.logger
     }
 
 //    companion object {

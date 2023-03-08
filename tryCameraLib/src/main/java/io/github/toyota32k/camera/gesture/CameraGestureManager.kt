@@ -1,6 +1,11 @@
 package io.github.toyota32k.camera.gesture
 
-class CameraGestureManager(cameraOwner: ICameraGestureOwner, enableZoom:Boolean=true, enableFocus:Boolean=true, longTapToFocus:Boolean=false, customAction:(()->Unit)?=null) {
+class CameraGestureManager(
+    cameraOwner: ICameraGestureOwner,
+    enableZoom:Boolean=true,
+    enableFocus:Boolean=true,
+    longTapToFocus:Boolean=false,
+    customAction:(()->Unit)?=null) {
     private val focusGesture = FocusGestureListener(cameraOwner, enableFocus, longTapToFocus,customAction)
     private val zoomGesture = if(enableZoom) ZoomGestureListener(cameraOwner) else null
 

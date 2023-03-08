@@ -135,7 +135,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
      *
      */
     private fun createMediaStoreOutputOptions(fileName: String, fileSizeLimit:Long=FILE_SIZE_UNLIMITED.toLong()):MediaStoreOutputOptions {
-        val name = fileName.ifBlank { defaultFileName("mov-", ".mp4") }
+        val name = fileName.ifBlank { ITcUseCase.defaultFileName("mov-", ".mp4") }
         val contentValues = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, name)
         }
