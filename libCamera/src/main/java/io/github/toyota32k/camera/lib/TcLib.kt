@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera
+package io.github.toyota32k.camera.lib
 
 import android.app.Application
 import android.content.Context

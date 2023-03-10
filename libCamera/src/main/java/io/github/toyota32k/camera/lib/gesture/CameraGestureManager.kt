@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera.gesture
+package io.github.toyota32k.camera.lib.gesture
 
 class CameraGestureManager(
     cameraOwner: ICameraGestureOwner,

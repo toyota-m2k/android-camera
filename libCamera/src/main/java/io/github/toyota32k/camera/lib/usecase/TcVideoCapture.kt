@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera.usecase
+package io.github.toyota32k.camera.lib.usecase
 
 import android.Manifest
 import android.content.ContentResolver
@@ -12,7 +12,7 @@ import androidx.camera.video.*
 import androidx.camera.video.OutputOptions.FILE_SIZE_UNLIMITED
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
-import io.github.toyota32k.camera.TcLib
+import io.github.toyota32k.camera.lib.TcLib
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,8 @@ import java.util.concurrent.Executors
 //    output.prepareRecording(context, option)
 //}
 
-class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>, ITcVideoCamera, IUtPropOwner {
+class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>,
+    ITcVideoCamera, IUtPropOwner {
     companion object {
         val logger: UtLog = TcLib.logger
     }
@@ -48,7 +49,9 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
         STARTED,
         PAUSING,
     }
-    val recordingState: StateFlow<RecordingState> = recordingState ?: MutableStateFlow(RecordingState.NONE)
+    val recordingState: StateFlow<RecordingState> = recordingState ?: MutableStateFlow(
+        RecordingState.NONE
+    )
 
     // endregion
 
@@ -63,25 +66,25 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
         private var mQualitySelector: QualitySelector? = null
         private var mExecutor: Executor? = null
         private var mRecordingState:MutableStateFlow<RecordingState>? = null
-        fun qualitySelector(qualitySelector: QualitySelector):Builder {
+        fun qualitySelector(qualitySelector: QualitySelector): Builder {
             mQualitySelector = qualitySelector
             return this
         }
-        fun executor(executor: Executor):Builder {
+        fun executor(executor: Executor): Builder {
             mExecutor = executor
             return this
         }
-        fun useFixedPoolExecutor():Builder {
+        fun useFixedPoolExecutor(): Builder {
             mExecutor = Executors.newFixedThreadPool(2)
             return this
         }
 
-        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>):Builder {
+        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): Builder {
             mRecordingState = flow
             return this
         }
 
-        fun build():TcVideoCapture {
+        fun build(): TcVideoCapture {
             val recorder = Recorder.Builder()
                 .apply { mExecutor?.apply { setExecutor(this) } }
                 .setQualitySelector( mQualitySelector?: autoQualitySelector )

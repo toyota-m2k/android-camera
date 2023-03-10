@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera.gesture
+package io.github.toyota32k.camera.lib.gesture
 
 import android.content.Context
 import androidx.camera.core.Camera

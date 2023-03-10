@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera
+package io.github.toyota32k.camera.lib
 
 import android.app.Application
 import android.content.Context
@@ -9,9 +9,10 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.view.PreviewView
+import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
-import io.github.toyota32k.camera.usecase.TcImageCapture
-import io.github.toyota32k.camera.usecase.TcVideoCapture
+import io.github.toyota32k.camera.lib.usecase.TcImageCapture
+import io.github.toyota32k.camera.lib.usecase.TcVideoCapture
 
 class TcCameraManager() {
     companion object {
@@ -51,7 +52,7 @@ class TcCameraManager() {
         private set
 
     private suspend fun prepareCameraProvider() {
-        cameraProvider = ProcessCameraProvider.getInstance(application).await(application)
+        cameraProvider = ProcessCameraProvider.getInstance(application).await()
     }
 
     // endregion
@@ -131,8 +132,8 @@ class TcCameraManager() {
         private var mFrontCamera:Boolean = false
         private var mExtensionMode:TcCameraExtensions.Mode = TcCameraExtensions.Mode.NONE
         private var mPreview: Preview? = null
-        private var mImageCapture:TcImageCapture? = null
-        private var mVideoCapture:TcVideoCapture? = null
+        private var mImageCapture: TcImageCapture? = null
+        private var mVideoCapture: TcVideoCapture? = null
 
         fun frontCamera(frontCamera: Boolean):CameraBuilder {
             mFrontCamera = frontCamera

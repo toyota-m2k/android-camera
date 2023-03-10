@@ -1,11 +1,11 @@
-package io.github.toyota32k.camera.gesture
+package io.github.toyota32k.camera.lib.gesture
 
 import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.camera.core.FocusMeteringAction
+import androidx.concurrent.futures.await
 import androidx.core.view.GestureDetectorCompat
-import io.github.toyota32k.camera.TcLib
-import io.github.toyota32k.camera.await
+import io.github.toyota32k.camera.lib.TcLib
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 
@@ -35,7 +35,7 @@ class FocusGestureListener(
             try {
                 camera.cameraControl
                     .startFocusAndMetering(meteringAction)
-                    .await(cameraOwner.context)
+                    .await()
             } catch(e:Throwable) {
                 logger.error(e)
             }

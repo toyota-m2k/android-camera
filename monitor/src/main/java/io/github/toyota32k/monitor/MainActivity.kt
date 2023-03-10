@@ -8,16 +8,19 @@ import android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.view.PreviewView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.actionBarVisibilityBinding
 import io.github.toyota32k.bindit.headlessNonnullBinding
-import io.github.toyota32k.camera.TcCamera
-import io.github.toyota32k.camera.TcCameraManager
-import io.github.toyota32k.camera.gesture.CameraGestureManager
-import io.github.toyota32k.camera.gesture.ICameraGestureOwner
+import io.github.toyota32k.camera.lib.TcCamera
+import io.github.toyota32k.camera.lib.TcCameraManager
+import io.github.toyota32k.camera.lib.gesture.CameraGestureManager
+import io.github.toyota32k.camera.lib.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding
@@ -39,14 +42,15 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
     private val viewModel by viewModels<MainViewModel>()
-    lateinit var cameraGestureManager:CameraGestureManager
+    lateinit var cameraGestureManager: CameraGestureManager
     lateinit var controls:ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
-
+        hideActionBar()
+        hideStatusBar()
 //        controls.previewView.apply {
 //            isClickable = true
 //            isLongClickable = true
@@ -64,7 +68,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
         binder
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
-            .actionBarVisibilityBinding(viewModel.showStatusBar, interlockWithStatusBar = true)
+//            .actionBarVisibilityBinding(viewModel.showStatusBar, interlockWithStatusBar = true)
 //            .bindCommand(LongClickUnitCommand(this::settingDialog), previewView!!)
         cameraGestureManager = CameraGestureManager.Builder()
             .enableZoomGesture()
@@ -72,6 +76,17 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
             .longTapCustomAction(this::settingDialog)
             .build(this)
         window.addFlags(FLAG_KEEP_SCREEN_ON)
+    }
+
+    private fun hideActionBar() {
+        supportActionBar?.hide()
+    }
+    private fun hideStatusBar() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, controls.root).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
     }
 
     override fun onResume() {

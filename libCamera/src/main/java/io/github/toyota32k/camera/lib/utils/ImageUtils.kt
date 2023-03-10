@@ -1,10 +1,10 @@
 @file:Suppress("unused")
 
-package io.github.toyota32k.camera.utils
+package io.github.toyota32k.camera.lib.utils
 
 import android.graphics.*
 import androidx.camera.core.ImageProxy
-import io.github.toyota32k.camera.TcLib
+import io.github.toyota32k.camera.lib.TcLib
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 

@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera.usecase
+package io.github.toyota32k.camera.lib.usecase
 
 import android.graphics.Bitmap
 import android.net.Uri

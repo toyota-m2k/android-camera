@@ -1,4 +1,4 @@
-package io.github.toyota32k.camera.usecase
+package io.github.toyota32k.camera.lib.usecase
 
 import android.content.ContentValues
 import android.graphics.Bitmap
@@ -10,8 +10,8 @@ import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CaptureMode
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.core.content.ContextCompat
-import io.github.toyota32k.camera.TcLib
-import io.github.toyota32k.camera.utils.ImageUtils
+import io.github.toyota32k.camera.lib.TcLib
+import io.github.toyota32k.camera.lib.utils.ImageUtils
 import java.util.*
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
@@ -90,19 +90,19 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         @CaptureMode
         private var mode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
         @ExperimentalZeroShutterLag // region UseCases
-        fun zeroLag():Builder {
+        fun zeroLag(): Builder {
             mode = ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
             return this
         }
-        fun minimizeLatency():Builder {
+        fun minimizeLatency(): Builder {
             mode = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
             return this
         }
-        fun maximizeQuality():Builder {
+        fun maximizeQuality(): Builder {
             mode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
             return this
         }
-        fun build():TcImageCapture {
+        fun build(): TcImageCapture {
             return TcImageCapture(ImageCapture.Builder().setCaptureMode(mode).build())
         }
     }

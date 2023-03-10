@@ -1,10 +1,11 @@
-package io.github.toyota32k.camera
+package io.github.toyota32k.camera.lib
 
 import android.content.Context
 import androidx.camera.core.CameraProvider
 import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
+import androidx.concurrent.futures.await
 import io.github.toyota32k.utils.UtLog
 
 class TcCameraExtensions(val applicationContext: Context, val cameraProvider:CameraProvider) {
@@ -21,7 +22,7 @@ class TcCameraExtensions(val applicationContext: Context, val cameraProvider:Cam
 
     suspend fun prepare(): TcCameraExtensions {
         extensionsManager = ExtensionsManager.getInstanceAsync(applicationContext, cameraProvider)
-            .await(applicationContext)
+            .await()
         return this
     }
 

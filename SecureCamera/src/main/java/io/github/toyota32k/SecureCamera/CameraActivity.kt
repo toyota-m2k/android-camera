@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -14,20 +13,22 @@ import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.view.PreviewView
-import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.SecureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.bindit.*
-import io.github.toyota32k.camera.TcCamera
-import io.github.toyota32k.camera.TcCameraManager
-import io.github.toyota32k.camera.TcLib
-import io.github.toyota32k.camera.gesture.CameraGestureManager
-import io.github.toyota32k.camera.gesture.ICameraGestureOwner
-import io.github.toyota32k.camera.usecase.ITcUseCase
-import io.github.toyota32k.camera.usecase.TcImageCapture
-import io.github.toyota32k.camera.usecase.TcVideoCapture
+import io.github.toyota32k.camera.lib.TcCamera
+import io.github.toyota32k.camera.lib.TcCameraManager
+import io.github.toyota32k.camera.lib.TcLib
+import io.github.toyota32k.camera.lib.gesture.CameraGestureManager
+import io.github.toyota32k.camera.lib.gesture.ICameraGestureOwner
+import io.github.toyota32k.camera.lib.usecase.ITcUseCase
+import io.github.toyota32k.camera.lib.usecase.TcImageCapture
+import io.github.toyota32k.camera.lib.usecase.TcVideoCapture
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -59,8 +60,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         // > IllegalStateException: Surface was requested when the Recorder had been initialized with state IDLING
         // これを回避するため、カメラを切り替える場合は、TcVideoCapture を作り直すことにする。
         // つまり、録画中にカメラを切り替える操作は（システム的に）不可能。
-        private var mVideoCapture:TcVideoCapture? = null
-        val videoCapture:TcVideoCapture
+        private var mVideoCapture: TcVideoCapture? = null
+        val videoCapture: TcVideoCapture
             get() = mVideoCapture ?: TcVideoCapture.Builder().useFixedPoolExecutor().recordingStateFlow(recordingState).build().apply { mVideoCapture = this }
 
         /**
@@ -121,24 +122,24 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         super.onCreate(savedInstanceState)
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
-//        hideActionBar()
-//        hideStatusBar()
+        hideActionBar()
+        hideStatusBar()
 
-        controls.previewView.apply {
-            isClickable = true
-            isLongClickable = true
-        }
+//        controls.previewView.apply {
+//            isClickable = true
+//            isLongClickable = true
+//        }
 
         binder
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
             .visibilityBinding(controls.controlPanel, viewModel.showControlPanel)
-            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state==TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state==TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state==TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it!=TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it==TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it!=TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state== TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it== TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
             .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
             .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
@@ -175,22 +176,31 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-//    private fun hideActionBar() {
-//        supportActionBar?.hide()
-//    }
+    private fun hideActionBar() {
+        supportActionBar?.hide()
+    }
     private fun hideStatusBar() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window?.insetsController?.hide(
-                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            window?.decorView?.systemUiVisibility =
-                (View.SYSTEM_UI_FLAG_IMMERSIVE
-                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, controls.root).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+//
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+//            window?.insetsController?.hide(
+//                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+//            )
+//        } else {
+//            @Suppress("DEPRECATION")
+//            window?.decorView?.systemUiVisibility =
+//                (
+//                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+//                        or View.SYSTEM_UI_FLAG_FULLSCREEN
+//                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+//                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+//                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+//                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+//        }
     }
 
     private fun toggleCamera() {

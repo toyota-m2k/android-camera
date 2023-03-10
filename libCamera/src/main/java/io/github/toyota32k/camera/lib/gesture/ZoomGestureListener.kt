@@ -1,10 +1,10 @@
-package io.github.toyota32k.camera.gesture
+package io.github.toyota32k.camera.lib.gesture
 
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import androidx.camera.core.ZoomState
-import io.github.toyota32k.camera.TcLib
-import io.github.toyota32k.camera.await
+import androidx.concurrent.futures.await
+import io.github.toyota32k.camera.lib.TcLib
 import kotlinx.coroutines.launch
 import java.lang.Float.max
 import java.lang.Float.min
@@ -43,7 +43,7 @@ class ZoomGestureListener(cameraOwner: ICameraGestureOwner) : ScaleGestureDetect
 
         cameraOwner.gestureScope.launch {
             try {
-                camera.cameraControl.setZoomRatio(zoom).await(cameraOwner.context)
+                camera.cameraControl.setZoomRatio(zoom).await()
             } catch(e:Throwable) {
                 logger.error(e)
             } finally {
