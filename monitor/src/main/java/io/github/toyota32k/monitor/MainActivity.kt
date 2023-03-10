@@ -20,6 +20,7 @@ import io.github.toyota32k.camera.gesture.CameraGestureManager
 import io.github.toyota32k.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.monitor.databinding.ActivityMainBinding
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,27 +31,30 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
     class MainViewModel : ViewModel() {
         val frontCameraSelected = MutableStateFlow(true)
-        val showStatusBar = MutableLiveData<Boolean>(false)
+        val showStatusBar = MutableLiveData(false)
     }
 
     private val permissionsBroker = UtPermissionBroker(this)
-    private val cameraMamager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
+    private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
-//    private val currentCamera:CameraManager0.CurrentCamera?
-//        get() = cameraMamager.currentCamera
     private val binder = Binder()
     private val viewModel by viewModels<MainViewModel>()
     lateinit var cameraGestureManager:CameraGestureManager
+    lateinit var controls:ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        previewView = findViewById<PreviewView>(R.id.previewView)
-        previewView?.isClickable = true
-        previewView?.isLongClickable = true
+        controls = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(controls.root)
+
+//        controls.previewView.apply {
+//            isClickable = true
+//            isLongClickable = true
+//        }
 
         gestureScope.launch {
             if(permissionsBroker.requestPermission(Manifest.permission.CAMERA)) {
-                cameraMamager.prepare()
+                cameraManager.prepare()
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as MainActivity
                 me.startCamera(viewModel.frontCameraSelected.value)
             }
@@ -62,7 +66,11 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
             .actionBarVisibilityBinding(viewModel.showStatusBar, interlockWithStatusBar = true)
 //            .bindCommand(LongClickUnitCommand(this::settingDialog), previewView!!)
-        cameraGestureManager = CameraGestureManager(this, true, true, customAction =  this::settingDialog)
+        cameraGestureManager = CameraGestureManager.Builder()
+            .enableZoomGesture()
+            .enableFocusGesture()
+            .longTapCustomAction(this::settingDialog)
+            .build(this)
         window.addFlags(FLAG_KEEP_SCREEN_ON)
     }
 
@@ -71,8 +79,9 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
         viewModel.showStatusBar.value = false
     }
 
-    private fun settingDialog() {
+    private fun settingDialog():Boolean {
         SettingDialog.show(viewModel.frontCameraSelected)
+        return true
     }
 
     private fun changeCamera(front:Boolean) {
@@ -86,7 +95,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private fun startCamera(front: Boolean) {
         try {
-            val modes = cameraMamager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) {acc,mode->
+            val modes = cameraManager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) { acc, mode->
                 if(acc.isNotEmpty()) {
                     acc.append(",")
                 }
@@ -95,9 +104,9 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
             }.insert(0,"capabilities = ").toString()
             logger.debug(modes)
 
-            currentCamera = cameraMamager.CameraBuilder()
+            currentCamera = cameraManager.CameraBuilder()
                 .frontCamera(front)
-                .standardPreview(findViewById<PreviewView>(R.id.previewView))
+                .standardPreview(controls.previewView)
                 .build(this)
 
         } catch (e: Throwable) {
@@ -110,8 +119,8 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
         get() = this
     override val gestureScope: CoroutineScope
         get() = this.lifecycleScope
-    override var previewView: PreviewView? = null
-        private set
+    override val previewView: PreviewView
+        get() = controls.previewView
     override val camera: Camera?
         get() = currentCamera?.camera
 }

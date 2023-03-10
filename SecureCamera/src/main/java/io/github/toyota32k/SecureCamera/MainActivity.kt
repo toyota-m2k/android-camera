@@ -10,6 +10,7 @@ import androidx.camera.view.PreviewView
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
+import io.github.toyota32k.SecureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.camera.TcCamera
@@ -30,14 +31,17 @@ class MainActivity : UtMortalActivity() {
 
     private val binder = Binder()
     private val viewModel by viewModels<MainViewModel>()
+    private lateinit var controls:ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        controls = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(controls.root)
+//        setContentView(R.layout.activity_main)
 
         binder.owner(this)
-            .bindCommand(LiteUnitCommand {startActivity(Intent(this, CameraActivity::class.java))}, findViewById(R.id.camera_button) )
-            .bindCommand(LiteUnitCommand {startActivity(Intent(this, PlayerActivity::class.java))}, findViewById(R.id.player_button) )
+            .bindCommand(LiteUnitCommand {startActivity(Intent(this, CameraActivity::class.java))}, controls.cameraButton )
+            .bindCommand(LiteUnitCommand {startActivity(Intent(this, PlayerActivity::class.java))}, controls.playerButton )
     }
 
 }

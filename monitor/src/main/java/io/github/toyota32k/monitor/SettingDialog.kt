@@ -67,9 +67,9 @@ class SettingDialog : UtDialogEx() {
 
     companion object {
         fun show(frontCamera: MutableStateFlow<Boolean>) {
-            UtImmortalSimpleTask.run {
+            UtImmortalSimpleTask.run(SettingDialog::class.java.name) {
                 val model = SettingViewModel.create(this, frontCamera.value)
-                showDialog(SettingDialog::class.java.name) { SettingDialog() }
+                showDialog(taskName) { SettingDialog() }
                 frontCamera.value = model.frontCameraSelected.value
                 true
             }

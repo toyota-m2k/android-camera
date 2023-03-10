@@ -4,19 +4,21 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.widget.ImageButton
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import io.github.toyota32k.SecureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.camera.TcCamera
 import io.github.toyota32k.camera.TcCameraManager
@@ -26,12 +28,15 @@ import io.github.toyota32k.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.camera.usecase.ITcUseCase
 import io.github.toyota32k.camera.usecase.TcImageCapture
 import io.github.toyota32k.camera.usecase.TcVideoCapture
+import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -41,13 +46,29 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(false)
         val fullControlPanel = MutableStateFlow(false)
+        val recordingState = MutableStateFlow(TcVideoCapture.RecordingState.NONE)
 
         val expandPanelCommand = LiteCommand<Boolean> { fullControlPanel.value = it }
         val showPanelCommand = LiteCommand<Boolean> { showControlPanel.value = it }
 
         @ExperimentalZeroShutterLag // region UseCases
         val imageCapture by lazy { TcImageCapture.Builder().zeroLag().build() }
-        val videoCapture by lazy { TcVideoCapture.Builder().useFixedPoolExecutor().build() }
+        // val videoCapture by lazy { TcVideoCapture.Builder().useFixedPoolExecutor().build() }
+
+        // 一旦カメラに接続（bindToLifecycle）した VideoCapture は、unbindAll()しても、別のカメラに接続し直すと例外が出る。
+        // > IllegalStateException: Surface was requested when the Recorder had been initialized with state IDLING
+        // これを回避するため、カメラを切り替える場合は、TcVideoCapture を作り直すことにする。
+        // つまり、録画中にカメラを切り替える操作は（システム的に）不可能。
+        private var mVideoCapture:TcVideoCapture? = null
+        val videoCapture:TcVideoCapture
+            get() = mVideoCapture ?: TcVideoCapture.Builder().useFixedPoolExecutor().recordingStateFlow(recordingState).build().apply { mVideoCapture = this }
+
+        /**
+         * VideoCaptureの再作成を予約。
+         */
+        fun resetVideoCaptureOnFlipCamera() {
+            mVideoCapture = null
+        }
 
         override fun onCleared() {
             super.onCleared()
@@ -74,10 +95,15 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
         @SuppressLint("MissingPermission")
         val takeVideoCommand = LiteUnitCommand {
-            when (videoCapture.recordingState.value) {
+            when (recordingState.value) {
                 TcVideoCapture.RecordingState.NONE -> videoCapture.takeVideoInFile(newVideoFile())
                 TcVideoCapture.RecordingState.STARTED -> videoCapture.pause()
                 TcVideoCapture.RecordingState.PAUSING -> videoCapture.resume()
+            }
+        }
+        val finalizeVideoCommand = LiteUnitCommand {
+            if(recordingState.value != TcVideoCapture.RecordingState.NONE) {
+                videoCapture.stop()
             }
         }
     }
@@ -85,45 +111,51 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     private val permissionsBroker = UtMultiPermissionsBroker(this)
     private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
-    //    private val currentCamera:CameraManager0.CurrentCamera?
-//        get() = cameraMamager.currentCamera
     private val binder = Binder()
     private val viewModel by viewModels<CameraViewModel>()
     lateinit var cameraGestureManager: CameraGestureManager
 
+    private lateinit var controls: ActivityCameraBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_camera)
-        hideActionBar()
-        hideStatusBar()
+        controls = ActivityCameraBinding.inflate(layoutInflater)
+        setContentView(controls.root)
+//        hideActionBar()
+//        hideStatusBar()
 
-        previewView = findViewById(R.id.previewView)
-        previewView?.isClickable = true
-        previewView?.isLongClickable = true
-
-        val flipButton:ImageButton = findViewById(R.id.flip_camera_button)
-        val closeButton:ImageButton = findViewById(R.id.close_button)
-        val expandButton:ImageButton = findViewById(R.id.expand_button)
-        val collapseButton:ImageButton = findViewById(R.id.collapse_button)
-        val photoButton:ImageButton = findViewById(R.id.photo_button)
-        val videoButton:ImageButton = findViewById(R.id.video_button)
+        controls.previewView.apply {
+            isClickable = true
+            isLongClickable = true
+        }
 
         binder
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
-            .visibilityBinding(findViewById(R.id.control_panel), viewModel.showControlPanel)
-            .multiVisibilityBinding(arrayOf(flipButton, closeButton), viewModel.fullControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(expandButton, viewModel.fullControlPanel,BoolConvert.Inverse, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(collapseButton, viewModel.fullControlPanel, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommand(viewModel.expandPanelCommand, expandButton, true)
-            .bindCommand(viewModel.expandPanelCommand, collapseButton, false)
-            .bindCommand(viewModel.showPanelCommand, closeButton, false)
-            .bindCommand(viewModel.takePictureCommand, photoButton)
-            .bindCommand(viewModel.takeVideoCommand, videoButton)
+            .visibilityBinding(controls.controlPanel, viewModel.showControlPanel)
+            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state==TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state==TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state==TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it!=TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it==TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it!=TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
+            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
+            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
+            .bindCommand(viewModel.takePictureCommand, controls.photoButton)
+            .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton)
+            .bindCommand(viewModel.finalizeVideoCommand, controls.videoStopButton)
+            .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
 
-        cameraGestureManager = CameraGestureManager(this, true, true) {
-            viewModel.showPanelCommand.invoke(true)
-        }
+        cameraGestureManager = CameraGestureManager.Builder()
+            .enableFocusGesture()
+            .enableZoomGesture()
+            .longTapCustomAction {
+                viewModel.showPanelCommand.invoke(true)
+                true
+            }
+            .build(this)
+
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         gestureScope.launch {
@@ -143,9 +175,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private fun hideActionBar() {
-        supportActionBar?.hide()
-    }
+//    private fun hideActionBar() {
+//        supportActionBar?.hide()
+//    }
     private fun hideStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window?.insetsController?.hide(
@@ -161,10 +193,17 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
     }
 
+    private fun toggleCamera() {
+        val current = currentCamera?.frontCamera ?: return
+        changeCamera(!current)
+    }
     private fun changeCamera(front:Boolean) {
         val camera = currentCamera ?: return
         if(camera.frontCamera!=front) {
-            lifecycleScope.launch { startCamera(front) }
+            lifecycleScope.launch {
+                viewModel.resetVideoCaptureOnFlipCamera()
+                startCamera(front)
+            }
         }
     }
 
@@ -182,7 +221,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             @ExperimentalZeroShutterLag // region UseCases
             currentCamera = cameraManager.CameraBuilder()
                 .frontCamera(front)
-                .standardPreview(findViewById<PreviewView>(R.id.previewView))
+                .standardPreview(previewView)
                 .imageCapture(viewModel.imageCapture)
                 .videoCapture(viewModel.videoCapture)
                 .build(this)
@@ -197,8 +236,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         get() = this
     override val gestureScope: CoroutineScope
         get() = this.lifecycleScope
-    override var previewView: PreviewView? = null
-        private set
+    override val previewView: PreviewView
+        get() = controls.previewView
     override val camera: Camera?
         get() = currentCamera?.camera
 }

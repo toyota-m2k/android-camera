@@ -27,7 +27,7 @@ import java.util.concurrent.Executors
 //    output.prepareRecording(context, option)
 //}
 
-class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoRecordEvent>, ITcVideoCamera, IUtPropOwner {
+class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>, ITcVideoCamera, IUtPropOwner {
     companion object {
         val logger: UtLog = TcLib.logger
     }
@@ -42,30 +42,27 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
     // region Status / Properties
 
     var recording:Recording? = null
-        private set(v) {
-            field = v
-            recordingState.mutable.value = RecordingState.STARTED
-        }
 
     enum class RecordingState {
         NONE,
         STARTED,
         PAUSING,
     }
-    val recordingState: StateFlow<RecordingState> = MutableStateFlow(RecordingState.NONE)
+    val recordingState: StateFlow<RecordingState> = recordingState ?: MutableStateFlow(RecordingState.NONE)
 
     // endregion
 
     // region Construction
 
     class Builder {
-        val autoQualitySelector:QualitySelector
+        private val autoQualitySelector:QualitySelector
             get() = QualitySelector.fromOrderedList(
                 listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
                 FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
 
         private var mQualitySelector: QualitySelector? = null
         private var mExecutor: Executor? = null
+        private var mRecordingState:MutableStateFlow<RecordingState>? = null
         fun qualitySelector(qualitySelector: QualitySelector):Builder {
             mQualitySelector = qualitySelector
             return this
@@ -78,12 +75,18 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
             mExecutor = Executors.newFixedThreadPool(2)
             return this
         }
+
+        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>):Builder {
+            mRecordingState = flow
+            return this
+        }
+
         fun build():TcVideoCapture {
             val recorder = Recorder.Builder()
                 .apply { mExecutor?.apply { setExecutor(this) } }
                 .setQualitySelector( mQualitySelector?: autoQualitySelector )
                 .build()
-            return TcVideoCapture(VideoCapture.withOutput(recorder))
+            return TcVideoCapture(VideoCapture.withOutput(recorder), mRecordingState)
         }
     }
 
@@ -91,8 +94,15 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
 
     // region Consumer<VideoRecordEvent>
 
-    override fun accept(t: VideoRecordEvent?) {
-        logger.debug("$t")
+    override fun accept(event: VideoRecordEvent?) {
+        when(event) {
+            is VideoRecordEvent.Start -> recordingState.mutable.value = RecordingState.STARTED
+            is VideoRecordEvent.Pause -> recordingState.mutable.value = RecordingState.PAUSING
+            is VideoRecordEvent.Resume -> recordingState.mutable.value = RecordingState.STARTED
+            is VideoRecordEvent.Finalize -> recordingState.mutable.value = RecordingState.NONE
+            else -> return
+        }
+        logger.debug("$event")
     }
 
     // endregion
@@ -208,12 +218,10 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
 
     override fun pause() {
         recording?.pause() ?: throw java.lang.IllegalStateException("not recording")
-        recordingState.mutable.value = RecordingState.PAUSING
     }
 
     override fun resume() {
         recording?.resume() ?: throw java.lang.IllegalStateException("not recording")
-        recordingState.mutable.value = RecordingState.STARTED
     }
 
     override fun stop() {
@@ -224,7 +232,6 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>) : Consumer<VideoR
     override fun close() {
         recording?.close()
         recording = null
-        recordingState.mutable.value = RecordingState.NONE
     }
 
     // endregion

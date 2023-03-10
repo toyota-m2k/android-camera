@@ -13,7 +13,8 @@ class FocusGestureListener(
     cameraOwner: ICameraGestureOwner,
     private val enableFocus:Boolean,
     private val longTapToFocus:Boolean,
-    var customAction:(()->Unit)? = null
+    var singleTapCustomAction:(()->Boolean)? = null,
+    var longTapCustomAction:(()->Boolean)? = null
 ) : GestureDetector.SimpleOnGestureListener() {
     companion object {
         val logger = TcLib.logger
@@ -42,25 +43,26 @@ class FocusGestureListener(
         return true
     }
 
-    private fun invokeCustomCommand():Boolean {
-        customAction?.invoke() ?: return false
-        return true
+    private fun invokeCustomCommand(fn:(()->Boolean)?):Boolean {
+        return fn?.invoke() ?: return false
     }
 
     override fun onSingleTapUp(e: MotionEvent): Boolean {
         logger.debug("single tap")
+        if(invokeCustomCommand(singleTapCustomAction)) {
+            return true
+        }
         return if(!longTapToFocus) {
             focus(e)
-        } else {
-            invokeCustomCommand()
-        }
+        } else false
     }
 
     override fun onLongPress(e: MotionEvent) {
         logger.debug("long tap")
-        if(!longTapToFocus) {
-            invokeCustomCommand()
-        } else {
+        if(invokeCustomCommand(longTapCustomAction)) {
+            return
+        }
+        if(longTapToFocus) {
             focus(e)
         }
     }

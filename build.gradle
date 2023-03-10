@@ -1,14 +1,15 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
-//    ext.m2k_bind_it_version = "2.0.1"
-    ext.m2k_bind_it_version = "75ba765be7"
-    ext.m2k_android_dialog_version = "3.4.0"
+    ext.kotlin_version = '1.8.10'
+    ext.m2k_bind_it_version = "2.1.0"
+//    ext.m2k_bind_it_version = "75ba765be7"
+    ext.m2k_android_dialog_version = "3.5.0"
     ext.m2k_viewex_version = "0.0.1"
 }
 
 plugins {
     id 'com.android.application' version '7.4.2' apply false
     id 'com.android.library' version '7.4.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.7.21' apply false
+    id 'org.jetbrains.kotlin.android' version "$kotlin_version" apply false
 }
 
