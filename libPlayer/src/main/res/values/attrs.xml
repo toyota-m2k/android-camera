@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!--    <attr name="colorSurface" format="color"/>-->
+<!--    <attr name="colorOnSurface" format="color"/>-->
+    <declare-styleable name="AmvExoVideoPlayer">
+        <attr name="playOnTouch" format="boolean" />
+        <attr name="showControlBar" format="boolean"/>
+        <attr name="fitParent" format="boolean"/>
+    </declare-styleable>
+    <declare-styleable name="ChapterView">
+        <attr name="defaultColor" format="color"/>
+        <attr name="enabledColor" format="color"/>
+        <attr name="disabledColor" format="color"/>
+        <attr name="tickColor" format="color"/>
+    </declare-styleable>
+    <declare-styleable name="ControlPanel">
+        <attr name="panelBackgroundColor" format="color"/>
+        <attr name="panelTextColor" format="color"/>
+        <attr name="buttonTintColor" format="color"/>
+        <attr name="buttonDisabledTintColor" format="color"/>
+    </declare-styleable>
+</resources>

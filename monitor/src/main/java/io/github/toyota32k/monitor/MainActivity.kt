@@ -15,12 +15,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.actionBarVisibilityBinding
 import io.github.toyota32k.bindit.headlessNonnullBinding
-import io.github.toyota32k.camera.lib.TcCamera
-import io.github.toyota32k.camera.lib.TcCameraManager
-import io.github.toyota32k.camera.lib.gesture.CameraGestureManager
-import io.github.toyota32k.camera.lib.gesture.ICameraGestureOwner
+import io.github.toyota32k.lib.camera.TcCamera
+import io.github.toyota32k.lib.camera.TcCameraManager
+import io.github.toyota32k.lib.camera.gesture.CameraGestureManager
+import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding

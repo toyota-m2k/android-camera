@@ -11,4 +11,6 @@
     <string name="desc_flip_camera">Flip front/back camera</string>
     <string name="desc_video_stop">Stop Recording</string>
     <string name="desc_video_pause">Pause Recording</string>
+    <string name="list_videos">Video</string>
+    <string name="list_photos">Photo</string>
 </resources>
