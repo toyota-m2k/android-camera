@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'io.github.toyota32k.SecureCamera'
+    namespace 'io.github.toyota32k.secureCamera'
     compileSdk 33
 
     defaultConfig {
-        applicationId "io.github.toyota32k.SecureCamera"
+        applicationId "io.github.toyota32k.secureCamera"
         minSdk 26
         targetSdk 33
         versionCode 1

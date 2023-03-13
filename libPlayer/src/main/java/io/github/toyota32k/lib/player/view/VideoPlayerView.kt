@@ -6,8 +6,8 @@ import android.view.LayoutInflater
 import android.widget.FrameLayout
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.model.ControlPanelModel
-import io.github.toyota32k.lib.player.view.AmvExoVideoPlayer
+import io.github.toyota32k.lib.player.model.PlayerControllerModel
+import io.github.toyota32k.lib.player.view.ExoVideoPlayer
 import io.github.toyota32k.lib.player.view.ControlPanel
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.UtLog
@@ -22,14 +22,14 @@ class VideoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribu
         LayoutInflater.from(context).inflate(R.layout.v2_player_view, this)
     }
 
-    private lateinit var model: ControlPanelModel
+    private lateinit var model: PlayerControllerModel
 
-    fun bindViewModel(model: ControlPanelModel, binder: Binder) {
+    fun bindViewModel(model: PlayerControllerModel, binder: Binder) {
         this.model = model
 //        val owner = lifecycleOwner()!!
 //        val scope = owner.lifecycleScope
 
-        val player = findViewById<AmvExoVideoPlayer>(R.id.player)
+        val player = findViewById<ExoVideoPlayer>(R.id.player)
         player.bindViewModel(model, binder)
 
         val controller = findViewById<ControlPanel>(R.id.controller)

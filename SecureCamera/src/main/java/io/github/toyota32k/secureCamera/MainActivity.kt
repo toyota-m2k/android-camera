@@ -1,10 +1,10 @@
-package io.github.toyota32k.SecureCamera
+package io.github.toyota32k.secureCamera
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
-import io.github.toyota32k.SecureCamera.databinding.ActivityMainBinding
+import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -19,7 +19,7 @@ class MainActivity : UtMortalActivity() {
 
     private val binder = Binder()
     private val viewModel by viewModels<MainViewModel>()
-    private lateinit var controls:ActivityMainBinding
+    private lateinit var controls: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -23,6 +23,13 @@
             android:gravity="center_horizontal"
             >
             <Button
+                android:id="@+id/radio_all"
+                android:text="@string/list_all"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+            <Button
                 android:id="@+id/radio_videos"
                 android:text="@string/list_videos"
                 android:layout_width="wrap_content"
@@ -42,6 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+
             />
     </LinearLayout>
     <FrameLayout
@@ -50,13 +58,43 @@
         android:layout_weight="1"
         tools:background="#ff0000"
         >
-        <ImageView
+        <FrameLayout
             android:id="@+id/photo_viewer"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="fitCenter"/>
+            android:layout_height="match_parent">
+            <ImageView
+                android:id="@+id/image_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"/>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="bottom|center_horizontal"
+                android:background="@color/translucent_white"
+                >
+                <ImageButton
+                    android:id="@+id/image_prev_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_chevron_left"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+                <ImageButton
+                    android:id="@+id/image_next_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_chevron_right"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+
+            </LinearLayout>
+        </FrameLayout>
         <io.github.toyota32k.video.view.VideoPlayerView
-            android:id="@+id/player_view"
+            android:id="@+id/video_viewer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             />

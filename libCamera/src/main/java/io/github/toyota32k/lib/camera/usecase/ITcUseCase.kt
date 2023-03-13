@@ -15,7 +15,7 @@ interface ITcUseCase {
         fun defaultFileName(prefix: String, extension: String): String {
             return "$prefix${
                 SimpleDateFormat(
-                    "yyyyMMddHHmmss",
+                    "yyyy.MM.dd-HH:mm:ss",
                     Locale.US
                 ).format(Date())
             }$extension"

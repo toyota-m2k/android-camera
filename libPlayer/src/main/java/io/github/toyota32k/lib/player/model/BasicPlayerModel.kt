@@ -23,10 +23,20 @@ import kotlinx.coroutines.flow.*
 import kotlin.math.max
 import kotlin.math.min
 
-abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
+open class BasicPlayerModel(
+    context: Context,
+    final override val scope: CoroutineScope // dispose()まで有効なコルーチンスコープ)
+) : IPlayerModel, IUtPropOwner {
     companion object {
         val logger by lazy { UtLog("PM", TpLib.logger) }
     }
+
+    // region Properties / Status
+    final override val context: Application = context.applicationContext as Application           // ApplicationContextならViewModelが持っていても大丈夫だと思う。
+
+    /**
+     * プレーヤーの状態
+     */
 
     enum class PlayerState {
         None,       // 初期状態
@@ -34,39 +44,54 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
         Ready,
         Error,
     }
-
-    final override val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)          // dispose()まで有効なコルーチンスコープ
-    final override val context: Application = context.applicationContext as Application           // ApplicationContextならViewModelが持っていても大丈夫だと思う。
-    private val listener =  PlayerListener()                                       // ExoPlayerのリスナー
-    protected var isDisposed:Boolean = false      // close済みフラグ
-        private set
-    /**
-     * プレーヤーの状態
-     */
     protected val state: StateFlow<PlayerState> = MutableStateFlow(PlayerState.None)
+
+    final override val isLoading = state.map { it == PlayerState.Loading }.stateIn(scope, SharingStarted.Eagerly, false)
+    final override val isReady = state.map { it== PlayerState.Ready }.stateIn(scope, SharingStarted.Eagerly, false)
+    final override val isPlaying = MutableStateFlow<Boolean>(false)
+
+    protected val ended = MutableStateFlow(false)                   // 次回再生開始時に先頭に戻すため、最後まで再生したことを覚えておくフラグ
+    private val watchPositionEvent = SuspendableEvent(signal = false, autoReset = false)    // スライダー位置監視を止めたり、再開したりするためのイベント
+
+    private var isDisposed:Boolean = false      // close済みフラグ
+        private set
 
     /**
      * エラーメッセージ
      */
     final override val errorMessage: StateFlow<String?> = MutableStateFlow<String?>(null)
-
-    final override val isLoading = state.map { it == PlayerState.Loading }.stateIn(scope, SharingStarted.Eagerly, false)
-    final override val isReady = state.map { it== PlayerState.Ready }.stateIn(scope, SharingStarted.Eagerly, false)
-    final override val isPlaying = MutableStateFlow<Boolean>(false)
     final override val isError = errorMessage.map { !it.isNullOrBlank() }.stateIn(scope, SharingStarted.Lazily, false)
 
-    protected val watchPositionEvent = SuspendableEvent(signal = false, autoReset = false)    // スライダー位置監視を止めたり、再開したりするためのイベント
-    protected val ended = MutableStateFlow(false)                   // 次回再生開始時に先頭に戻すため、最後まで再生したことを覚えておくフラグ
+    /**
+     * （外部から）エラーメッセージを設定する
+     */
+    fun setErrorMessage(msg:String?) {
+        errorMessage.mutable.value = msg
+    }
+
+    // endregion
+
+    // region About Current Movie
 
     /**
      * 現在再生中の動画のソース
      */
-    protected val currentSource:StateFlow<IAmvSource?> = MutableStateFlow<IAmvSource?>(null)
+    override val currentSource = MutableStateFlow<IMediaSource?>(null)
 
     /**
      * 動画の全再生時間
      */
     override val naturalDuration: StateFlow<Long> = MutableStateFlow(0L)
+
+    /**
+     * 動画の画面サイズ情報
+     * ExoPlayerの動画読み込みが成功したとき onVideoSizeChanged()イベントから設定される。
+     */
+    val videoSize: StateFlow<VideoSize?> = MutableStateFlow<VideoSize?>(null)
+
+    // endregion
+
+    // region Initialize / Termination
 
     init {
         isPlaying.onEach {
@@ -77,20 +102,20 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
 
         ended.onEach {
             if(it) {
-                onEnd()
+                onPlaybackCompleted()
             }
         }.launchIn(scope)
 
-        currentSource.onEach(this::onUpdateCurrentSource).launchIn(scope)
 
         scope.launch {
             while(!isDisposed) {
                 watchPositionEvent.waitOne()
                 if(isPlaying.value) {
+                    val src = currentSource.value as? IMediaSourceWithChapter
                     val pos = player.currentPosition
                     playerSeekPosition.mutable.value = pos
                     // 無効区間、トリミングによる再生スキップの処理
-                    val dr =disabledRanges
+                    val dr = src?.disabledRanges
                     if(dr!=null) {
                         val hit = dr.firstOrNull { it.contains(pos) }
                         if (hit != null) {
@@ -110,85 +135,19 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
     }
 
     /**
-     * 動画の画面サイズ情報
-     * ExoPlayerの動画読み込みが成功したとき onVideoSizeChanged()イベントから設定される。
+     * 解放
      */
-    val videoSize: StateFlow<VideoSize?> = MutableStateFlow<VideoSize?>(null)
-
-    /**
-     * ExoPlayerのイベントリスナークラス
-     */
-    inner class PlayerListener :  Player.Listener {
-        override fun onVideoSizeChanged(videoSize: VideoSize) {
-            this@PlayerModelBase.videoSize.mutable.value = videoSize
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            logger.stackTrace(error)
-            if(!isReady.value) {
-                state.mutable.value = PlayerState.Error
-                errorMessage.mutable.value = context.getString(R.string.video_player_error)
-            } else {
-                logger.warn("ignoring exo error.")
-            }
-        }
-
-        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            isPlaying.value = playWhenReady
-        }
-
-        override fun onPlaybackStateChanged(playbackState:Int) {
-            super.onPlaybackStateChanged(playbackState)
-            when(playbackState) {
-                Player.STATE_IDLE -> {
-                    state.mutable.value = PlayerState.None
-                }
-                Player.STATE_BUFFERING -> {
-                    if(state.value == PlayerState.None) {
-                        state.mutable.value = PlayerState.Loading
-                    } else {
-                        scope.launch {
-                            for (i in 0..20) {
-                                delay(100)
-                                if (player.playbackState != Player.STATE_BUFFERING) {
-                                    break
-                                }
-                            }
-                            if (player.playbackState == Player.STATE_BUFFERING) {
-                                // ２秒以上bufferingならロード中に戻す
-                                logger.debug("buffering more than 2 sec")
-                                state.mutable.value = PlayerState.Loading
-                            }
-                        }
-                    }
-
-                }
-                Player.STATE_READY ->  {
-                    ended.value = false
-                    state.mutable.value = PlayerState.Ready
-                    naturalDuration.mutable.value = player.duration
-                }
-                Player.STATE_ENDED -> {
-//                    player.playWhenReady = false
-                    ended.value = true
-                }
-                else -> {}
-            }
-        }
-
-//        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-//            if(useExoPlayList) {
-//                state.mutable.value = PlayerState.None
-//                videoSize.mutable.value = null
-//                errorMessage.mutable.value = null
-//                naturalDuration.mutable.value = 0L
-//
-//                currentSource.mutable.value = mediaItem?.getAmvSource()
-//                hasNext.value = player.hasNextMediaItem()
-//                hasPrevious.value = player.hasPreviousMediaItem()
-//            }
-//        }
+    override fun close() {
+        logger.debug()
+        player.removeListener(listener)
+        player.release()
+        scope.cancel()
+        isDisposed = true
     }
+
+    // endregion
+
+    // region Seeking
 
     inner class SeekManagerEx : ISeekManager {
         override val requestedPositionFromSlider = MutableStateFlow<Long>(-1L)
@@ -260,55 +219,135 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
         clippingSeekTo(player.currentPosition + seek, true )
     }
 
-    fun seekTo(pos:Long) {
+    override fun seekTo(seek:Long) {
         if(!isReady.value) return
-        clippingSeekTo(pos, true)
+        clippingSeekTo(seek, true)
     }
 
+    /**
+     * プレーヤー内の再生位置
+     * 動画再生中は、タイマーで再生位置(player.currentPosition)を監視して、このFlowにセットする。
+     * スライダーは、これをcollectして、シーク位置を同期する。
+     */
+    override val playerSeekPosition: StateFlow<Long> =  MutableStateFlow(0L)
 
-    final override val chapterList:StateFlow<IChapterList?> = MutableStateFlow(null)
-    override val hasChapters:StateFlow<Boolean> = chapterList.map {
-        val r = it?.chapters?.isNotEmpty() ?: false
-        logger.debug("hasChapters=$r")
-        r
-    }.stateIn(scope, SharingStarted.Eagerly,false)
-    final override var disabledRanges:List<Range>? = null
-        private set
-
-    override fun nextChapter() {
-        val c = chapterList.value?.run {
-            next(player.currentPosition)
-        } ?: return
-        seekTo(c.position)
-    }
-    override fun prevChapter() {
-        val c = chapterList.value?.run {
-            prev(player.currentPosition)
-        } ?: return
-        seekTo(c.position)
+    /**
+     * 再生中に EOS に達したときの処理
+     * デフォルト： 再生を止めて先頭にシークする
+     */
+    override fun onPlaybackCompleted() {
+        pause()
+        clippingSeekTo(0, true)
     }
 
-    suspend fun onUpdateCurrentSource(src:IAmvSource?) {
-        chapterList.mutable.value = null
-        val list = src?.getChapterList()
-        if(list==null) return
-        disabledRanges = src.disabledRanges(list)
-        chapterList.mutable.value = list
+    // endregion
+
+    // region ExoPlayer Video Player
+
+    /**
+     * ExoPlayerのイベントリスナークラス
+     */
+    inner class PlayerListener :  Player.Listener {
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            this@BasicPlayerModel.videoSize.mutable.value = videoSize
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            logger.stackTrace(error)
+            if(!isReady.value) {
+                state.mutable.value = PlayerState.Error
+                errorMessage.mutable.value = context.getString(R.string.video_player_error)
+            } else {
+                logger.warn("ignoring exo error.")
+            }
+        }
+
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            isPlaying.value = playWhenReady
+        }
+
+        override fun onPlaybackStateChanged(playbackState:Int) {
+            super.onPlaybackStateChanged(playbackState)
+            when(playbackState) {
+                Player.STATE_IDLE -> {
+                    state.mutable.value = PlayerState.None
+                }
+                Player.STATE_BUFFERING -> {
+                    if(state.value == PlayerState.None) {
+                        state.mutable.value = PlayerState.Loading
+                    } else {
+                        scope.launch {
+                            for (i in 0..20) {
+                                delay(100)
+                                if (player.playbackState != Player.STATE_BUFFERING) {
+                                    break
+                                }
+                            }
+                            if (player.playbackState == Player.STATE_BUFFERING) {
+                                // ２秒以上bufferingならロード中に戻す
+                                logger.debug("buffering more than 2 sec")
+                                state.mutable.value = PlayerState.Loading
+                            }
+                        }
+                    }
+
+                }
+                Player.STATE_READY ->  {
+                    ended.value = false
+                    state.mutable.value = PlayerState.Ready
+                    naturalDuration.mutable.value = player.duration
+                }
+                Player.STATE_ENDED -> {
+//                    player.playWhenReady = false
+                    ended.value = true
+                }
+                else -> {}
+            }
+        }
+
+//        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+//            if(useExoPlayList) {
+//                state.mutable.value = PlayerState.None
+//                videoSize.mutable.value = null
+//                errorMessage.mutable.value = null
+//                naturalDuration.mutable.value = 0L
+//
+//                currentSource.mutable.value = mediaItem?.getAmvSource()
+//                hasNext.value = player.hasNextMediaItem()
+//                hasPrevious.value = player.hasPreviousMediaItem()
+//            }
+//        }
     }
 
+    // ExoPlayerのリスナー
+    private val listener =  PlayerListener()
 
-
+    // ExoPlayer
     protected val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         addListener(listener)
     }
 
+    override val currentPosition: Long
+        get() = player.currentPosition
+
+
+    /**
+     * View （StyledPlayerView）に Playerを関連付ける
+     */
     override fun associatePlayerView(playerView: StyledPlayerView) {
         playerView.player = player
     }
 
+    /**
+     * バックグラウンド再生（PlayerNotificationManager）対応用
+     */
     fun associateNotificationManager(manager: PlayerNotificationManager) {
         manager.setPlayer(player)
     }
+
+    // endregion
+
+    // region Sizing of Player View
 
     /**
      * VideoSizeはExoPlayerの持ち物なので、ライブラリ利用者が明示的にexoplayerをリンクしていないとアクセスできない。
@@ -331,16 +370,6 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
         rootViewSize.mutable.value = size
     }
 
-
-    /**
-     * （外部から）エラーメッセージを設定する
-     */
-    fun setErrorMessage(msg:String?) {
-        errorMessage.mutable.value = msg
-    }
-
-
-
     /**
      * ルートビューに動画プレーヤーを配置する方法を指定
      *  true: ルートビューにぴったりフィット（Aspectは無視）
@@ -359,41 +388,41 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
             .resultSize
     }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-    //    val isDisturbing:StateFlow<Boolean> = MutableStateFlow(false)
+    // endregion
 
-    /**
-     * プレーヤー内の再生位置
-     * 動画再生中は、タイマーで再生位置(player.currentPosition)を監視して、このFlowにセットする。
-     * スライダーは、これをcollectして、シーク位置を同期する。
-     */
-    override val playerSeekPosition: StateFlow<Long> =  MutableStateFlow(0L)
+    // region Handling Media Sources
 
-    protected fun MediaItem.getAmvSource(): IAmvSource {
-        return this.localConfiguration!!.tag as IAmvSource
+    fun MediaItem.getAmvSource(): IMediaSource {
+        return this.localConfiguration!!.tag as IMediaSource
     }
 
-    protected fun makeMediaSource(item:IAmvSource) : MediaSource {
+    fun makeMediaSource(item:IMediaSource) : MediaSource {
         return ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context)).createMediaSource(MediaItem.Builder().setUri(item.uri).setTag(item).build())
     }
 
-    /**
-     * 解放
-     */
-    override fun close() {
-        logger.debug()
-        player.removeListener(listener)
-        player.release()
-        scope.cancel()
-        isDisposed = true
+    override fun setSource(src:IMediaSource?, autoPlay:Boolean) {
+        reset()
+        if(src==null) return
+        currentSource.value = src
+        val pos = max(src.trimming.start, src.startPosition.getAndSet(0L))
+
+        player.setMediaSource(makeMediaSource(src), pos)
+        player.prepare()
+        if(autoPlay) {
+            play()
+        }
     }
+
+    // endregion
+
+    // region Controlling Player
 
     /**
      * 再初期化
      */
-    open fun reset() {
+    override fun reset() {
         logger.debug()
         pause()
-        currentSource.mutable.value = null
         seekManager.reset()
     }
 
@@ -427,5 +456,5 @@ abstract class PlayerModelBase(context: Context) : IPlayerModel, IUtPropOwner {
         player.playWhenReady = false
     }
 
-    protected abstract fun onEnd()
+    // endregion
 }

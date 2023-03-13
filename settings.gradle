@@ -16,5 +16,5 @@ dependencyResolutionManagement {
 rootProject.name = "TryCamera"
 include ':monitor'
 include ':libCamera'
-include ':SecureCamera'
+include ':secureCamera'
 include ':libPlayer'

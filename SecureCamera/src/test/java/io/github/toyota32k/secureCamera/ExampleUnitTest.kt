@@ -1,4 +1,4 @@
-package io.github.toyota32k.SecureCamera
+package io.github.toyota32k.secureCamera
 
 import org.junit.Test
 

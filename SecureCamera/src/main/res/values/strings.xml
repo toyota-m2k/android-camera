@@ -13,4 +13,6 @@
     <string name="desc_video_pause">Pause Recording</string>
     <string name="list_videos">Video</string>
     <string name="list_photos">Photo</string>
+    <string name="list_all">All</string>
+    <string name="file_type">File Type</string>
 </resources>

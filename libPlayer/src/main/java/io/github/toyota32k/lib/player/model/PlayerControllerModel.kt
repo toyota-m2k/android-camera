@@ -1,14 +1,12 @@
 package io.github.toyota32k.lib.player.model
 
 import android.content.Context
-import io.github.toyota32k.bindit.Command
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.Closeable
 
@@ -18,22 +16,71 @@ import java.io.Closeable
  *   + FullControlPanelModel      フル機能プレイヤー（AmvPlayerUnitView）用
  *   + TrimmingControlPanelModel  トリミング画面(AMvTrimmingPlayerView)用
  */
-open class ControlPanelModel(
+open class PlayerControllerModel(
     val playerModel: IPlayerModel,
-    var supportChapter:Boolean,
-    var supportFullscreen:Boolean,
-    var supportPinP:Boolean
+    val supportFullscreen:Boolean,
+    val supportPinP:Boolean,
+    var seekRelativeForward:Long,
+    var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {
     companion object {
         val logger by lazy { UtLog("CPM", TpLib.logger) }
-        fun create(context: Context, supportChapter:Boolean=false, supportFullscreen:Boolean=false, supportPinP:Boolean=false, playerModel:IPlayerModel): ControlPanelModel {
-//            val playerViewModel = IPlayerModel(context)
-            return ControlPanelModel(playerModel, supportChapter, supportFullscreen, supportPinP)
-        }
     }
 
-    var seekRelativeForward:Long = 1000
-    var seekRelativeBackword:Long = 500
+    class Builder(val context:Context) {
+        private var mSupportChapter:Boolean = false
+        private var mPlaylist:IMediaFeed? = null
+        private var mAutoPlay:Boolean = false
+        private var mContinuousPlay:Boolean = false
+        private var mSupportFullscreen:Boolean = false
+        private var mSupportPinP:Boolean = false
+        private var mSeekForward:Long = 1000L
+        private var mSeekBackword:Long = 500L
+        private var mScope:CoroutineScope? = null
+
+        fun supportChapter():Builder {
+            mSupportChapter = true
+            return this
+        }
+        fun supportPlaylist(playlist:IMediaFeed, autoPlay:Boolean, continuousPlay:Boolean):Builder {
+            mPlaylist = playlist
+            mAutoPlay = autoPlay
+            mContinuousPlay = continuousPlay
+            return this
+        }
+        fun supportFullscreen():Builder {
+            mSupportFullscreen = true
+            return this
+        }
+        fun supportPiP():Builder {
+            mSupportPinP = true
+            return this
+        }
+
+        fun relativeSeekDuration(forward:Long, backward:Long):Builder {
+            mSeekForward = forward
+            mSeekBackword = backward
+            return this
+        }
+
+        fun coroutineScope(scope: CoroutineScope):Builder {
+            mScope = scope + SupervisorJob()
+            return this
+        }
+
+        private val scope:CoroutineScope
+            get() = mScope ?: CoroutineScope(Dispatchers.Main+ SupervisorJob())
+
+        fun build():PlayerControllerModel {
+            val playerModel = when {
+                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                mSupportChapter -> ChapterPlayerModel(context, scope)
+                mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                else -> BasicPlayerModel(context, scope)
+            }
+            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSeekForward, mSeekBackword)
+        }
+    }
 
     /**
      * コントローラーのCoroutineScope
@@ -58,10 +105,10 @@ open class ControlPanelModel(
     val commandPlay = LiteUnitCommand { playerModel.play() }
     val commandPause = LiteUnitCommand { playerModel.pause() }
 //    val commandTogglePlay = LiteUnitCommand { playerModel.togglePlay() }
-    val commandNext = LiteUnitCommand { playerModel.next() }
-    val commandPrev = LiteUnitCommand { playerModel.previous() }
-    val commandNextChapter = LiteUnitCommand { playerModel.nextChapter() }
-    val commandPrevChapter = LiteUnitCommand { playerModel.prevChapter() }
+//    val commandNext = LiteUnitCommand { playerModel.next() }
+//    val commandPrev = LiteUnitCommand { playerModel.previous() }
+//    val commandNextChapter = LiteUnitCommand { playerModel.nextChapter() }
+//    val commandPrevChapter = LiteUnitCommand { playerModel.prevChapter() }
     val commandSeekForward = LiteUnitCommand { playerModel.seekRelative(seekRelativeForward) }
     val commandSeekBackward = LiteUnitCommand { playerModel.seekRelative(-seekRelativeBackword) }
     val commandFullscreen = LiteUnitCommand { setWindowMode(WindowMode.FULLSCREEN) }

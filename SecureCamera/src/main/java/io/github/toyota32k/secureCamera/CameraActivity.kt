@@ -1,4 +1,4 @@
-package io.github.toyota32k.SecureCamera
+package io.github.toyota32k.secureCamera
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -16,7 +16,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import io.github.toyota32k.SecureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
@@ -29,6 +28,7 @@ import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope

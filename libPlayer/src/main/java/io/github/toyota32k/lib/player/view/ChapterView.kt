@@ -12,14 +12,12 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.model.IChapterList
-import io.github.toyota32k.lib.player.model.IPlayerModel
-import io.github.toyota32k.lib.player.model.PlayerModel
-import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.lifecycleOwner
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -33,8 +31,8 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     private lateinit var model: IPlayerModel
     private val duration:Long get() = model.naturalDuration.value
-    private val chapterList: IChapterList? get() = model.chapterList.value
-    private val disabledRanges:List<Range>? get() = model.disabledRanges
+    private val chapterList: IChapterList? get() = (model.currentSource.value as? IMediaSourceWithChapter)?.chapterList
+    private val disabledRanges:List<Range>? get() = model.currentSource.value?.disabledRanges
 
     @ColorInt private val defaultColor:Int
     @ColorInt private val tickColor:Int
@@ -55,9 +53,11 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val owner = lifecycleOwner()!!
         val scope = owner.lifecycleScope
 
-        combine(model.chapterList, model.naturalDuration) { list, dur->
-            list!=null && dur>0
-        }.onEach {
+        val flow = if(model is IChapterHandler) {
+            combine(model.chapterList, model.naturalDuration) { list, dur-> list !=null && dur>0 }
+        } else model.naturalDuration.filter { it>0 }
+
+        flow.onEach {
             invalidate()
         }.launchIn(scope)
     }

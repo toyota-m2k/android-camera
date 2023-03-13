@@ -1,4 +1,4 @@
-package io.github.toyota32k.SecureCamera
+package io.github.toyota32k.secureCamera
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

@@ -4,13 +4,13 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_gravity="center">
-    <io.github.toyota32k.video.view.AmvExoVideoPlayer
+    <io.github.toyota32k.lib.player.view.ExoVideoPlayer
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:playOnTouch="false"
         android:id="@+id/player"
         />
-    <io.github.toyota32k.video.view.ControlPanel
+    <io.github.toyota32k.lib.player.view.ControlPanel
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/controller"

@@ -2,7 +2,7 @@
 <resources>
 <!--    <attr name="colorSurface" format="color"/>-->
 <!--    <attr name="colorOnSurface" format="color"/>-->
-    <declare-styleable name="AmvExoVideoPlayer">
+    <declare-styleable name="ExoVideoPlayer">
         <attr name="playOnTouch" format="boolean" />
         <attr name="showControlBar" format="boolean"/>
         <attr name="fitParent" format="boolean"/>

@@ -13,8 +13,7 @@ import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.model.ControlPanelModel
-import io.github.toyota32k.lib.player.model.PlayerModel
+import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.lifecycleOwner
@@ -25,21 +24,17 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
-class AmvExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
+class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : FrameLayout(context, attrs, defStyleAttr) {
     companion object {
         val logger by lazy { UtLog("Exo", TpLib.logger) }
-
-        fun createViewModel(context:Context) : PlayerModel {
-            return PlayerModel(context)
-        }
     }
 
     private val playerView: StyledPlayerView
     private val rootView:ViewGroup
 
     // 使う人（ActivityやFragment）がセットすること
-    private lateinit var model: ControlPanelModel
+    private lateinit var model: PlayerControllerModel
     var useExoController:Boolean
         get() = playerView.useController
         set(v) { playerView.useController = v }
@@ -50,19 +45,19 @@ class AmvExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attri
     init {
         LayoutInflater.from(context).inflate(R.layout.v2_video_exo_player, this)
         val sa = context.theme.obtainStyledAttributes(attrs,
-            R.styleable.AmvExoVideoPlayer,defStyleAttr,0)
+            R.styleable.ExoVideoPlayer,defStyleAttr,0)
         val showControlBar: Boolean
         try {
             // タッチで再生/一時停止をトグルさせる動作の有効・無効
             //
             // デフォルト有効
             //      ユニットプレーヤー以外は無効化
-            playOnTouch = sa.getBoolean(R.styleable.AmvExoVideoPlayer_playOnTouch, true)
+            playOnTouch = sa.getBoolean(R.styleable.ExoVideoPlayer_playOnTouch, true)
             // ExoPlayerのControllerを表示するかしないか・・・表示する場合も、カスタマイズされたControllerが使用される
             //
             // デフォルト無効
             //      フルスクリーン再生の場合のみ有効
-            showControlBar = sa.getBoolean(R.styleable.AmvExoVideoPlayer_showControlBar, false)
+            showControlBar = sa.getBoolean(R.styleable.ExoVideoPlayer_showControlBar, false)
 
             // AmvExoVideoPlayerのサイズに合わせて、プレーヤーサイズを自動調整するかどうか
             // 汎用的には、AmvExoVideoPlayer.setLayoutHint()を呼び出すことで動画プレーヤー画面のサイズを変更するが、
@@ -70,7 +65,7 @@ class AmvExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attri
             //
             // デフォルト無効
             //      フルスクリーン再生の場合のみ有効
-            fitParent = sa.getBoolean(R.styleable.AmvExoVideoPlayer_fitParent, false)
+            fitParent = sa.getBoolean(R.styleable.ExoVideoPlayer_fitParent, false)
         } finally {
             sa.recycle()
         }
@@ -89,13 +84,13 @@ class AmvExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attri
         }
     }
 
-    fun bindViewModel(controlPanelModel: ControlPanelModel, binder:Binder) {
+    fun bindViewModel(playerControllerModel: PlayerControllerModel, binder:Binder) {
         val owner = lifecycleOwner()!!
         val scope = owner.lifecycleScope
 
-        this.model = controlPanelModel
-        val playerModel = controlPanelModel.playerModel
-        if(controlPanelModel.autoAssociatePlayer) {
+        this.model = playerControllerModel
+        val playerModel = playerControllerModel.playerModel
+        if(playerControllerModel.autoAssociatePlayer) {
             playerModel.associatePlayerView(playerView)
         }
 
