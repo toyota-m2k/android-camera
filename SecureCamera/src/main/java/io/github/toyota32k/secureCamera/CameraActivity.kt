@@ -42,8 +42,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
     class CameraViewModel : ViewModel() {
         val frontCameraSelected = MutableStateFlow(true)
-        val showControlPanel = MutableStateFlow(false)
-        val fullControlPanel = MutableStateFlow(false)
+        val showControlPanel = MutableStateFlow(true)
+        val fullControlPanel = MutableStateFlow(true)
         val recordingState = MutableStateFlow(TcVideoCapture.RecordingState.NONE)
 
         val expandPanelCommand = LiteCommand<Boolean> { fullControlPanel.value = it }
@@ -150,7 +150,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .enableFocusGesture()
             .enableZoomGesture()
             .longTapCustomAction {
-                viewModel.showPanelCommand.invoke(true)
+                viewModel.showControlPanel.value = !viewModel.showControlPanel.value
                 true
             }
             .build(this)

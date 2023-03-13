@@ -18,7 +18,7 @@
         <activity
             android:name=".CameraActivity"
             android:exported="false"
-            android:screenOrientation="landscape"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             />
         <activity
             android:name=".MainActivity"
