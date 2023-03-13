@@ -12,10 +12,13 @@
         android:theme="@style/Theme.TryCamera">
         <activity
             android:name=".PlayerActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape"
+            />
         <activity
             android:name=".CameraActivity"
             android:exported="false"
+            android:screenOrientation="landscape"
             />
         <activity
             android:name=".MainActivity"

@@ -65,12 +65,13 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
          * VideoCaptureの再作成を予約。
          */
         fun resetVideoCaptureOnFlipCamera() {
+            mVideoCapture?.dispose()
             mVideoCapture = null
         }
 
         override fun onCleared() {
             super.onCleared()
-            videoCapture.close()
+            videoCapture.dispose()
         }
 
         val takePictureCommand = LiteUnitCommand {
@@ -208,7 +209,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val camera = currentCamera ?: return
         if(camera.frontCamera!=front) {
             lifecycleScope.launch {
-                viewModel.resetVideoCaptureOnFlipCamera()
                 startCamera(front)
             }
         }
@@ -216,6 +216,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private fun startCamera(front: Boolean) {
         try {
+            viewModel.resetVideoCaptureOnFlipCamera()
             val modes = cameraManager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) { acc, mode->
                 if(acc.isNotEmpty()) {
                     acc.append(",")

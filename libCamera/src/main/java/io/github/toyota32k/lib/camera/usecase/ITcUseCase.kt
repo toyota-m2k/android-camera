@@ -40,5 +40,5 @@ interface ITcVideoCamera : ITcUseCase {
     fun pause()
     fun resume()
     fun stop()
-    fun close()
+    fun dispose()
 }

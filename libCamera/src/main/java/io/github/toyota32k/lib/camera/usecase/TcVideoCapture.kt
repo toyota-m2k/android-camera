@@ -16,7 +16,6 @@ import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 import java.util.*
 import java.util.concurrent.Executor
@@ -27,7 +26,7 @@ import java.util.concurrent.Executors
 //    output.prepareRecording(context, option)
 //}
 
-class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>,
+class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>,
     ITcVideoCamera, IUtPropOwner {
     companion object {
         val logger: UtLog = TcLib.logger
@@ -49,9 +48,10 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
         STARTED,
         PAUSING,
     }
-    val recordingState: StateFlow<RecordingState> = recordingState ?: MutableStateFlow(
-        RecordingState.NONE
-    )
+
+//    val recordingState: StateFlow<RecordingState> = recordingState ?: MutableStateFlow(
+//        RecordingState.NONE
+//    )
 
     // endregion
 
@@ -98,11 +98,12 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
     // region Consumer<VideoRecordEvent>
 
     override fun accept(event: VideoRecordEvent?) {
+        val state = recordingState ?: return
         when(event) {
-            is VideoRecordEvent.Start -> recordingState.mutable.value = RecordingState.STARTED
-            is VideoRecordEvent.Pause -> recordingState.mutable.value = RecordingState.PAUSING
-            is VideoRecordEvent.Resume -> recordingState.mutable.value = RecordingState.STARTED
-            is VideoRecordEvent.Finalize -> recordingState.mutable.value = RecordingState.NONE
+            is VideoRecordEvent.Start -> state.value = RecordingState.STARTED
+            is VideoRecordEvent.Pause -> state.value = RecordingState.PAUSING
+            is VideoRecordEvent.Resume -> state.value = RecordingState.STARTED
+            is VideoRecordEvent.Finalize -> state.value = RecordingState.NONE
             else -> return
         }
         logger.debug("$event")
@@ -126,7 +127,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override fun takeVideo(options:OutputOptions) {
-        close()
+        stop()
         videoCapture
             .output
             .prepareRecording(options)
@@ -135,7 +136,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
             .apply { recording = this }
     }
     override fun takeVideoWithoutAudio(options:OutputOptions) {
-        close()
+        stop()
         videoCapture
             .output
             .prepareRecording(options)
@@ -228,13 +229,20 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, recordingState:Mu
     }
 
     override fun stop() {
-        recording?.stop() ?: throw java.lang.IllegalStateException("not recording")
-        close()
+        recording?.stop() // ?: throw java.lang.IllegalStateException("not recording")
+        recording = null
     }
 
-    override fun close() {
-        recording?.close()
-        recording = null
+//    override fun close() {
+//        recording?.close()
+//        recording = null
+//    }
+
+    override fun dispose() {
+        val state = recordingState
+        recordingState = null
+        stop()
+        state?.value = RecordingState.NONE
     }
 
     // endregion
