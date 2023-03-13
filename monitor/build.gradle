@@ -30,18 +30,20 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    viewBinding {
+        enabled = true
+    }
 }
 
 dependencies {
-
-    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation "androidx.core:core-ktx:1.9.0"
     implementation "androidx.activity:activity-ktx:1.6.1"
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.5.1"
-    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.5.1"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.0"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.6.0"
 
     def camerax_version = "1.2.1"
     implementation "androidx.camera:camera-core:${camerax_version}"
@@ -54,8 +56,8 @@ dependencies {
 
     implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
+    implementation project(path: ':libCamera')
 
-    implementation project(path: ':camera')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

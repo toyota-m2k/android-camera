@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_player_error">ERROR</string>
+    <string name="desc_prev_video">Previous Video</string>
+    <string name="desc_prev_chapter">Previous Chapter</string>
+    <string name="desc_seek_back">Seek Back</string>
+    <string name="desc_play">Play</string>
+    <string name="desc_pause">Pause</string>
+    <string name="desc_seek_forward">Seek Forward</string>
+    <string name="desc_next_chapter">Next Chapter</string>
+    <string name="desc_next_video">Next Video</string>
+    <string name="desc_pinp">Enter Picture in Picture</string>
+    <string name="desc_fullscreen">Enter Fullscreen Mode</string>
+    <string name="desc_close_button">Close</string>
+    <string name="desc_collapse">Exit Fullscreen Mode</string>
+</resources>

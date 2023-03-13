@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- カラーだけを指定したアイテムを持つselectorをViewのbackgroundにセットすると、なぜかHUAWEIで死ぬ -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.7">
+        <shape>
+            <solid android:color="?attr/colorError"/>
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:id="@+id/control_panel_root"
+    >
+    <io.github.toyota32k.viewex.library.Viewbox
+        android:id="@+id/control_buttons_viewbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/slider_panel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        >
+        <LinearLayout
+            android:id="@+id/control_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            >
+            <ImageButton
+                android:id="@+id/prev_video_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_prev"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_prev_video" />
+
+            <ImageButton
+                android:id="@+id/prev_chapter_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_prev_chapter"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_prev_chapter" />
+
+            <ImageButton
+                android:id="@+id/seek_back_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_prev"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
+
+            <ImageButton
+                android:id="@+id/play_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_play"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_play" />
+
+            <ImageButton
+                android:id="@+id/pause_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_pause"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_pause" />
+
+            <ImageButton
+                android:id="@+id/seek_forward_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_next"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_forward" />
+
+            <ImageButton
+                android:id="@+id/next_chapter_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_next_chapter"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_next_chapter" />
+
+            <ImageButton
+                android:id="@+id/next_video_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_next"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_next_video" />
+
+            <ImageButton
+                android:id="@+id/pinp_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_pinp"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_pinp" />
+
+            <ImageButton
+                android:id="@+id/fullscreen_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_fullscreen"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_fullscreen" />
+
+            <ImageButton
+                android:id="@+id/collapse_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_collapse"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_collapse"
+                android:visibility="gone"
+                />
+
+            <ImageButton
+                android:id="@+id/close_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_close"
+                android:background="?attr/selectableItemBackground"
+                android:visibility="gone"
+                android:contentDescription="@string/desc_close_button" />
+        </LinearLayout>
+    </io.github.toyota32k.viewex.library.Viewbox>
+    <LinearLayout
+        android:id="@+id/slider_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@+id/control_buttons_viewbox"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:orientation="horizontal"
+        android:layout_marginBottom="20dp"
+        >
+        <TextView
+            android:id="@+id/counter_label"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:fontFamily="monospace"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="5dp"
+            tools:text="00:00"
+            />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="5dp"
+            >
+            <io.github.toyota32k.video.view.ChapterView
+                android:id="@+id/chapter_view"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginHorizontal="14dp"
+                app:enabledColor="?attr/colorSecondary"
+                app:tickColor="?attr/colorOnSecondary"
+                />
+            <com.google.android.material.slider.Slider
+                android:id="@+id/slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="0dp"
+                android:layout_marginTop="-21dp"
+                app:labelBehavior="gone"
+                app:thumbColor="?attr/colorPrimaryVariant"
+                />
+
+        </LinearLayout>
+        <TextView
+            android:id="@+id/duration_label"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:fontFamily="monospace"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="5dp"
+            tools:text="99:99"
+            />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
