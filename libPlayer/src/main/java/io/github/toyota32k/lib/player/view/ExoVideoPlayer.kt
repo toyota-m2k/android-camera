@@ -15,6 +15,7 @@ import io.github.toyota32k.bindit.*
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.R
+import io.github.toyota32k.player.lib.databinding.V2VideoExoPlayerBinding
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.lifecycleOwner
 import io.github.toyota32k.utils.px2dp
@@ -30,22 +31,23 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
         val logger by lazy { UtLog("Exo", TpLib.logger) }
     }
 
-    private val playerView: StyledPlayerView
-    private val rootView:ViewGroup
-
     // 使う人（ActivityやFragment）がセットすること
     private lateinit var model: PlayerControllerModel
+    val controls:V2VideoExoPlayerBinding
+
+    val playerView get() = controls.expPlayerView
+    val rootView get() = controls.expPlayerRoot
+
     var useExoController:Boolean
         get() = playerView.useController
         set(v) { playerView.useController = v }
+
     val fitParent:Boolean
     var playOnTouch:Boolean = false
 
-
     init {
-        LayoutInflater.from(context).inflate(R.layout.v2_video_exo_player, this)
-        val sa = context.theme.obtainStyledAttributes(attrs,
-            R.styleable.ExoVideoPlayer,defStyleAttr,0)
+        controls = V2VideoExoPlayerBinding.inflate(LayoutInflater.from(context), this, true)
+        val sa = context.theme.obtainStyledAttributes(attrs, R.styleable.ExoVideoPlayer,defStyleAttr,0)
         val showControlBar: Boolean
         try {
             // タッチで再生/一時停止をトグルさせる動作の有効・無効
@@ -69,11 +71,9 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
         } finally {
             sa.recycle()
         }
-        playerView = findViewById<StyledPlayerView>(R.id.exp_playerView)
         if(showControlBar) {
             playerView.useController = true
         }
-        rootView = findViewById(R.id.exp_player_root)
     }
 
     fun associatePlayer(flag:Boolean) {
@@ -94,13 +94,11 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
             playerModel.associatePlayerView(playerView)
         }
 
-        val errorMessageView : TextView = findViewById(R.id.exp_errorMessage)
-        val progressRing : View = findViewById(R.id.exp_progressRing)
         binder
-            .visibilityBinding(progressRing, playerModel.isLoading, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
-            .visibilityBinding(errorMessageView, playerModel.isError, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
-            .visibilityBinding(findViewById(R.id.service_area), combine(playerModel.isLoading,playerModel.isError) { l, e-> l||e}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
-            .textBinding(errorMessageView, playerModel.errorMessage.filterNotNull())
+            .visibilityBinding(controls.expProgressRing, playerModel.isLoading, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
+            .visibilityBinding(controls.expErrorMessage, playerModel.isError, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
+            .visibilityBinding(controls.serviceArea, combine(playerModel.isLoading,playerModel.isError) { l, e-> l||e}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
+            .textBinding(controls.expErrorMessage, playerModel.errorMessage.filterNotNull())
 
         val matchParent = Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         combine(playerModel.playerSize, playerModel.stretchVideoToView) { playerSize, stretch ->
@@ -127,23 +125,5 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
             model.playerModel.onRootViewSizeChanged(Size(w, h))
         }
     }
-
-//    fun togglePlay() {
-//        viewModel.togglePlay()
-//    }
-//
-//    fun play() {
-//        viewModel.play()
-//    }
-//
-//    fun pause() {
-//        viewModel.pause()
-//    }
-//
-//    fun seekTo(pos:Long) {
-//        viewModel.seekTo(pos)
-//    }
-
-
 
 }

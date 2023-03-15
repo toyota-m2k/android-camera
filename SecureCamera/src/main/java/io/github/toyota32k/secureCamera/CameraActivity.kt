@@ -177,6 +177,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override fun onDestroy() {
         super.onDestroy()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if(isFinishing) {
+            cameraManager.unbind()
+        }
     }
 
     private fun hideActionBar() {
