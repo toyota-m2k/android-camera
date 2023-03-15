@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
+import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
@@ -37,6 +38,7 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand {startActivity(Intent(this, CameraActivity::class.java))}, controls.cameraButton )
             .bindCommand(LiteUnitCommand {startActivity(Intent(this, PlayerActivity::class.java))}, controls.playerButton )
             .bindCommand(LiteUnitCommand(::clearAll), controls.clearAllButton)
+            .bindCommand(LiteUnitCommand(::showLicense), controls.settingsButton)
     }
 
     private fun clearAll() {
@@ -52,5 +54,9 @@ class MainActivity : UtMortalActivity() {
             }
             true
         }
+    }
+
+    private fun showLicense() {
+        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
 }
