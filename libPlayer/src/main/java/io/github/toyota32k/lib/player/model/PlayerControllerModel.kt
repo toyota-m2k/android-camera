@@ -1,8 +1,11 @@
 package io.github.toyota32k.lib.player.model
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.TpFrameExtractor
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
@@ -20,6 +23,7 @@ open class PlayerControllerModel(
     val playerModel: IPlayerModel,
     val supportFullscreen:Boolean,
     val supportPinP:Boolean,
+    val snapshotHandler:((Long,Bitmap)->Unit)?,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {
@@ -34,6 +38,7 @@ open class PlayerControllerModel(
         private var mContinuousPlay:Boolean = false
         private var mSupportFullscreen:Boolean = false
         private var mSupportPinP:Boolean = false
+        private var mSnapshotHandler:((Long,Bitmap)->Unit)? = null
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
         private var mScope:CoroutineScope? = null
@@ -54,6 +59,11 @@ open class PlayerControllerModel(
         }
         fun supportPiP():Builder {
             mSupportPinP = true
+            return this
+        }
+
+        fun supportSnapshot(snapshotHandler:(Long,Bitmap)->Unit):Builder {
+            mSnapshotHandler = snapshotHandler
             return this
         }
 
@@ -78,7 +88,7 @@ open class PlayerControllerModel(
                 mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, scope)
             }
-            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSeekForward, mSeekBackword)
+            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSnapshotHandler, mSeekForward, mSeekBackword)
         }
     }
 
@@ -102,8 +112,8 @@ open class PlayerControllerModel(
 
     // region Commands
 
-    val commandPlay = LiteUnitCommand { playerModel.play() }
-    val commandPause = LiteUnitCommand { playerModel.pause() }
+    val commandPlay = LiteUnitCommand(playerModel::play)
+    val commandPause = LiteUnitCommand(playerModel::pause)
 //    val commandTogglePlay = LiteUnitCommand { playerModel.togglePlay() }
 //    val commandNext = LiteUnitCommand { playerModel.next() }
 //    val commandPrev = LiteUnitCommand { playerModel.previous() }
@@ -114,6 +124,7 @@ open class PlayerControllerModel(
     val commandFullscreen = LiteUnitCommand { setWindowMode(WindowMode.FULLSCREEN) }
     val commandPinP = LiteUnitCommand { setWindowMode(WindowMode.PINP) }
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }
+    val commandSnapshot = LiteUnitCommand(::snapshot)
 //    val commandPlayerTapped = LiteUnitCommand()
 
     // endregion
@@ -131,6 +142,18 @@ open class PlayerControllerModel(
         windowMode.mutable.value = mode
     }
 
+    private fun snapshot() {
+        val handler = snapshotHandler ?: return
+        val src = playerModel.currentSource.value ?: return
+        val pos = playerModel.currentPosition
+
+        scope.launch {
+            val bitmap = TpFrameExtractor(playerModel.context, Uri.parse(src.uri)).extractFrame(pos)
+            if(bitmap != null) {
+                handler(pos,bitmap)
+            }
+        }
+    }
     // endregion
 
     // region Slider

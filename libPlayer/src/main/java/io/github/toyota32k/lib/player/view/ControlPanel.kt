@@ -84,6 +84,7 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
         val fullscreenButton = findViewById<ImageButton>(R.id.fullscreen_button)
         val collapseButton = findViewById<ImageButton>(R.id.collapse_button)
 //        val closeButton = findViewById<ImageButton>(R.id.close_button)
+        val snapshotButton = findViewById<ImageButton>(R.id.snapshot_button)
         val slider = findViewById<Slider>(R.id.slider)
 
         slider.addOnChangeListener(this)
@@ -101,6 +102,7 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .visibilityBinding(collapseButton, model.windowMode.map { it!=PlayerControllerModel.WindowMode.NORMAL }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(pinpButton, ConstantLiveData(model.supportPinP), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(fullscreenButton, ConstantLiveData(model.supportFullscreen), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(snapshotButton, ConstantLiveData(model.snapshotHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(prevChapterButton, nextChapterButton), ConstantLiveData(chapterHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(prevVideoButton, nextVideoButton), ConstantLiveData(playlistHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiEnableBinding(arrayOf(playButton, pauseButton, seekBackButton, seekForwardButton, fullscreenButton, pinpButton, slider), model.playerModel.isReady)
@@ -114,6 +116,7 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .bindCommand(model.commandSeekBackward, seekBackButton)
             .bindCommand(model.commandSeekForward, seekForwardButton)
             .bindCommand(model.commandFullscreen, fullscreenButton)
+            .bindCommand(model.commandSnapshot, snapshotButton)
             .bindCommand(model.commandPinP, pinpButton)
             .bindCommand(model.commandCollapse, collapseButton)
             .apply {

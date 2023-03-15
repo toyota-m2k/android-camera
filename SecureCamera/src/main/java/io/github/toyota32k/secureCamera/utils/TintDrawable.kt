@@ -1,4 +1,4 @@
-package io.github.toyota32k.secureCamera
+package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
 import android.graphics.PorterDuff

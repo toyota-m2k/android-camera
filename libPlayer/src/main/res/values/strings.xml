@@ -13,4 +13,5 @@
     <string name="desc_fullscreen">Enter Fullscreen Mode</string>
     <string name="desc_close_button">Close</string>
     <string name="desc_collapse">Exit Fullscreen Mode</string>
+    <string name="desc_snapshot">Snapshot</string>
 </resources>

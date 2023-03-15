@@ -1,5 +1,6 @@
 package io.github.toyota32k.camera
 
+import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -11,7 +12,12 @@ import org.junit.Assert.*
  */
 class ExampleUnitTest {
     @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+    fun filenameToDateTest() {
+        val filename = ITcUseCase.defaultFileName("img-", ".jpg")
+        val dateString = filename.substringAfter("img-").substringBefore(".jpg")
+        val date = ITcUseCase.dateFormatForFilename.parse(dateString)
+        assertNotNull(date)
+        val dateString2 = ITcUseCase.dateFormatForFilename.format(date!!)
+        assertEquals(dateString, dateString2)
     }
 }
