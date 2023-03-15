@@ -12,7 +12,9 @@
         android:id="@+id/list_panel"
         android:layout_width="300dp"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="?attr/colorSurface"
+        >
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/list_mode"
             android:layout_width="match_parent"
@@ -56,7 +58,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        tools:background="#ff0000"
+        android:background="?attr/playerBackground"
         >
         <FrameLayout
             android:id="@+id/photo_viewer"
@@ -68,6 +70,7 @@
                 android:layout_height="match_parent"
                 android:scaleType="fitCenter"/>
             <LinearLayout
+                android:id="@+id/photo_button_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -87,6 +90,22 @@
                     android:layout_width="@dimen/media_button_width"
                     android:layout_height="@dimen/media_button_height"
                     app:srcCompat="@drawable/ic_chevron_right"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+                <ImageButton
+                    android:id="@+id/expand_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_fullscreen"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+                <ImageButton
+                    android:id="@+id/collapse_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_collapse"
                     app:tint="?attr/iconColor"
                     android:background="?attr/selectableItemBackground"
                     />

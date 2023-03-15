@@ -8,4 +8,8 @@
         <attr name="pauseIconColor" format="color"/>
     </declare-styleable>
 
+<!--    <declare-styleable name="ExoPlayerHost">-->
+<!--        <attr name="playerBackground" format="color"/>-->
+<!--    </declare-styleable>-->
+
 </resources>

@@ -24,6 +24,7 @@ open class PlayerControllerModel(
     val supportFullscreen:Boolean,
     val supportPinP:Boolean,
     val snapshotHandler:((Long,Bitmap)->Unit)?,
+    val playerTapToPlay:Boolean,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {
@@ -39,6 +40,7 @@ open class PlayerControllerModel(
         private var mSupportFullscreen:Boolean = false
         private var mSupportPinP:Boolean = false
         private var mSnapshotHandler:((Long,Bitmap)->Unit)? = null
+        private var mPlayerTapToPlay:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
         private var mScope:CoroutineScope? = null
@@ -67,6 +69,11 @@ open class PlayerControllerModel(
             return this
         }
 
+        fun playerTapToPlay():Builder {
+            mPlayerTapToPlay = true
+            return this
+        }
+
         fun relativeSeekDuration(forward:Long, backward:Long):Builder {
             mSeekForward = forward
             mSeekBackword = backward
@@ -88,7 +95,7 @@ open class PlayerControllerModel(
                 mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, scope)
             }
-            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSnapshotHandler, mSeekForward, mSeekBackword)
+            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSnapshotHandler, mPlayerTapToPlay, mSeekForward, mSeekBackword)
         }
     }
 
@@ -110,6 +117,8 @@ open class PlayerControllerModel(
      */
     open val autoAssociatePlayer:Boolean = true
 
+    val showControlPanel = MutableStateFlow(true)
+
     // region Commands
 
     val commandPlay = LiteUnitCommand(playerModel::play)
@@ -125,7 +134,7 @@ open class PlayerControllerModel(
     val commandPinP = LiteUnitCommand { setWindowMode(WindowMode.PINP) }
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }
     val commandSnapshot = LiteUnitCommand(::snapshot)
-//    val commandPlayerTapped = LiteUnitCommand()
+    val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
 
     // endregion
 
@@ -137,7 +146,7 @@ open class PlayerControllerModel(
         PINP
     }
     val windowMode : StateFlow<WindowMode> = MutableStateFlow(WindowMode.NORMAL)
-    private fun setWindowMode(mode:WindowMode) {
+    fun setWindowMode(mode:WindowMode) {
         logger.debug("mode=${windowMode.value} --> $mode")
         windowMode.mutable.value = mode
     }

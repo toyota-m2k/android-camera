@@ -5,11 +5,10 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import io.github.toyota32k.bindit.Binder
+import io.github.toyota32k.bindit.VisibilityBinding
+import io.github.toyota32k.bindit.visibilityBinding
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
-import io.github.toyota32k.lib.player.view.ExoVideoPlayer
-import io.github.toyota32k.lib.player.view.ControlPanel
-import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.player.lib.databinding.V2PlayerViewBinding
 import io.github.toyota32k.utils.UtLog
 
@@ -31,5 +30,6 @@ class VideoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribu
         this.model = model
         controls.player.bindViewModel(model, binder)
         controls.controller.bindViewModel(model, binder)
+        binder.visibilityBinding(controls.controller, model.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
     }
 }

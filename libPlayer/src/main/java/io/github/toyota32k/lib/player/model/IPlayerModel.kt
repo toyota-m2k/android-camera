@@ -11,6 +11,7 @@ interface IPlayerModel : AutoCloseable {
     fun setSource(src:IMediaSource?, autoPlay:Boolean)
     fun play()
     fun pause()
+    fun togglePlay()
 
     fun reset()
     fun seekRelative(seek: Long)

@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
@@ -29,10 +30,8 @@ import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
-import io.github.toyota32k.secureCamera.utils.Sorter
-import io.github.toyota32k.secureCamera.utils.TintDrawable
-import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.bindCommand
+import io.github.toyota32k.secureCamera.utils.*
+import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.*
 import java.io.File
 import java.util.*
@@ -200,6 +199,10 @@ class PlayerActivity : AppCompatActivity() {
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 
+        val fullscreenCommand = LiteCommand<Boolean> {
+            playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
+        }
+
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             try {
@@ -235,6 +238,7 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
+        hideActionBar()
 
         val normalColor: Drawable
         val normalTextColor: Int
@@ -263,10 +267,21 @@ class PlayerActivity : AppCompatActivity() {
             }
             .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
             .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
+            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map {it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
+                straightGone(controls.collapseButton)
+                inverseGone(controls.expandButton)
+            }
+            .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
             .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
+            .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
+            .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
+            }
+            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, callback = ::onPlayerTapped)
+            .add {
+                viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
             .recyclerViewBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
@@ -290,5 +305,33 @@ class PlayerActivity : AppCompatActivity() {
 
             }
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+    }
+
+    fun MutableStateFlow<Boolean>.toggle() {
+        value = !value
+    }
+
+    private fun onPlayerTapped() {
+        when(viewModel.playerControllerModel.windowMode.value) {
+            PlayerControllerModel.WindowMode.FULLSCREEN -> {
+                viewModel.playerControllerModel.showControlPanel.toggle()
+            }
+            else -> {
+                viewModel.playerControllerModel.playerModel.togglePlay()
+            }
+        }
+    }
+
+    private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
+        when(mode) {
+            PlayerControllerModel.WindowMode.FULLSCREEN -> {
+                controls.listPanel.visibility = View.GONE
+                viewModel.playerControllerModel.showControlPanel.value = false
+            }
+            else-> {
+                controls.listPanel.visibility = View.VISIBLE
+                viewModel.playerControllerModel.showControlPanel.value = true
+            }
+        }
     }
 }

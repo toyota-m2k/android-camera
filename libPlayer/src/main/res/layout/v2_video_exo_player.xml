@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:layout_width="match_parent"
     android:id="@+id/exp_player_root"
-    android:background="?attr/colorSurface"
     >
 
     <com.google.android.exoplayer2.ui.StyledPlayerView

@@ -1,31 +1,28 @@
 package io.github.toyota32k.lib.player.view
 
 import android.content.Context
+import android.graphics.Color
 import android.util.AttributeSet
 import android.util.Size
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
-import com.google.android.exoplayer2.ui.StyledPlayerView
 import io.github.toyota32k.bindit.*
+import io.github.toyota32k.boodroid.common.getColorAsDrawable
+import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.player.lib.databinding.V2VideoExoPlayerBinding
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.lifecycleOwner
-import io.github.toyota32k.utils.px2dp
-import io.github.toyota32k.utils.setLayoutSize
+import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
-class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
+class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : FrameLayout(context, attrs, defStyleAttr) {
     companion object {
         val logger by lazy { UtLog("Exo", TpLib.logger) }
@@ -43,23 +40,24 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
         set(v) { playerView.useController = v }
 
     val fitParent:Boolean
-    var playOnTouch:Boolean = false
+
+//    val playOnTouch:Boolean
 
     init {
         controls = V2VideoExoPlayerBinding.inflate(LayoutInflater.from(context), this, true)
-        val sa = context.theme.obtainStyledAttributes(attrs, R.styleable.ExoVideoPlayer,defStyleAttr,0)
+        val sa = context.theme.obtainStyledAttributes(attrs, R.styleable.ExoPlayerHost,defStyleAttr,0)
         val showControlBar: Boolean
         try {
             // タッチで再生/一時停止をトグルさせる動作の有効・無効
             //
             // デフォルト有効
             //      ユニットプレーヤー以外は無効化
-            playOnTouch = sa.getBoolean(R.styleable.ExoVideoPlayer_playOnTouch, true)
+//            playOnTouch = sa.getBoolean(R.styleable.ExoVideoPlayer_playOnTouch, false)
             // ExoPlayerのControllerを表示するかしないか・・・表示する場合も、カスタマイズされたControllerが使用される
             //
             // デフォルト無効
             //      フルスクリーン再生の場合のみ有効
-            showControlBar = sa.getBoolean(R.styleable.ExoVideoPlayer_showControlBar, false)
+            showControlBar = sa.getBoolean(R.styleable.ExoPlayerHost_showControlBar, false)
 
             // AmvExoVideoPlayerのサイズに合わせて、プレーヤーサイズを自動調整するかどうか
             // 汎用的には、AmvExoVideoPlayer.setLayoutHint()を呼び出すことで動画プレーヤー画面のサイズを変更するが、
@@ -67,7 +65,9 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
             //
             // デフォルト無効
             //      フルスクリーン再生の場合のみ有効
-            fitParent = sa.getBoolean(R.styleable.ExoVideoPlayer_fitParent, false)
+            fitParent = sa.getBoolean(R.styleable.ExoPlayerHost_fitParent, false)
+
+            controls.expPlayerRoot.background = sa.getColorAsDrawable(R.styleable.ExoPlayerHost_playerBackground, context.theme, com.google.android.material.R.attr.colorOnSurfaceInverse, Color.BLACK)
         } finally {
             sa.recycle()
         }
@@ -99,6 +99,7 @@ class ExoVideoPlayer @JvmOverloads constructor(context: Context, attrs: Attribut
             .visibilityBinding(controls.expErrorMessage, playerModel.isError, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
             .visibilityBinding(controls.serviceArea, combine(playerModel.isLoading,playerModel.isError) { l, e-> l||e}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
             .textBinding(controls.expErrorMessage, playerModel.errorMessage.filterNotNull())
+            .bindCommand(playerControllerModel.commandPlayerTapped, this)
 
         val matchParent = Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         combine(playerModel.playerSize, playerModel.stretchVideoToView) { playerSize, stretch ->

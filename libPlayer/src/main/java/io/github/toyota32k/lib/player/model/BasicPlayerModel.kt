@@ -429,7 +429,7 @@ open class BasicPlayerModel(
     /**
      * Play / Pauseをトグル
      */
-    fun togglePlay() {
+    override fun togglePlay() {
         if(player.playWhenReady) {
             pause()
         } else {
