@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:layout_width="match_parent"
     android:id="@+id/exp_player_root"
-    android:background="?attr/colorSurface"
     >
 
     <com.google.android.exoplayer2.ui.StyledPlayerView
@@ -15,6 +14,7 @@
         android:id="@+id/exp_playerView"
         android:layout_gravity="center_horizontal|center_vertical"
         app:use_controller="false"
+        app:surface_type="texture_view"
         />
     <FrameLayout
         tools:visibility="visible"

@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'com.google.android.gms.oss-licenses-plugin'
 }
 
 android {
@@ -15,6 +16,7 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        signingConfig signingConfigs.debug
     }
 
     buildTypes {
@@ -33,6 +35,26 @@ android {
     viewBinding {
         enabled = true
     }
+
+    signingConfigs {
+        def properties = new Properties()
+        properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        // local.propertiesのapi_keyに定義されている値を読み込む
+        def keyStorePath = properties.getProperty("key_store_path")
+        def password = properties.getProperty("key_password")
+        release {
+            storeFile file(keyStorePath)
+            storePassword  password
+            keyAlias 'key0'
+            keyPassword  password
+        }
+        debug {
+            storeFile file(keyStorePath)
+            storePassword  password
+            keyAlias 'key0'
+            keyPassword  password
+        }
+    }
 }
 
 dependencies {
@@ -46,6 +68,8 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.0"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.6.0"
 
+    implementation 'com.google.android.gms:play-services-oss-licenses:17.0.0'
+
     def camerax_version = "1.2.1"
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"
@@ -57,6 +81,8 @@ dependencies {
 
     implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
+    implementation 'com.github.toyota-m2k:android-media-processor:1.1.0'
+
     implementation project(path: ':libCamera')
     implementation project(path: ':libPlayer')
 

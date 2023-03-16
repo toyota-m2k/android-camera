@@ -90,6 +90,29 @@
                 android:contentDescription="@string/desc_next_video" />
 
             <ImageButton
+                android:id="@+id/snapshot_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_camera"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_snapshot" />
+
+            <ImageButton
+                android:id="@+id/rotate_left"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_rotate_left"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_rotate_left" />
+            <ImageButton
+                android:id="@+id/rotate_right"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_rotate_right"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_rotate_right" />
+
+            <ImageButton
                 android:id="@+id/pinp_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"

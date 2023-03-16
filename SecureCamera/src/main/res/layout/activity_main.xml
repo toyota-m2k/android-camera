@@ -34,5 +34,15 @@
         android:layout_height="wrap_content"
         android:text="@string/settings"
         />
+    <Space
+        android:layout_height="@dimen/menu_button_spacing"
+        android:layout_width="0dp"
+        />
+    <Button
+        android:id="@+id/clear_all_button"
+        android:layout_width="@dimen/menu_button_width"
+        android:layout_height="wrap_content"
+        android:text="@string/clear_all"
+        />
 
 </LinearLayout>

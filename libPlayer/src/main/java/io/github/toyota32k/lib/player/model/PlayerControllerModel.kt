@@ -1,8 +1,13 @@
 package io.github.toyota32k.lib.player.model
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.net.Uri
+import io.github.toyota32k.bindit.LiteCommand
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.TpFrameExtractor
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
@@ -20,6 +25,10 @@ open class PlayerControllerModel(
     val playerModel: IPlayerModel,
     val supportFullscreen:Boolean,
     val supportPinP:Boolean,
+    val snapshotHandler:((Long,Bitmap)->Unit)?,
+    val enableRotateRight:Boolean,
+    val enableRotateLeft:Boolean,
+    val playerTapToPlay:Boolean,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {
@@ -34,6 +43,10 @@ open class PlayerControllerModel(
         private var mContinuousPlay:Boolean = false
         private var mSupportFullscreen:Boolean = false
         private var mSupportPinP:Boolean = false
+        private var mSnapshotHandler:((Long,Bitmap)->Unit)? = null
+        private var mEnableRotateRight:Boolean = false
+        private var mEnableRotateLeft:Boolean = false
+        private var mPlayerTapToPlay:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
         private var mScope:CoroutineScope? = null
@@ -57,6 +70,24 @@ open class PlayerControllerModel(
             return this
         }
 
+        fun supportSnapshot(snapshotHandler:(Long,Bitmap)->Unit):Builder {
+            mSnapshotHandler = snapshotHandler
+            return this
+        }
+
+        fun playerTapToPlay():Builder {
+            mPlayerTapToPlay = true
+            return this
+        }
+
+        fun enableRotateRight():Builder {
+            mEnableRotateRight = true
+            return this
+        }
+        fun enableRotateLeft():Builder {
+            mEnableRotateLeft = true
+            return this
+        }
         fun relativeSeekDuration(forward:Long, backward:Long):Builder {
             mSeekForward = forward
             mSeekBackword = backward
@@ -78,7 +109,17 @@ open class PlayerControllerModel(
                 mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, scope)
             }
-            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSeekForward, mSeekBackword)
+            return PlayerControllerModel(
+                playerModel,
+                supportFullscreen = mSupportFullscreen,
+                supportPinP = mSupportPinP,
+                snapshotHandler = mSnapshotHandler,
+                enableRotateRight = mEnableRotateRight,
+                enableRotateLeft = mEnableRotateLeft,
+                playerTapToPlay = mPlayerTapToPlay,
+                seekRelativeForward = mSeekForward,
+                seekRelativeBackword = mSeekBackword
+            )
         }
     }
 
@@ -100,10 +141,12 @@ open class PlayerControllerModel(
      */
     open val autoAssociatePlayer:Boolean = true
 
+    val showControlPanel = MutableStateFlow(true)
+
     // region Commands
 
-    val commandPlay = LiteUnitCommand { playerModel.play() }
-    val commandPause = LiteUnitCommand { playerModel.pause() }
+    val commandPlay = LiteUnitCommand(playerModel::play)
+    val commandPause = LiteUnitCommand(playerModel::pause)
 //    val commandTogglePlay = LiteUnitCommand { playerModel.togglePlay() }
 //    val commandNext = LiteUnitCommand { playerModel.next() }
 //    val commandPrev = LiteUnitCommand { playerModel.previous() }
@@ -114,7 +157,9 @@ open class PlayerControllerModel(
     val commandFullscreen = LiteUnitCommand { setWindowMode(WindowMode.FULLSCREEN) }
     val commandPinP = LiteUnitCommand { setWindowMode(WindowMode.PINP) }
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }
-//    val commandPlayerTapped = LiteUnitCommand()
+    val commandSnapshot = LiteUnitCommand(::snapshot)
+    val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
+    val commandRotate = LiteCommand<Rotation> { playerModel.rotate(it) }
 
     // endregion
 
@@ -126,11 +171,31 @@ open class PlayerControllerModel(
         PINP
     }
     val windowMode : StateFlow<WindowMode> = MutableStateFlow(WindowMode.NORMAL)
-    private fun setWindowMode(mode:WindowMode) {
+    fun setWindowMode(mode:WindowMode) {
         logger.debug("mode=${windowMode.value} --> $mode")
         windowMode.mutable.value = mode
     }
 
+    private fun snapshot() {
+        val handler = snapshotHandler ?: return
+        val src = playerModel.currentSource.value ?: return
+        val pos = playerModel.currentPosition
+        val rotation = Rotation.normalize(playerModel.rotation.value)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            TpFrameExtractor(playerModel.context, Uri.parse(src.uri)).use { extractor->
+                val bitmap = extractor.extractFrame(pos)
+                if(bitmap != null) {
+                    val bitmap2 = if(rotation!=0) {
+                        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+                    } else bitmap
+                    withContext(scope.coroutineContext) {
+                        handler(pos, bitmap2)
+                    }
+                }
+            }
+        }
+    }
     // endregion
 
     // region Slider

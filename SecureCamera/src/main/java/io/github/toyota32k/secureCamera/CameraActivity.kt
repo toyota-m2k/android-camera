@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.WindowManager
@@ -28,6 +29,10 @@ import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
@@ -40,6 +45,7 @@ import java.io.File
 
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
+
     class CameraViewModel : ViewModel() {
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
@@ -86,10 +92,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
 
         fun newVideoFile(): File {
-            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName("mov-", ".mp4"))
+            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION))
         }
         fun newImageFile(): File {
-            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName("img-", ".jpeg"))
+            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION))
         }
 
         @SuppressLint("MissingPermission")
@@ -169,9 +175,16 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        logger.debug("${newConfig.orientation}")
+    }
     override fun onDestroy() {
         super.onDestroy()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if(isFinishing) {
+            cameraManager.unbind()
+        }
     }
 
     private fun hideActionBar() {

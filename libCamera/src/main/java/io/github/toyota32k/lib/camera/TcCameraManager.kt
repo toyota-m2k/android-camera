@@ -115,7 +115,7 @@ class TcCameraManager() {
     fun createCamera(lifecycleOwner: LifecycleOwner, frontCamera: Boolean, extensionMode: TcCameraExtensions.Mode = TcCameraExtensions.Mode.NONE, vararg useCases: UseCase): TcCamera {
         if(useCases.isEmpty()) throw java.lang.IllegalArgumentException("no use cases.")
 
-        val cameraProvider = cameraProvider
+//        val cameraProvider = cameraProvider
         val cameraSelector = getCameraSelector(frontCamera, extensionMode)
 
 
@@ -126,6 +126,15 @@ class TcCameraManager() {
                 *useCases
             )
         return TcCamera(camera, frontCamera, cameraSelector)
+    }
+
+    /**
+     * カメラ-UseCase のバインドを解除する。
+     * バインドしたままアクティビティを閉じてしまうと、UseCase側で例外がでた（実害はなさそうだが）ので、
+     * Activity#onDestroy で isFinishing の場合に unbindを呼んでみる。
+     */
+    fun unbind() {
+        cameraProvider.unbindAll()
     }
 
     inner class CameraBuilder {

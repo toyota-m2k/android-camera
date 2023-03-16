@@ -19,9 +19,8 @@ import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatTime
-import io.github.toyota32k.lib.player.model.PlayerControllerModel
-import io.github.toyota32k.lib.player.model.IChapterHandler
-import io.github.toyota32k.lib.player.model.IPlaylistHandler
+import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.player.lib.databinding.V2ControlPanelBinding
 import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
@@ -37,6 +36,8 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
     companion object {
         val logger by lazy { UtLog("ControlPanel", TpLib.logger) }
     }
+
+    val controls:V2ControlPanelBinding
 
     init {
         val sa = context.theme.obtainStyledAttributes(attrs,R.styleable.ControlPanel, defStyleAttr,0)
@@ -56,13 +57,12 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
 
         sa.recycle()
 
-        LayoutInflater.from(context).inflate(R.layout.v2_control_panel, this)
-        findViewById<View>(R.id.control_panel_root).background = panelBackground
-        findViewById<TextView>(R.id.counter_label).setTextColor(panelText)
-        findViewById<TextView>(R.id.duration_label).setTextColor(panelText)
-
-        val buttons = findViewById<ViewGroup>(R.id.control_buttons)
-        buttons.children.forEach { (it as? ImageButton)?.imageTintList = buttonTint }
+        controls = V2ControlPanelBinding.inflate(LayoutInflater.from(context), this, true).apply {
+            controlPanelRoot.background = panelBackground
+            counterLabel.setTextColor(panelText)
+            durationLabel.setTextColor(panelText)
+            controlButtons.children.forEach { (it as? ImageButton)?.imageTintList = buttonTint }
+        }
     }
 
     private lateinit var model: PlayerControllerModel
@@ -72,21 +72,22 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
 //        val owner = lifecycleOwner()!!
 //        val scope = owner.lifecycleScope
 
-        val playButton = findViewById<ImageButton>(R.id.play_button)
-        val pauseButton = findViewById<ImageButton>(R.id.pause_button)
-        val prevVideoButton = findViewById<ImageButton>(R.id.prev_video_button)
-        val nextVideoButton = findViewById<ImageButton>(R.id.next_video_button)
-        val prevChapterButton = findViewById<ImageButton>(R.id.prev_chapter_button)
-        val nextChapterButton = findViewById<ImageButton>(R.id.next_chapter_button)
-        val seekBackButton = findViewById<ImageButton>(R.id.seek_back_button)
-        val seekForwardButton = findViewById<ImageButton>(R.id.seek_forward_button)
-        val pinpButton = findViewById<ImageButton>(R.id.pinp_button)
-        val fullscreenButton = findViewById<ImageButton>(R.id.fullscreen_button)
-        val collapseButton = findViewById<ImageButton>(R.id.collapse_button)
-//        val closeButton = findViewById<ImageButton>(R.id.close_button)
-        val slider = findViewById<Slider>(R.id.slider)
+//        val playButton = findViewById<ImageButton>(R.id.play_button)
+//        val pauseButton = findViewById<ImageButton>(R.id.pause_button)
+//        val prevVideoButton = findViewById<ImageButton>(R.id.prev_video_button)
+//        val nextVideoButton = findViewById<ImageButton>(R.id.next_video_button)
+//        val prevChapterButton = findViewById<ImageButton>(R.id.prev_chapter_button)
+//        val nextChapterButton = findViewById<ImageButton>(R.id.next_chapter_button)
+//        val seekBackButton = findViewById<ImageButton>(R.id.seek_back_button)
+//        val seekForwardButton = findViewById<ImageButton>(R.id.seek_forward_button)
+//        val pinpButton = findViewById<ImageButton>(R.id.pinp_button)
+//        val fullscreenButton = findViewById<ImageButton>(R.id.fullscreen_button)
+//        val collapseButton = findViewById<ImageButton>(R.id.collapse_button)
+////        val closeButton = findViewById<ImageButton>(R.id.close_button)
+//        val snapshotButton = findViewById<ImageButton>(R.id.snapshot_button)
+//        val slider = findViewById<Slider>(R.id.slider)
 
-        slider.addOnChangeListener(this)
+        controls.slider.addOnChangeListener(this)
 //        slider.addOnSliderTouchListener(this)
 
         findViewById<ChapterView>(R.id.chapter_view).bindViewModel(model.playerModel, binder)
@@ -95,37 +96,43 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
         val playlistHandler = model.playerModel as? IPlaylistHandler
 
         binder
-            .visibilityBinding(playButton, model.playerModel.isPlaying, BoolConvert.Inverse, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(pauseButton, model.playerModel.isPlaying, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(fullscreenButton, model.windowMode.map { it!=PlayerControllerModel.WindowMode.FULLSCREEN }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(collapseButton, model.windowMode.map { it!=PlayerControllerModel.WindowMode.NORMAL }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(pinpButton, ConstantLiveData(model.supportPinP), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(fullscreenButton, ConstantLiveData(model.supportFullscreen), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .multiVisibilityBinding(arrayOf(prevChapterButton, nextChapterButton), ConstantLiveData(chapterHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .multiVisibilityBinding(arrayOf(prevVideoButton, nextVideoButton), ConstantLiveData(playlistHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .multiEnableBinding(arrayOf(playButton, pauseButton, seekBackButton, seekForwardButton, fullscreenButton, pinpButton, slider), model.playerModel.isReady)
+            .visibilityBinding(controls.playButton, model.playerModel.isPlaying, BoolConvert.Inverse, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.pauseButton, model.playerModel.isPlaying, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.fullscreenButton, model.windowMode.map { it!=PlayerControllerModel.WindowMode.FULLSCREEN }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.collapseButton, model.windowMode.map { it!=PlayerControllerModel.WindowMode.NORMAL }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.pinpButton, ConstantLiveData(model.supportPinP), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.fullscreenButton, ConstantLiveData(model.supportFullscreen), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.snapshotButton, ConstantLiveData(model.snapshotHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.rotateLeft, ConstantLiveData(model.enableRotateLeft), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.rotateRight, ConstantLiveData(model.enableRotateRight), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.prevChapterButton, controls.nextChapterButton), ConstantLiveData(chapterHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.prevVideoButton, controls.nextVideoButton), ConstantLiveData(playlistHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .multiEnableBinding(arrayOf(controls.playButton, controls.pauseButton, controls.seekBackButton, controls.seekForwardButton, controls.fullscreenButton, controls.pinpButton, controls.slider), model.playerModel.isReady)
             .textBinding(findViewById(R.id.counter_label), combine(model.playerModel.playerSeekPosition, model.playerModel.naturalDuration) { pos,dur->formatTime(pos, dur) })
             .textBinding(findViewById(R.id.duration_label), model.playerModel.naturalDuration.map { formatTime(it,it) } )
-            .sliderBinding(slider, model.playerModel.playerSeekPosition.map { it.toFloat() }, min=null, max= model.playerModel.naturalDuration.map { max(100f, it.toFloat())})
+            .sliderBinding(controls.slider, model.playerModel.playerSeekPosition.map { it.toFloat() }, min=null, max= model.playerModel.naturalDuration.map { max(100f, it.toFloat())})
 
-            .bindCommand(model.commandPlay, playButton)
-            .bindCommand(model.commandPlay, playButton)
-            .bindCommand(model.commandPause, pauseButton)
-            .bindCommand(model.commandSeekBackward, seekBackButton)
-            .bindCommand(model.commandSeekForward, seekForwardButton)
-            .bindCommand(model.commandFullscreen, fullscreenButton)
-            .bindCommand(model.commandPinP, pinpButton)
-            .bindCommand(model.commandCollapse, collapseButton)
+            .bindCommand(model.commandPlay, controls.playButton)
+            .bindCommand(model.commandPlay, controls.playButton)
+            .bindCommand(model.commandPause, controls.pauseButton)
+            .bindCommand(model.commandSeekBackward, controls.seekBackButton)
+            .bindCommand(model.commandSeekForward, controls.seekForwardButton)
+            .bindCommand(model.commandFullscreen, controls.fullscreenButton)
+            .bindCommand(model.commandSnapshot, controls.snapshotButton)
+            .bindCommand(model.commandPinP, controls.pinpButton)
+            .bindCommand(model.commandCollapse, controls.collapseButton)
+            .bindCommand(model.commandRotate, controls.rotateLeft, Rotation.LEFT)
+            .bindCommand(model.commandRotate, controls.rotateRight, Rotation.RIGHT)
             .apply {
                 if(playlistHandler!=null ) {
-                    enableBinding(prevVideoButton, playlistHandler.hasPrevious)
-                    enableBinding(nextVideoButton, playlistHandler.hasNext)
-                    bindCommand(playlistHandler.commandNext, nextVideoButton)
-                    bindCommand(playlistHandler.commandPrev, prevVideoButton)
+                    enableBinding(controls.prevVideoButton, playlistHandler.hasPrevious)
+                    enableBinding(controls.nextVideoButton, playlistHandler.hasNext)
+                    bindCommand(playlistHandler.commandNext, controls.nextVideoButton)
+                    bindCommand(playlistHandler.commandPrev, controls.prevVideoButton)
                 }
                 if(chapterHandler!=null) {
-                    bindCommand(chapterHandler.commandNextChapter, nextChapterButton)
-                    bindCommand(chapterHandler.commandPrevChapter, prevChapterButton)
+                    bindCommand(chapterHandler.commandNextChapter, controls.nextChapterButton)
+                    bindCommand(chapterHandler.commandPrevChapter, controls.prevChapterButton)
                 }
             }
     }

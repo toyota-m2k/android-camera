@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
@@ -18,15 +19,22 @@ import io.github.toyota32k.bindit.*
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.lib.camera.usecase.ITcUseCase
+import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
-import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.bindCommand
+import io.github.toyota32k.secureCamera.utils.*
+import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.*
 import java.io.File
+import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
 class PlayerActivity : AppCompatActivity() {
@@ -44,7 +52,6 @@ class PlayerActivity : AppCompatActivity() {
                 return v.resId
             }
         }
-
         companion object {
             fun valueOf(resId: Int, def: ListMode = PHOTO): ListMode {
                 return values().find { it.resId == resId } ?: def
@@ -54,6 +61,17 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
+        companion object {
+            fun filename2date(filename:String): Date? {
+                val dateString = when {
+                    filename.startsWith(PHOTO_PREFIX)-> filename.substringAfter(PHOTO_PREFIX).substringBefore(PHOTO_EXTENSION)
+                    filename.startsWith(VIDEO_PREFIX)-> filename.substringAfter(VIDEO_PREFIX).substringBefore(VIDEO_EXTENSION)
+                    else -> return null
+                }
+                return ITcUseCase.dateFormatForFilename.parse(dateString)
+            }
+        }
+
         private val context: Application
             get() = getApplication()
         inner class VideoSource(override val name:String) : IMediaSource {
@@ -70,15 +88,9 @@ class PlayerActivity : AppCompatActivity() {
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
             val collection = ObservableList<String>()
+            val sorter = Sorter(collection, allowDuplication = true) { a,b-> ((filename2date(a)?.time?:0) - (filename2date(b)?.time?:0)).toInt() }
             val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
-
-//            val currentIndex:Int
-//                get() = collection.indexOfFirst { it==currentSource.value?.name }
-//            val isVideo
-//                get() = currentSource.value?.name?.endsWith(".mp4")?:false
-//            val isPhoto:Boolean
-//                get() = !isVideo
 
             val currentSelection:StateFlow<String?> = MutableStateFlow<String?>(null)
             var photoSelection:String? = null
@@ -92,7 +104,6 @@ class PlayerActivity : AppCompatActivity() {
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
-
             fun select(name:String?) {
                 if(collection.isEmpty()) {
                     hasNext.value = false
@@ -115,7 +126,7 @@ class PlayerActivity : AppCompatActivity() {
                 val index = collection.indexOf(name).takeIf { it>=0 } ?: 0
                 val item = collection[index]
                 currentSelection.mutable.value = item
-                if(item.endsWith(".mp4")) {
+                if(item.endsWith(VIDEO_EXTENSION)) {
                     videoSelection = item
                     isVideo.mutable.value = true
                     photoBitmap.mutable.value = null
@@ -132,16 +143,16 @@ class PlayerActivity : AppCompatActivity() {
 
             private fun setListMode(mode:ListMode) {
                 val newList = when(mode) {
-                    ListMode.VIDEO->context.fileList().filter {it.endsWith(".mp4") }
-                    ListMode.PHOTO->context.fileList().filter {it.endsWith(".jpeg") }
-                    ListMode.ALL->context.fileList().toList()
+                    ListMode.VIDEO->context.fileList().filter {it.endsWith(VIDEO_EXTENSION) }
+                    ListMode.PHOTO->context.fileList().filter {it.endsWith(PHOTO_EXTENSION) }
+                    ListMode.ALL->context.fileList().filter { it.endsWith(VIDEO_EXTENSION) || it.endsWith(PHOTO_EXTENSION)}
                 }
                 setFileList(newList, mode)
             }
 
             private fun setFileList(list:Collection<String>, newMode:ListMode) {
                 val current = currentSource.value
-                collection.replace(list)
+                sorter.replace(list)
                 listMode.value = newMode
                 when(newMode) {
                     ListMode.ALL->  select(current?.name)
@@ -184,9 +195,38 @@ class PlayerActivity : AppCompatActivity() {
         val playerControllerModel = PlayerControllerModel.Builder(application)
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
+            .supportSnapshot(::onSnapshot)
+            .enableRotateRight()
+            .enableRotateLeft()
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 
+        val fullscreenCommand = LiteCommand<Boolean> {
+            playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
+        }
+
+
+        private fun onSnapshot(pos:Long, bitmap: Bitmap) {
+            try {
+                val current = playlist.currentSelection.value ?: return
+                val orgDate = filename2date(current) ?: return
+                val date = Date(orgDate.time + pos)
+                val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
+                val file = File(context.filesDir, filename)
+                file.outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                    it.flush()
+                }
+                if(playlist.listMode.value!=ListMode.VIDEO) {
+                    playlist.sorter.add(filename)
+                }
+            } catch(e:Throwable) {
+                TpLib.logger.error(e)
+            } finally {
+                bitmap.recycle()
+            }
+
+        }
         override fun onCleared() {
             super.onCleared()
             playerControllerModel.close()
@@ -200,6 +240,7 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
+        hideActionBar()
 
         val normalColor: Drawable
         val normalTextColor: Int
@@ -228,15 +269,26 @@ class PlayerActivity : AppCompatActivity() {
             }
             .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
             .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
+            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map {it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
+                straightGone(controls.collapseButton)
+                inverseGone(controls.expandButton)
+            }
+            .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
             .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
+            .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
+            .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
+            }
+            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, callback = ::onPlayerTapped)
+            .add {
+                viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
             .recyclerViewBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
-                val isVideo = name.endsWith(".mp4")
+                val isVideo = name.endsWith(VIDEO_EXTENSION)
                 textView.text = name
                 itemBinder
                     .owner(this)
@@ -255,5 +307,33 @@ class PlayerActivity : AppCompatActivity() {
 
             }
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+    }
+
+    fun MutableStateFlow<Boolean>.toggle() {
+        value = !value
+    }
+
+    private fun onPlayerTapped() {
+        when(viewModel.playerControllerModel.windowMode.value) {
+            PlayerControllerModel.WindowMode.FULLSCREEN -> {
+                viewModel.playerControllerModel.showControlPanel.toggle()
+            }
+            else -> {
+                viewModel.playerControllerModel.playerModel.togglePlay()
+            }
+        }
+    }
+
+    private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
+        when(mode) {
+            PlayerControllerModel.WindowMode.FULLSCREEN -> {
+                controls.listPanel.visibility = View.GONE
+                viewModel.playerControllerModel.showControlPanel.value = false
+            }
+            else-> {
+                controls.listPanel.visibility = View.VISIBLE
+                viewModel.playerControllerModel.showControlPanel.value = true
+            }
+        }
     }
 }

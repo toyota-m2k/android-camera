@@ -11,6 +11,7 @@ interface IPlayerModel : AutoCloseable {
     fun setSource(src:IMediaSource?, autoPlay:Boolean)
     fun play()
     fun pause()
+    fun togglePlay()
 
     fun reset()
     fun seekRelative(seek: Long)
@@ -23,6 +24,10 @@ interface IPlayerModel : AutoCloseable {
     val currentSource: StateFlow<IMediaSource?>
     val playerSize: StateFlow<Size>
     val stretchVideoToView: StateFlow<Boolean>
+
+    val rotation: StateFlow<Int>
+    fun rotate(value:Rotation)
+
 
     val playerSeekPosition: StateFlow<Long>
     val naturalDuration: StateFlow<Long>

@@ -12,13 +12,9 @@ interface ITcUseCase {
     val useCase: UseCase
 
     companion object {
-        fun defaultFileName(prefix: String, extension: String): String {
-            return "$prefix${
-                SimpleDateFormat(
-                    "yyyy.MM.dd-HH:mm:ss",
-                    Locale.US
-                ).format(Date())
-            }$extension"
+        val dateFormatForFilename = SimpleDateFormat("yyyy.MM.dd-HH:mm:ss",Locale.US)
+        fun defaultFileName(prefix: String, extension: String, date:Date?=null): String {
+            return "$prefix${dateFormatForFilename.format(date?:Date())}$extension"
         }
     }
 }
