@@ -11,7 +11,6 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.boodroid.common.getColorAsDrawable
-import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.R
@@ -112,9 +111,14 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
                 playerSize
             }
         }.onEach(this::updateLayout).launchIn(scope)
+
+        playerModel.rotation.onEach {
+            playerView.rotation = it.toFloat()
+        }.launchIn(scope)
     }
 
     private fun updateLayout(videoSize:Size) {
+        logger.debug("layoutSize = ${videoSize.width} x ${videoSize.height}")
         playerView.setLayoutSize(videoSize.width, videoSize.height)
     }
 

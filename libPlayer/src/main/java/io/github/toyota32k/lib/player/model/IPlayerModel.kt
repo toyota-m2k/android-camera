@@ -25,6 +25,10 @@ interface IPlayerModel : AutoCloseable {
     val playerSize: StateFlow<Size>
     val stretchVideoToView: StateFlow<Boolean>
 
+    val rotation: StateFlow<Int>
+    fun rotate(value:Rotation)
+
+
     val playerSeekPosition: StateFlow<Long>
     val naturalDuration: StateFlow<Long>
     val isReady: StateFlow<Boolean>

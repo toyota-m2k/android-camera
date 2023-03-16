@@ -14,6 +14,7 @@
         android:id="@+id/exp_playerView"
         android:layout_gravity="center_horizontal|center_vertical"
         app:use_controller="false"
+        app:surface_type="texture_view"
         />
     <FrameLayout
         tools:visibility="visible"

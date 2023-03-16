@@ -19,9 +19,7 @@ import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatTime
-import io.github.toyota32k.lib.player.model.PlayerControllerModel
-import io.github.toyota32k.lib.player.model.IChapterHandler
-import io.github.toyota32k.lib.player.model.IPlaylistHandler
+import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.player.lib.databinding.V2ControlPanelBinding
 import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.UtLog
@@ -105,6 +103,8 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .visibilityBinding(controls.pinpButton, ConstantLiveData(model.supportPinP), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.fullscreenButton, ConstantLiveData(model.supportFullscreen), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.snapshotButton, ConstantLiveData(model.snapshotHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.rotateLeft, ConstantLiveData(model.enableRotateLeft), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.rotateRight, ConstantLiveData(model.enableRotateRight), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.prevChapterButton, controls.nextChapterButton), ConstantLiveData(chapterHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.prevVideoButton, controls.nextVideoButton), ConstantLiveData(playlistHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiEnableBinding(arrayOf(controls.playButton, controls.pauseButton, controls.seekBackButton, controls.seekForwardButton, controls.fullscreenButton, controls.pinpButton, controls.slider), model.playerModel.isReady)
@@ -121,6 +121,8 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .bindCommand(model.commandSnapshot, controls.snapshotButton)
             .bindCommand(model.commandPinP, controls.pinpButton)
             .bindCommand(model.commandCollapse, controls.collapseButton)
+            .bindCommand(model.commandRotate, controls.rotateLeft, Rotation.LEFT)
+            .bindCommand(model.commandRotate, controls.rotateRight, Rotation.RIGHT)
             .apply {
                 if(playlistHandler!=null ) {
                     enableBinding(controls.prevVideoButton, playlistHandler.hasPrevious)

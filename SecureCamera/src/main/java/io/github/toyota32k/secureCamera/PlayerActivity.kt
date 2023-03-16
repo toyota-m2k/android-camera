@@ -196,6 +196,8 @@ class PlayerActivity : AppCompatActivity() {
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
             .supportSnapshot(::onSnapshot)
+            .enableRotateRight()
+            .enableRotateLeft()
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 

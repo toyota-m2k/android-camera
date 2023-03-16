@@ -377,15 +377,25 @@ open class BasicPlayerModel(
      */
     // var stretchVideoToView = false
     override val stretchVideoToView = MutableStateFlow(false)
+    final override val rotation = MutableStateFlow(0)
+    override fun rotate(value: Rotation) {
+        if(value == Rotation.NONE) {
+            rotation.value = 0
+        } else {
+            rotation.value = Rotation.normalize(rotation.value + value.degree)
+        }
+    }
 
     private val mFitter = AmvFitterEx(FitMode.Inside)
-    override val playerSize = combine(videoSize.filterNotNull(),rootViewSize.filterNotNull()) { videoSize, rootViewSize->
-        logger.debug("videoSize=(${videoSize.height} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
-        mFitter
+    override val playerSize = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
+        logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
+        val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))
+        Rotation.transposeSize(rotation,mFitter
             .setLayoutWidth(rootViewSize.width)
             .setLayoutHeight(rootViewSize.height)
-            .fit(videoSize.width, videoSize.height)
-            .resultSize
+            .fit(size.width, size.height)
+            .resultSize)
+            .apply { logger.debug("result playerSize = (${width} x ${height})") }
     }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
     // endregion
@@ -424,7 +434,7 @@ open class BasicPlayerModel(
         logger.debug()
         pause()
         seekManager.reset()
-    }
+        errorMessage.mutable.value = null    }
 
     /**
      * Play / Pauseをトグル

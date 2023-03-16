@@ -2,7 +2,9 @@ package io.github.toyota32k.lib.player.model
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.net.Uri
+import io.github.toyota32k.bindit.LiteCommand
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.TpFrameExtractor
@@ -24,6 +26,8 @@ open class PlayerControllerModel(
     val supportFullscreen:Boolean,
     val supportPinP:Boolean,
     val snapshotHandler:((Long,Bitmap)->Unit)?,
+    val enableRotateRight:Boolean,
+    val enableRotateLeft:Boolean,
     val playerTapToPlay:Boolean,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
@@ -40,6 +44,8 @@ open class PlayerControllerModel(
         private var mSupportFullscreen:Boolean = false
         private var mSupportPinP:Boolean = false
         private var mSnapshotHandler:((Long,Bitmap)->Unit)? = null
+        private var mEnableRotateRight:Boolean = false
+        private var mEnableRotateLeft:Boolean = false
         private var mPlayerTapToPlay:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
@@ -74,6 +80,14 @@ open class PlayerControllerModel(
             return this
         }
 
+        fun enableRotateRight():Builder {
+            mEnableRotateRight = true
+            return this
+        }
+        fun enableRotateLeft():Builder {
+            mEnableRotateLeft = true
+            return this
+        }
         fun relativeSeekDuration(forward:Long, backward:Long):Builder {
             mSeekForward = forward
             mSeekBackword = backward
@@ -95,7 +109,17 @@ open class PlayerControllerModel(
                 mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, scope)
             }
-            return PlayerControllerModel(playerModel, mSupportFullscreen, mSupportPinP, mSnapshotHandler, mPlayerTapToPlay, mSeekForward, mSeekBackword)
+            return PlayerControllerModel(
+                playerModel,
+                supportFullscreen = mSupportFullscreen,
+                supportPinP = mSupportPinP,
+                snapshotHandler = mSnapshotHandler,
+                enableRotateRight = mEnableRotateRight,
+                enableRotateLeft = mEnableRotateLeft,
+                playerTapToPlay = mPlayerTapToPlay,
+                seekRelativeForward = mSeekForward,
+                seekRelativeBackword = mSeekBackword
+            )
         }
     }
 
@@ -135,6 +159,7 @@ open class PlayerControllerModel(
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }
     val commandSnapshot = LiteUnitCommand(::snapshot)
     val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
+    val commandRotate = LiteCommand<Rotation> { playerModel.rotate(it) }
 
     // endregion
 
@@ -155,11 +180,19 @@ open class PlayerControllerModel(
         val handler = snapshotHandler ?: return
         val src = playerModel.currentSource.value ?: return
         val pos = playerModel.currentPosition
+        val rotation = Rotation.normalize(playerModel.rotation.value)
 
-        scope.launch {
-            val bitmap = TpFrameExtractor(playerModel.context, Uri.parse(src.uri)).extractFrame(pos)
-            if(bitmap != null) {
-                handler(pos,bitmap)
+        CoroutineScope(Dispatchers.IO).launch {
+            TpFrameExtractor(playerModel.context, Uri.parse(src.uri)).use { extractor->
+                val bitmap = extractor.extractFrame(pos)
+                if(bitmap != null) {
+                    val bitmap2 = if(rotation!=0) {
+                        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+                    } else bitmap
+                    withContext(scope.coroutineContext) {
+                        handler(pos, bitmap2)
+                    }
+                }
             }
         }
     }

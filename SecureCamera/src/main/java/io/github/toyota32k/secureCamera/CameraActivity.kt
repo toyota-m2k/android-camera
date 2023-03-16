@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.WindowManager
@@ -174,6 +175,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        logger.debug("${newConfig.orientation}")
+    }
     override fun onDestroy() {
         super.onDestroy()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
