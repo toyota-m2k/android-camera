@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
-import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
+//import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
@@ -57,6 +57,6 @@ class MainActivity : UtMortalActivity() {
     }
 
     private fun showLicense() {
-        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
+//        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
 }

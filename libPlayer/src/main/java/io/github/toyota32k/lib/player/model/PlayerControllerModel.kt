@@ -184,14 +184,13 @@ open class PlayerControllerModel(
 
         CoroutineScope(Dispatchers.IO).launch {
             TpFrameExtractor(playerModel.context, Uri.parse(src.uri)).use { extractor->
-                val bitmap = extractor.extractFrame(pos)
-                if(bitmap != null) {
-                    val bitmap2 = if(rotation!=0) {
-                        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
-                    } else bitmap
-                    withContext(scope.coroutineContext) {
-                        handler(pos, bitmap2)
-                    }
+                val bitmap = extractor.extractFrame(pos)?.run {
+                    if(rotation!=0) {
+                        Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+                    } else this
+                } ?: return@use
+                withContext(scope.coroutineContext) {
+                    handler(pos, bitmap)
                 }
             }
         }

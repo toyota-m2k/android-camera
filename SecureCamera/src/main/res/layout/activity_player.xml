@@ -94,6 +94,31 @@
                     android:background="?attr/selectableItemBackground"
                     />
                 <ImageButton
+                    android:id="@+id/image_rotate_left_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_rotate_left"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+                <ImageButton
+                    android:id="@+id/image_rotate_right_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_rotate_right"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+                <ImageButton
+                    android:id="@+id/photo_save_button"
+                    android:layout_width="@dimen/media_button_width"
+                    android:layout_height="@dimen/media_button_height"
+                    app:srcCompat="@drawable/ic_save"
+                    app:tint="?attr/iconColor"
+                    android:background="?attr/selectableItemBackground"
+                    />
+
+                <ImageButton
                     android:id="@+id/expand_button"
                     android:layout_width="@dimen/media_button_width"
                     android:layout_height="@dimen/media_button_height"

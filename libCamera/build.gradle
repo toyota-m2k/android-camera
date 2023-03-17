@@ -29,6 +29,19 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES']
+        }
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 }
 
 dependencies {

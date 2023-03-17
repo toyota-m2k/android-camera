@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.bindit.list.ObservableList
@@ -21,10 +23,7 @@ import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.model.IMediaFeed
-import io.github.toyota32k.lib.player.model.IMediaSource
-import io.github.toyota32k.lib.player.model.PlayerControllerModel
-import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
@@ -36,6 +35,76 @@ import kotlinx.coroutines.flow.*
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+
+fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, vararg views:Pair<View,T>): Binder {
+    views.forEach {  pair->
+        add(cmd.attachView(pair.first, pair.second))
+    }
+    return this
+}
+
+fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, view:View, param:T): Binder
+        = bindCommandXxx(cmd, Pair(view,param))
+
+fun <T> Binder.bindCommandXxx(owner: LifecycleOwner, cmd:ICommand<T>, callback:(T)->Unit): Binder {
+    add(cmd.bind(owner,callback))
+    return this
+}
+
+fun <T> Binder.bindCommandXxx(owner: LifecycleOwner, cmd:ICommand<T>, vararg views:Pair<View,T>, callback:(T)->Unit): Binder {
+    bindCommandXxx(cmd, *views)
+    add(cmd.bind(owner,callback))
+    return this
+}
+
+fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, callback:(T)->Unit): Binder
+        = bindCommandXxx(requireOwner, cmd, callback)
+
+fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, vararg views:Pair<View,T>, callback:(T)->Unit): Binder
+        = bindCommandXxx(requireOwner, cmd, views=views, callback)
+
+fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, view:View, param:T, callback:(T)->Unit): Binder
+        = bindCommandXxx(requireOwner, cmd, Pair(view,param), callback=callback)
+
+
+fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View): Binder {
+    views.forEach { view->
+        add(cmd.attachView(view))
+    }
+    return this
+}
+
+fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, callback:()->Unit): Binder
+        = add(cmd.bind(owner,callback))
+
+fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
+        = bindCommandXxx(cmd,*views).add(cmd.bind(owner,callback))
+
+fun Binder.bindCommandXxx(cmd:IUnitCommand, callback:()->Unit): Binder
+        = add(cmd.bind(requireOwner,callback))
+
+fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
+        = bindCommandXxx(requireOwner, cmd, views=views, callback)
+
+
+
+
+
+
+
+
+
+//fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View): Binder {
+//    views.forEach { view->
+//        add(cmd.attachView(view))
+//    }
+//    return this
+//}
+//fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
+//        = bindCommandXxx(cmd,*views).add(cmd.bind(owner,callback))
+//
+//fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
+//        = bindCommandXxx(requireOwner, cmd, views=views, callback)
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -101,6 +170,10 @@ class PlayerActivity : AppCompatActivity() {
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
 
+            val commandNext = LiteUnitCommand(::next)
+            val commandPrev = LiteUnitCommand(::previous)
+            val photoRotation : StateFlow<Int> = MutableStateFlow(0)
+
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
@@ -109,6 +182,7 @@ class PlayerActivity : AppCompatActivity() {
                     hasNext.value = false
                     hasPrevious.value = false
                     currentSource.value = null
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     isVideo.mutable.value = false
                     currentSelection.mutable.value = null
@@ -117,6 +191,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 if(name==null) {
                     currentSource.value = null
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     isVideo.mutable.value = false
                     currentSelection.mutable.value = null
@@ -129,12 +204,14 @@ class PlayerActivity : AppCompatActivity() {
                 if(item.endsWith(VIDEO_EXTENSION)) {
                     videoSelection = item
                     isVideo.mutable.value = true
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     currentSource.value = VideoSource(item)
                 } else {
                     photoSelection = item
                     currentSource.value = null
                     isVideo.mutable.value = false
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = BitmapFactory.decodeFile(File(context.filesDir, item).path)
                 }
                 hasPrevious.mutable.value = index>0
@@ -187,8 +264,25 @@ class PlayerActivity : AppCompatActivity() {
                 }
             }
 
-            val commandNext = LiteUnitCommand(::next)
-            val commandPrev = LiteUnitCommand(::previous)
+            fun rotateBitmap(rotation: Rotation) {
+                playlist.photoBitmap.mutable.value = playlist.photoBitmap.value?.run {
+                    if(rotation!=Rotation.NONE) {
+                        photoRotation.mutable.value = Rotation.normalize(photoRotation.mutable.value + rotation.degree)
+                        Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(rotation.degree.toFloat()) }, true)
+                    } else this
+                } ?: return
+            }
+
+            fun saveBitmap() {
+                val filename = currentSelection.value ?: return
+                val bitmap = photoBitmap.value ?: return
+                val file = File(context.filesDir, filename)
+                file.outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                    it.flush()
+                }
+                photoRotation.mutable.value = 0
+            }
         }
 
         val playlist = Playlist()
@@ -204,7 +298,8 @@ class PlayerActivity : AppCompatActivity() {
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
-
+        val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
+        val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             try {
@@ -225,8 +320,8 @@ class PlayerActivity : AppCompatActivity() {
             } finally {
                 bitmap.recycle()
             }
-
         }
+
         override fun onCleared() {
             super.onCleared()
             playerControllerModel.close()
@@ -260,7 +355,6 @@ class PlayerActivity : AppCompatActivity() {
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
 
-
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .combinatorialVisibilityBinding(viewModel.playlist.isVideo) {
@@ -274,25 +368,31 @@ class PlayerActivity : AppCompatActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
-            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
-            .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
-            .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
+            .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .bindCommandXxx(viewModel.playlist.commandNext, controls.imageNextButton)
+            .bindCommandXxx(viewModel.playlist.commandPrev, controls.imagePrevButton)
+            .bindCommandXxx(viewModel.fullscreenCommand, controls.expandButton, true)
+            .bindCommandXxx(viewModel.fullscreenCommand, controls.collapseButton, false)
+//            .bindCommandXxx(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
+//            .bindCommandXxx(viewModel.rotateCommand, controls.imageRotateRightButton, Rotation.RIGHT)
+//            .bindCommandXxx(viewModel.rotateCommand, this::onRotate)
+            .bindCommandXxx(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
+            .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
-            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, callback = ::onPlayerTapped)
+            .bindCommandXxx(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .recyclerViewBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item) { itemBinder, views, name->
+            .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, dragToMove = false, swipeToDelete = true, deletionHandler = ::onDeletingItem) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val isVideo = name.endsWith(VIDEO_EXTENSION)
                 textView.text = name
                 itemBinder
                     .owner(this)
-                    .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
+                    .bindCommandXxx(LiteUnitCommand { viewModel.playlist.select(name)}, views)
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == name }) { hit->
                         if(hit) {
                             views.background = selectedColor
@@ -307,6 +407,33 @@ class PlayerActivity : AppCompatActivity() {
 
             }
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+
+
+
+
+    }
+    
+    private fun onDeletingItem(item:String):RecyclerViewBinding.IPendingDeletion {
+        if(item == viewModel.playlist.currentSelection.value) {
+            viewModel.playlist.select(null)
+        }
+        return object:RecyclerViewBinding.IPendingDeletion {
+            override val itemLabel: String get() = item
+            override val undoButtonLabel: String? = null  // default で ok
+
+            override fun commit() {
+                try {
+                    TpLib.logger.debug("deleted $item")
+                    deleteFile(item)
+                } catch(e:Throwable) {
+                    TpLib.logger.error(e)
+                }
+            }
+
+            override fun rollback() {
+                viewModel.playlist.select(item)
+            }
+        }
     }
 
     fun MutableStateFlow<Boolean>.toggle() {
