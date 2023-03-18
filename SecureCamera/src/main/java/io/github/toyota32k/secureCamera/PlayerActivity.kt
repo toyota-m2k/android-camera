@@ -15,7 +15,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.bindit.list.ObservableList
@@ -30,84 +29,17 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.utils.*
-import io.github.toyota32k.utils.*
+import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.bindCommand
+import io.github.toyota32k.utils.disposableObserve
 import kotlinx.coroutines.flow.*
 import java.io.File
+import java.lang.Float.max
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-
-fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, vararg views:Pair<View,T>): Binder {
-    views.forEach {  pair->
-        add(cmd.attachView(pair.first, pair.second))
-    }
-    return this
-}
-
-fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, view:View, param:T): Binder
-        = bindCommandXxx(cmd, Pair(view,param))
-
-fun <T> Binder.bindCommandXxx(owner: LifecycleOwner, cmd:ICommand<T>, callback:(T)->Unit): Binder {
-    add(cmd.bind(owner,callback))
-    return this
-}
-
-fun <T> Binder.bindCommandXxx(owner: LifecycleOwner, cmd:ICommand<T>, vararg views:Pair<View,T>, callback:(T)->Unit): Binder {
-    bindCommandXxx(cmd, *views)
-    add(cmd.bind(owner,callback))
-    return this
-}
-
-fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, callback:(T)->Unit): Binder
-        = bindCommandXxx(requireOwner, cmd, callback)
-
-fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, vararg views:Pair<View,T>, callback:(T)->Unit): Binder
-        = bindCommandXxx(requireOwner, cmd, views=views, callback)
-
-fun <T> Binder.bindCommandXxx(cmd:ICommand<T>, view:View, param:T, callback:(T)->Unit): Binder
-        = bindCommandXxx(requireOwner, cmd, Pair(view,param), callback=callback)
-
-
-fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View): Binder {
-    views.forEach { view->
-        add(cmd.attachView(view))
-    }
-    return this
-}
-
-fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, callback:()->Unit): Binder
-        = add(cmd.bind(owner,callback))
-
-fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
-        = bindCommandXxx(cmd,*views).add(cmd.bind(owner,callback))
-
-fun Binder.bindCommandXxx(cmd:IUnitCommand, callback:()->Unit): Binder
-        = add(cmd.bind(requireOwner,callback))
-
-fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
-        = bindCommandXxx(requireOwner, cmd, views=views, callback)
-
-
-
-
-
-
-
-
-
-//fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View): Binder {
-//    views.forEach { view->
-//        add(cmd.attachView(view))
-//    }
-//    return this
-//}
-//fun Binder.bindCommandXxx(owner: LifecycleOwner, cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
-//        = bindCommandXxx(cmd,*views).add(cmd.bind(owner,callback))
-//
-//fun Binder.bindCommandXxx(cmd:IUnitCommand, vararg views:View, callback:()->Unit): Binder
-//        = bindCommandXxx(requireOwner, cmd, views=views, callback)
+import kotlin.math.min
 
 class PlayerActivity : AppCompatActivity() {
-
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -331,6 +263,7 @@ class PlayerActivity : AppCompatActivity() {
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
+    val gestureInterpreter:GestureInterpreter by lazy { GestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
@@ -369,19 +302,19 @@ class PlayerActivity : AppCompatActivity() {
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommandXxx(viewModel.playlist.commandNext, controls.imageNextButton)
-            .bindCommandXxx(viewModel.playlist.commandPrev, controls.imagePrevButton)
-            .bindCommandXxx(viewModel.fullscreenCommand, controls.expandButton, true)
-            .bindCommandXxx(viewModel.fullscreenCommand, controls.collapseButton, false)
-//            .bindCommandXxx(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
-//            .bindCommandXxx(viewModel.rotateCommand, controls.imageRotateRightButton, Rotation.RIGHT)
-//            .bindCommandXxx(viewModel.rotateCommand, this::onRotate)
-            .bindCommandXxx(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
+            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
+            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
+            .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
+            .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
+//            .bindCommand(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
+//            .bindCommand(viewModel.rotateCommand, controls.imageRotateRightButton, Rotation.RIGHT)
+//            .bindCommand(viewModel.rotateCommand, this::onRotate)
+            .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
-            .bindCommandXxx(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
+            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
@@ -392,7 +325,7 @@ class PlayerActivity : AppCompatActivity() {
                 textView.text = name
                 itemBinder
                     .owner(this)
-                    .bindCommandXxx(LiteUnitCommand { viewModel.playlist.select(name)}, views)
+                    .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == name }) { hit->
                         if(hit) {
                             views.background = selectedColor
@@ -409,9 +342,42 @@ class PlayerActivity : AppCompatActivity() {
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
 
 
-
-
+        gestureInterpreter.setup(this, controls.viewerArea) {
+            onScroll = manipulator::onScroll
+            onScale = manipulator::onScale
+            onTap = manipulator::onTap
+            onDoubleTap = manipulator::onDoubleTap
+            onLongTap = manipulator::onLongTap
+        }
     }
+
+    inner class ViewerManipulator {
+        fun onScroll(event: GestureInterpreter.IScrollEvent) {
+            controls.imageView.translationX  -= event.dx
+            controls.imageView.translationY  -= event.dy
+        }
+
+        fun onScale(event: GestureInterpreter.IScaleEvent) {
+            val newScale = (controls.imageView.scaleX * event.scale).run {
+                max(1f, min(10f, this))
+            }
+            controls.imageView.scaleX = newScale
+            controls.imageView.scaleY = newScale
+        }
+        fun onTap() {
+
+        }
+        fun onDoubleTap() {
+            controls.imageView.translationX = 0f
+            controls.imageView.translationY = 0f
+            controls.imageView.scaleX = 1f
+            controls.imageView.scaleY = 1f
+        }
+        fun onLongTap() {
+
+        }
+    }
+    val manipulator = ViewerManipulator()
     
     private fun onDeletingItem(item:String):RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
@@ -463,4 +429,27 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
     }
+
+//    override fun onGestureFling(dir: FlingDirection): Boolean {
+//        when(dir) {
+//            FlingDirection.Left->viewModel.playlist.commandNext.invoke()
+//            FlingDirection.Right->viewModel.playlist.commandPrev.invoke()
+//            else -> return false
+//        }
+//        return true
+//    }
+//    fun onGestureSwipe(dx: Float, dy: Float, end:Boolean): Boolean {
+//        controls.imageView.translationX  -= dx
+//        controls.imageView.translationY  -= dy
+//        return true
+//    }
+//
+//    fun onGestureZoom(scale: Float, end:Boolean): Boolean {
+//        val newScale = (controls.imageView.scaleX * scale).run {
+//            max(1f, min(10f, this))
+//        }
+//        controls.imageView.scaleX = newScale
+//        controls.imageView.scaleY = newScale
+//        return true
+//    }
 }

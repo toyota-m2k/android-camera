@@ -2,7 +2,7 @@
 buildscript {
     ext.kotlin_version = '1.8.10'
     ext.exoplayer_version = '2.18.4'
-    ext.m2k_bind_it_version = "2.2.3"
+    ext.m2k_bind_it_version = "2.2.4"
 //    ext.m2k_bind_it_version = "c02bd524a7"
     ext.m2k_android_dialog_version = "3.5.1"
     ext.m2k_viewex_version = "0.0.1"

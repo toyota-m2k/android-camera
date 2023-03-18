@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -126,6 +127,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         super.onCreate(savedInstanceState)
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
         hideActionBar()
         hideStatusBar()
 
