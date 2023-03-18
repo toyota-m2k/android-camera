@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
@@ -21,24 +22,24 @@ import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.model.IMediaFeed
-import io.github.toyota32k.lib.player.model.IMediaSource
-import io.github.toyota32k.lib.player.model.PlayerControllerModel
-import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.utils.*
-import io.github.toyota32k.utils.*
+import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.bindCommand
+import io.github.toyota32k.utils.disposableObserve
 import kotlinx.coroutines.flow.*
 import java.io.File
+import java.lang.Float.max
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.min
 
 class PlayerActivity : AppCompatActivity() {
-
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -101,6 +102,10 @@ class PlayerActivity : AppCompatActivity() {
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
 
+            val commandNext = LiteUnitCommand(::next)
+            val commandPrev = LiteUnitCommand(::previous)
+            val photoRotation : StateFlow<Int> = MutableStateFlow(0)
+
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
@@ -109,6 +114,7 @@ class PlayerActivity : AppCompatActivity() {
                     hasNext.value = false
                     hasPrevious.value = false
                     currentSource.value = null
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     isVideo.mutable.value = false
                     currentSelection.mutable.value = null
@@ -117,6 +123,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 if(name==null) {
                     currentSource.value = null
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     isVideo.mutable.value = false
                     currentSelection.mutable.value = null
@@ -129,12 +136,14 @@ class PlayerActivity : AppCompatActivity() {
                 if(item.endsWith(VIDEO_EXTENSION)) {
                     videoSelection = item
                     isVideo.mutable.value = true
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     currentSource.value = VideoSource(item)
                 } else {
                     photoSelection = item
                     currentSource.value = null
                     isVideo.mutable.value = false
+                    photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = BitmapFactory.decodeFile(File(context.filesDir, item).path)
                 }
                 hasPrevious.mutable.value = index>0
@@ -187,8 +196,25 @@ class PlayerActivity : AppCompatActivity() {
                 }
             }
 
-            val commandNext = LiteUnitCommand(::next)
-            val commandPrev = LiteUnitCommand(::previous)
+            fun rotateBitmap(rotation: Rotation) {
+                playlist.photoBitmap.mutable.value = playlist.photoBitmap.value?.run {
+                    if(rotation!=Rotation.NONE) {
+                        photoRotation.mutable.value = Rotation.normalize(photoRotation.mutable.value + rotation.degree)
+                        Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(rotation.degree.toFloat()) }, true)
+                    } else this
+                } ?: return
+            }
+
+            fun saveBitmap() {
+                val filename = currentSelection.value ?: return
+                val bitmap = photoBitmap.value ?: return
+                val file = File(context.filesDir, filename)
+                file.outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                    it.flush()
+                }
+                photoRotation.mutable.value = 0
+            }
         }
 
         val playlist = Playlist()
@@ -204,7 +230,8 @@ class PlayerActivity : AppCompatActivity() {
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
-
+        val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
+        val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             try {
@@ -225,8 +252,8 @@ class PlayerActivity : AppCompatActivity() {
             } finally {
                 bitmap.recycle()
             }
-
         }
+
         override fun onCleared() {
             super.onCleared()
             playerControllerModel.close()
@@ -236,6 +263,7 @@ class PlayerActivity : AppCompatActivity() {
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
+    val gestureInterpreter:GestureInterpreter by lazy { GestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
@@ -260,7 +288,6 @@ class PlayerActivity : AppCompatActivity() {
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
 
-
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .combinatorialVisibilityBinding(viewModel.playlist.isVideo) {
@@ -274,18 +301,24 @@ class PlayerActivity : AppCompatActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
             .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
             .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
+//            .bindCommand(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
+//            .bindCommand(viewModel.rotateCommand, controls.imageRotateRightButton, Rotation.RIGHT)
+//            .bindCommand(viewModel.rotateCommand, this::onRotate)
+            .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
+            .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
-            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, callback = ::onPlayerTapped)
+            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .recyclerViewBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item) { itemBinder, views, name->
+            .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, dragToMove = false, swipeToDelete = true, deletionHandler = ::onDeletingItem) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val isVideo = name.endsWith(VIDEO_EXTENSION)
@@ -307,6 +340,66 @@ class PlayerActivity : AppCompatActivity() {
 
             }
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+
+
+        gestureInterpreter.setup(this, controls.viewerArea) {
+            onScroll = manipulator::onScroll
+            onScale = manipulator::onScale
+            onTap = manipulator::onTap
+            onDoubleTap = manipulator::onDoubleTap
+            onLongTap = manipulator::onLongTap
+        }
+    }
+
+    inner class ViewerManipulator {
+        fun onScroll(event: GestureInterpreter.IScrollEvent) {
+            controls.imageView.translationX  -= event.dx
+            controls.imageView.translationY  -= event.dy
+        }
+
+        fun onScale(event: GestureInterpreter.IScaleEvent) {
+            val newScale = (controls.imageView.scaleX * event.scale).run {
+                max(1f, min(10f, this))
+            }
+            controls.imageView.scaleX = newScale
+            controls.imageView.scaleY = newScale
+        }
+        fun onTap() {
+
+        }
+        fun onDoubleTap() {
+            controls.imageView.translationX = 0f
+            controls.imageView.translationY = 0f
+            controls.imageView.scaleX = 1f
+            controls.imageView.scaleY = 1f
+        }
+        fun onLongTap() {
+
+        }
+    }
+    val manipulator = ViewerManipulator()
+    
+    private fun onDeletingItem(item:String):RecyclerViewBinding.IPendingDeletion {
+        if(item == viewModel.playlist.currentSelection.value) {
+            viewModel.playlist.select(null)
+        }
+        return object:RecyclerViewBinding.IPendingDeletion {
+            override val itemLabel: String get() = item
+            override val undoButtonLabel: String? = null  // default で ok
+
+            override fun commit() {
+                try {
+                    TpLib.logger.debug("deleted $item")
+                    deleteFile(item)
+                } catch(e:Throwable) {
+                    TpLib.logger.error(e)
+                }
+            }
+
+            override fun rollback() {
+                viewModel.playlist.select(item)
+            }
+        }
     }
 
     fun MutableStateFlow<Boolean>.toggle() {
@@ -336,4 +429,27 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
     }
+
+//    override fun onGestureFling(dir: FlingDirection): Boolean {
+//        when(dir) {
+//            FlingDirection.Left->viewModel.playlist.commandNext.invoke()
+//            FlingDirection.Right->viewModel.playlist.commandPrev.invoke()
+//            else -> return false
+//        }
+//        return true
+//    }
+//    fun onGestureSwipe(dx: Float, dy: Float, end:Boolean): Boolean {
+//        controls.imageView.translationX  -= dx
+//        controls.imageView.translationY  -= dy
+//        return true
+//    }
+//
+//    fun onGestureZoom(scale: Float, end:Boolean): Boolean {
+//        val newScale = (controls.imageView.scaleX * scale).run {
+//            max(1f, min(10f, this))
+//        }
+//        controls.imageView.scaleX = newScale
+//        controls.imageView.scaleY = newScale
+//        return true
+//    }
 }
