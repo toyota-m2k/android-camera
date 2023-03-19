@@ -11,13 +11,6 @@ import androidx.lifecycle.LifecycleOwner
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.utils.*
 
-enum class FlingDirection {
-    Up,
-    Down,
-    Left,   // （右から）左へフリック
-    Right   // （左から）右へフリック
-}
-
 class GestureInterpreter(
     applicationContext: Context,
     enableScaleEvent:Boolean
@@ -152,7 +145,7 @@ class GestureInterpreter(
                 longTapListeners.add(owner, this)
             }
             onDoubleTap?.apply {
-                longTapListeners.add(owner, this)
+                doubleTapListeners.add(owner, this)
             }
         }
     }
@@ -192,45 +185,44 @@ class GestureInterpreter(
 
     private inner class SwipeGestureListener : SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return false
         }
 
         override fun onSingleTapUp(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return false
         }
 
         override fun onShowPress(e: MotionEvent) {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
         }
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return fireTapEvent()
         }
 
         override fun onContextClick(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return false
         }
 
         override fun onLongPress(e: MotionEvent) {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             fireLongTapEvent()
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return fireDoubleTapEvent()
         }
 
         override fun onDoubleTapEvent(e: MotionEvent): Boolean {
-            logger.debug("$e")
+            logger.debug(GI_LOG) {"$e"}
             return false
         }
 
-        val SCROLL_THRESHOLD = 5f
         override fun onScroll(
             e1: MotionEvent,
             e2: MotionEvent,
@@ -282,7 +274,7 @@ class GestureInterpreter(
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            logger.debug("${detector.scaleFactor}")
+            logger.debug(GI_LOG) {"${detector.scaleFactor}"}
             return fireScaleEvent(detector.scaleFactor, false)
         }
 
@@ -292,11 +284,12 @@ class GestureInterpreter(
 //        }
 
         override fun onScaleEnd(detector: ScaleGestureDetector) {
-            logger.debug("$detector}")
+            logger.debug(GI_LOG) { "$detector}" }
             fireScaleEvent(detector.scaleFactor, true)
         }
     }
     companion object {
+        const val GI_LOG = false
         val logger: UtLog = UtLog("GI", TpLib.logger, "io.github.toyota32k.secureCamera.utils.")
     }
 

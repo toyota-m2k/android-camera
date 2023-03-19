@@ -351,18 +351,21 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    inner class ViewerManipulator {
+    inner class ViewerManipulator : ITargetViewInfo {
+        val constraint = ScrollZoomConstraint(this)
         fun onScroll(event: GestureInterpreter.IScrollEvent) {
-            controls.imageView.translationX  -= event.dx
-            controls.imageView.translationY  -= event.dy
+            constraint.onScroll(event)
+//            controls.imageView.translationX  -= event.dx
+//            controls.imageView.translationY  -= event.dy
         }
 
         fun onScale(event: GestureInterpreter.IScaleEvent) {
-            val newScale = (controls.imageView.scaleX * event.scale).run {
-                max(1f, min(10f, this))
-            }
-            controls.imageView.scaleX = newScale
-            controls.imageView.scaleY = newScale
+            constraint.onScale(event)
+//            val newScale = (controls.imageView.scaleX * event.scale).run {
+//                max(1f, min(10f, this))
+//            }
+//            controls.imageView.scaleX = newScale
+//            controls.imageView.scaleY = newScale
         }
         fun onTap() {
 
@@ -375,6 +378,21 @@ class PlayerActivity : AppCompatActivity() {
         }
         fun onLongTap() {
 
+        }
+
+        override val parentView: View
+            get() = controls.viewerArea
+        override val contentView: View
+            get() = controls.imageView
+        override val overScrollX: Float
+            get() = 0.4f
+        override val overScrollY: Float
+            get() = 0f
+        override val pageOrientation: Orientation
+            get() = Orientation.Horizontal
+
+        override fun changePage(orientation: Orientation, dir: Direction): Boolean {
+            return false
         }
     }
     val manipulator = ViewerManipulator()

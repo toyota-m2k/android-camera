@@ -82,7 +82,7 @@ open class AmvFitter(override var fitMode: FitMode = FitMode.Inside, protected v
     }
 }
 
-class AmvFitterEx(override var fitMode: FitMode, override var layoutWidth:Float, override var layoutHeight:Float) :
+class TpFitterEx(override var fitMode: FitMode, override var layoutWidth:Float, override var layoutHeight:Float) :
     IAmvLayoutHint {
     constructor():this(FitMode.Inside, 1f, 1f)
     constructor(fitMode: FitMode):this(fitMode, 1f,1f)
@@ -96,41 +96,53 @@ class AmvFitterEx(override var fitMode: FitMode, override var layoutWidth:Float,
     val resultWidth = result.width
     val resultHeight = result.height
 
-    fun setMode(fitMode: FitMode) {
+    fun setMode(fitMode: FitMode):TpFitterEx {
         this.fitMode = fitMode
+        return this
     }
 
-    fun setLayoutWidth(width:Float): AmvFitterEx {
+    fun setLayoutWidth(width:Float): TpFitterEx {
         this.layoutWidth = width
         return this
     }
-    fun setLayoutWidth(width:Int): AmvFitterEx {
+    fun setLayoutWidth(width:Int): TpFitterEx {
         this.layoutWidth = width.toFloat()
         return this
     }
 
-    fun setLayoutHeight(height:Float): AmvFitterEx {
+    fun setLayoutHeight(height:Float): TpFitterEx {
         this.layoutHeight = height
         return this
     }
-    fun setLayoutHeight(height:Int): AmvFitterEx {
+    fun setLayoutHeight(height:Int): TpFitterEx {
         this.layoutHeight = height.toFloat()
         return this
     }
+    fun setLayoutSize(width:Float, height:Float):TpFitterEx {
+        this.layoutWidth = width
+        this.layoutHeight = height
+        return this
+    }
+    fun setLayoutSize(width:Int, height:Int):TpFitterEx
+        = setLayoutSize(width.toFloat(), height.toFloat())
+    fun setLayoutSize(size:Size):TpFitterEx
+        = setLayoutSize(size.width, size.height)
+    fun setLayoutSize(size:SizeF):TpFitterEx
+            = setLayoutSize(size.width, size.height)
 
-    fun fit(src: Size): AmvFitterEx {
+    fun fit(src: Size): TpFitterEx {
         fitSizeTo(src.width.toFloat(), src.height.toFloat(), layoutWidth, layoutHeight, fitMode, result)
         return this
     }
-    fun fit(src: SizeF): AmvFitterEx {
+    fun fit(src: SizeF): TpFitterEx {
         fitSizeTo(src.width, src.height, layoutWidth, layoutHeight, fitMode, result)
         return this
     }
-    fun fit(srcWidth:Int, srcHeight:Int): AmvFitterEx {
+    fun fit(srcWidth:Int, srcHeight:Int): TpFitterEx {
         fitSizeTo(srcWidth.toFloat(), srcHeight.toFloat(), layoutWidth, layoutHeight, fitMode, result)
         return this
     }
-    fun fit(srcWidth:Float, srcHeight:Float): AmvFitterEx {
+    fun fit(srcWidth:Float, srcHeight:Float): TpFitterEx {
         fitSizeTo(srcWidth, srcHeight, layoutWidth, layoutHeight, fitMode, result)
         return this
     }
