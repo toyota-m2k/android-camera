@@ -158,7 +158,7 @@ open class PlayerControllerModel(
     val commandPinP = LiteUnitCommand { setWindowMode(WindowMode.PINP) }
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }
     val commandSnapshot = LiteUnitCommand(::snapshot)
-    val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
+//    val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
     val commandRotate = LiteCommand<Rotation> { playerModel.rotate(it) }
 
     // endregion

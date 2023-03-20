@@ -11,6 +11,15 @@ import androidx.lifecycle.LifecycleOwner
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.utils.*
 
+enum class Orientation {
+    Horizontal,
+    Vertical,
+}
+enum class Direction {
+    Start,
+    End
+}
+
 class GestureInterpreter(
     applicationContext: Context,
     enableScaleEvent:Boolean
@@ -118,6 +127,45 @@ class GestureInterpreter(
     }
 
     // endregion
+    interface IFlickEvent {
+        val direction:Direction
+    }
+    class FlickEvent(override var direction: Direction) : IFlickEvent
+    private val flickEvent = FlickEvent(Direction.Start)
+    val hasFlickListeners:Boolean
+        get() = hasFlickHorizontalListeners || hasFlickVerticalListeners
+
+    val flickHorizontalListeners: Listeners<IFlickEvent>
+        get() = flickHorizontalListenersRef.value
+    private val flickHorizontalListenersRef = UtLazyResetableValue { Listeners<IFlickEvent>() }
+    private val hasFlickHorizontalListeners
+        get() = flickHorizontalListenersRef.hasValue && flickHorizontalListeners.count>0
+
+    private fun fireFlickHorizontalEvent(direction: Direction): Boolean {
+        return if (hasFlickHorizontalListeners) {
+            flickHorizontalListeners.invoke(flickEvent.apply {
+                this.direction = direction
+            })
+            true
+        } else false
+    }
+
+    val flickVerticalListeners: Listeners<IFlickEvent>
+        get() = flickVerticalListenersRef.value
+    private val flickVerticalListenersRef = UtLazyResetableValue { Listeners<IFlickEvent>() }
+    private val hasFlickVerticalListeners
+        get() = flickVerticalListenersRef.hasValue && flickVerticalListeners.count>0
+
+    private fun fireFlickVerticalEvent(direction: Direction): Boolean {
+        return if (hasFlickVerticalListeners) {
+            flickVerticalListeners.invoke(flickEvent.apply {
+                this.direction = direction
+            })
+            true
+        } else false
+    }
+
+
 
     // region Setup Helper
 
@@ -127,6 +175,8 @@ class GestureInterpreter(
         var onTap: (()->Unit)? = null
         var onLongTap: (()->Unit)? = null
         var onDoubleTap: (()->Unit)? = null
+        var onFlickHorizontal: ((IFlickEvent)->Unit)? = null
+        var onFlickVertical: ((IFlickEvent)->Unit)? = null
     }
     fun setup(owner:LifecycleOwner, view:View, setupMe:SetupHelper.()->Unit) {
         attachView(view)
@@ -146,6 +196,12 @@ class GestureInterpreter(
             }
             onDoubleTap?.apply {
                 doubleTapListeners.add(owner, this)
+            }
+            onFlickHorizontal?.apply {
+                flickHorizontalListeners.add(owner, this)
+            }
+            onFlickVertical?.apply {
+                flickVerticalListeners.add(owner, this)
             }
         }
     }
@@ -233,43 +289,45 @@ class GestureInterpreter(
             return fireScrollEvent(distanceX, distanceY, false)
         }
 
-//        override fun onFling(
-//            e1: MotionEvent,
-//            e2: MotionEvent,
-//            velocityX: Float,
-//            velocityY: Float
-//        ): Boolean {
-//            logger.debug("$e2")
-//            if(!consumer.flingEnabled) {
-//                return false
-//            }
-//
-//            return try {
-//                val diffY = e2.y - e1.y
-//                val diffX = e2.x - e1.x
-//                if (Math.abs(diffX) > Math.abs(diffY)) {
-//                    if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
-//                        if (diffX > 0) {
-//                            consumer.onGestureFling(FlingDirection.Right)
-//                        } else {
-//                            consumer.onGestureFling(FlingDirection.Left)
-//                        }
-//                    } else false
-//                } else if (Math.abs(diffY) > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
-//                    if (diffY > 0) {
-//                        consumer.onGestureFling(FlingDirection.Down)
-//                    } else {
-//                        consumer.onGestureFling(FlingDirection.Up)
-//                    }
-//                } else false
-//            } catch (e: Throwable) {
-//                TpLib.logger.error(e)
-//                false
-//            }
-//        }
-//
-//        private val SWIPE_THRESHOLD = 100
-//        private val SWIPE_VELOCITY_THRESHOLD = 100
+        override fun onFling(
+            e1: MotionEvent,
+            e2: MotionEvent,
+            velocityX: Float,
+            velocityY: Float
+        ): Boolean {
+            if(!hasFlickListeners) {
+                return false
+            }
+            logger.debug("$e2")
+
+            return try {
+                val diffY = e2.y - e1.y
+                val diffX = e2.x - e1.x
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (hasFlickHorizontalListeners && Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffX > 0) {
+                            fireFlickHorizontalEvent(Direction.End)
+                        } else {
+                            fireFlickHorizontalEvent(Direction.Start)
+                        }
+                    } else false
+                } else {
+                    if (hasFlickVerticalListeners && Math.abs(diffY) > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffY > 0) {
+                            fireFlickVerticalEvent(Direction.End)
+                        } else {
+                            fireFlickVerticalEvent(Direction.Start)
+                        }
+                    } else false
+                }
+            } catch (e: Throwable) {
+                TpLib.logger.error(e)
+                false
+            }
+        }
+
+        private val SWIPE_THRESHOLD = 100
+        private val SWIPE_VELOCITY_THRESHOLD = 100
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {

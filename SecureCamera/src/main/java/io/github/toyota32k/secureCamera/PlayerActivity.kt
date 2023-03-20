@@ -32,6 +32,7 @@ import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.bindCommand
 import io.github.toyota32k.utils.disposableObserve
+import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.flow.*
 import java.io.File
 import java.lang.Float.max
@@ -75,6 +76,22 @@ class PlayerActivity : AppCompatActivity() {
 
         private val context: Application
             get() = getApplication()
+        val playlist = Playlist()
+        val playerControllerModel = PlayerControllerModel.Builder(application)
+            .supportFullscreen()
+            .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
+            .supportSnapshot(::onSnapshot)
+            .enableRotateRight()
+            .enableRotateLeft()
+            .build()
+        //val playerModel get() = playerControllerModel.playerModel
+
+        val fullscreenCommand = LiteCommand<Boolean> {
+            playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
+        }
+        val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
+        val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
+
         inner class VideoSource(override val name:String) : IMediaSource {
             val file: File = File(context.filesDir, name)
             override val id: String
@@ -116,6 +133,7 @@ class PlayerActivity : AppCompatActivity() {
                     currentSource.value = null
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
+                    playerControllerModel.playerModel.rotate(Rotation.NONE)
                     isVideo.mutable.value = false
                     currentSelection.mutable.value = null
                     return
@@ -138,6 +156,7 @@ class PlayerActivity : AppCompatActivity() {
                     isVideo.mutable.value = true
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
+                    playerControllerModel.playerModel.rotate(Rotation.NONE)
                     currentSource.value = VideoSource(item)
                 } else {
                     photoSelection = item
@@ -216,23 +235,7 @@ class PlayerActivity : AppCompatActivity() {
                 photoRotation.mutable.value = 0
             }
         }
-
-        val playlist = Playlist()
-        val playerControllerModel = PlayerControllerModel.Builder(application)
-            .supportFullscreen()
-            .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
-            .supportSnapshot(::onSnapshot)
-            .enableRotateRight()
-            .enableRotateLeft()
-            .build()
-        //val playerModel get() = playerControllerModel.playerModel
-
-        val fullscreenCommand = LiteCommand<Boolean> {
-            playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
-        }
-        val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
-        val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
-
+        
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             try {
                 val current = playlist.currentSelection.value ?: return
@@ -314,7 +317,10 @@ class PlayerActivity : AppCompatActivity() {
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
-            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
+            .headlessBinding(viewModel.playlist.currentSelection) {
+                manipulator.constraint.resetScrollAndScale()
+            }
+//            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
@@ -347,7 +353,8 @@ class PlayerActivity : AppCompatActivity() {
             onScale = manipulator::onScale
             onTap = manipulator::onTap
             onDoubleTap = manipulator::onDoubleTap
-            onLongTap = manipulator::onLongTap
+//            onLongTap = manipulator::onLongTap
+            onFlickVertical = manipulator::onFlick
         }
     }
 
@@ -368,31 +375,54 @@ class PlayerActivity : AppCompatActivity() {
 //            controls.imageView.scaleY = newScale
         }
         fun onTap() {
-
+            if(viewModel.playlist.isVideo.value) {
+                viewModel.playerControllerModel.playerModel.togglePlay()
+            }
         }
         fun onDoubleTap() {
-            controls.imageView.translationX = 0f
-            controls.imageView.translationY = 0f
-            controls.imageView.scaleX = 1f
-            controls.imageView.scaleY = 1f
+            contentView.translationX = 0f
+            contentView.translationY = 0f
+            contentView.scaleX = 1f
+            contentView.scaleY = 1f
         }
-        fun onLongTap() {
+//        fun onLongTap() {
+//            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+//                viewModel.playerControllerModel.showControlPanel.toggle()
+//            }
+//        }
 
+        fun onFlick(eventIFlickEvent: GestureInterpreter.IFlickEvent) {
+            if(viewModel.playlist.isVideo.value) {
+                viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
+            }
         }
 
         override val parentView: View
             get() = controls.viewerArea
+
         override val contentView: View
-            get() = controls.imageView
+            get() = if(viewModel.playlist.isVideo.value) controls.videoViewer.controls.player else  controls.imageView
         override val overScrollX: Float
-            get() = 0.4f
+            get() = 0.3f
         override val overScrollY: Float
             get() = 0f
-        override val pageOrientation: Orientation
-            get() = Orientation.Horizontal
-
+        override val pageOrientation:EnumSet<Orientation> = EnumSet.of(Orientation.Horizontal)
         override fun changePage(orientation: Orientation, dir: Direction): Boolean {
-            return false
+            return if(orientation==Orientation.Horizontal) {
+                when(dir) {
+                    Direction.Start-> viewModel.playlist.hasPrevious.value.onTrue { viewModel.playlist.previous() }
+                    Direction.End-> viewModel.playlist.hasNext.value.onTrue { viewModel.playlist.next() }
+                }
+            } else false
+        }
+
+        override fun hasNextPage(orientation: Orientation, dir: Direction): Boolean {
+            return if(orientation==Orientation.Horizontal) {
+                when(dir) {
+                    Direction.Start-> viewModel.playlist.hasPrevious.value
+                    Direction.End-> viewModel.playlist.hasNext.value
+                }
+            } else false
         }
     }
     val manipulator = ViewerManipulator()

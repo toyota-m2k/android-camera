@@ -98,7 +98,7 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
             .visibilityBinding(controls.expErrorMessage, playerModel.isError, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
             .visibilityBinding(controls.serviceArea, combine(playerModel.isLoading,playerModel.isError) { l, e-> l||e}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByInvisible)
             .textBinding(controls.expErrorMessage, playerModel.errorMessage.filterNotNull())
-            .bindCommand(playerControllerModel.commandPlayerTapped, this)
+//            .bindCommand(playerControllerModel.commandPlayerTapped, this)
 
         val matchParent = Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         combine(playerModel.playerSize, playerModel.stretchVideoToView) { playerSize, stretch ->
