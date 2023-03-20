@@ -13,7 +13,8 @@ import io.github.toyota32k.utils.*
 
 class GestureInterpreter(
     applicationContext: Context,
-    enableScaleEvent:Boolean
+    enableScaleEvent:Boolean,
+    val rapidTap:Boolean = false        // true にすると、onSingleTapUp で tapEvent を発行。ただし、doubleTapEventは無効になる。
 ) : OnTouchListener {
     // region Scroll / Swipe Event
 
@@ -78,14 +79,23 @@ class GestureInterpreter(
     // endregion
 
     // region Tap / Click Event
+    interface IPositionalEvent {
+        val x:Float
+        val y:Float
+    }
+    class PositionalEvent(override var x: Float, override var y: Float):IPositionalEvent
+    private val positionalEvent = PositionalEvent(0f,0f)
 
-    val tapListeners: UnitListeners
+    val tapListeners: Listeners<IPositionalEvent>
         get() = tapListenersRef.value
 
-    private val tapListenersRef = UtLazyResetableValue<UnitListeners> { UnitListeners() }
-    private fun fireTapEvent(): Boolean {
-        return if (tapListenersRef.hasValue && tapListeners.isNotEmpty) {
-            tapListeners.invoke()
+    private val tapListenersRef = UtLazyResetableValue { Listeners<IPositionalEvent>() }
+    private val hasTapListeners:Boolean get() = tapListenersRef.hasValue && tapListeners.count>0
+    private fun fireTapEvent(x:Float, y:Float): Boolean {
+        return if (hasTapListeners) {
+            tapListeners.invoke(positionalEvent.apply {
+                this.x = x
+                this.y = y })
             true
         } else false
     }
@@ -93,13 +103,16 @@ class GestureInterpreter(
     // endregion
 
     // region Long Tap
-    val longTapListeners: UnitListeners
+    val longTapListeners: Listeners<IPositionalEvent>
         get() = longTapListenersRef.value
 
-    private val longTapListenersRef = UtLazyResetableValue<UnitListeners> { UnitListeners() }
-    private fun fireLongTapEvent(): Boolean {
-        return if (longTapListenersRef.hasValue && longTapListeners.isNotEmpty) {
-            longTapListeners.invoke()
+    private val longTapListenersRef = UtLazyResetableValue { Listeners<IPositionalEvent>() }
+    private val hasLongTapListeners:Boolean get() = longTapListenersRef.hasValue && longTapListeners.count>0
+    private fun fireLongTapEvent(x:Float, y:Float): Boolean {
+        return if (hasLongTapListeners) {
+            longTapListeners.invoke(positionalEvent.apply {
+                this.x = x
+                this.y = y })
             true
         } else false
     }
@@ -107,12 +120,15 @@ class GestureInterpreter(
 
     // region Double Tap
 
-    val doubleTapListeners: UnitListeners
+    val doubleTapListeners: Listeners<IPositionalEvent>
         get() = doubleTapListenersRef.value
-    private val doubleTapListenersRef = UtLazyResetableValue<UnitListeners> { UnitListeners() }
-    private fun fireDoubleTapEvent(): Boolean {
-        return if (doubleTapListenersRef.hasValue && doubleTapListeners.isNotEmpty) {
-            doubleTapListeners.invoke()
+    private val doubleTapListenersRef = UtLazyResetableValue { Listeners<IPositionalEvent>() }
+    private val hasDoubleTapListeners:Boolean get() = doubleTapListenersRef.hasValue && doubleTapListeners.count>0
+    private fun fireDoubleTapEvent(x:Float, y:Float): Boolean {
+        return if (hasDoubleTapListeners) {
+            doubleTapListeners.invoke(positionalEvent.apply {
+                this.x = x
+                this.y = y })
             true
         } else false
     }
@@ -124,9 +140,9 @@ class GestureInterpreter(
     class SetupHelper {
         var onScroll:  ((IScrollEvent)->Unit)? = null
         var onScale:  ((IScaleEvent)->Unit)? = null
-        var onTap: (()->Unit)? = null
-        var onLongTap: (()->Unit)? = null
-        var onDoubleTap: (()->Unit)? = null
+        var onTap: ((IPositionalEvent)->Unit)? = null
+        var onLongTap: ((IPositionalEvent)->Unit)? = null
+        var onDoubleTap: ((IPositionalEvent)->Unit)? = null
     }
     fun setup(owner:LifecycleOwner, view:View, setupMe:SetupHelper.()->Unit) {
         attachView(view)
@@ -191,7 +207,9 @@ class GestureInterpreter(
 
         override fun onSingleTapUp(e: MotionEvent): Boolean {
             logger.debug(GI_LOG) {"$e"}
-            return false
+            return if(rapidTap) {
+                fireTapEvent(e.x, e.y)
+            } else false
         }
 
         override fun onShowPress(e: MotionEvent) {
@@ -200,7 +218,9 @@ class GestureInterpreter(
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
             logger.debug(GI_LOG) {"$e"}
-            return fireTapEvent()
+            return if(!rapidTap) {
+                fireTapEvent(e.x, e.y)
+            } else false
         }
 
         override fun onContextClick(e: MotionEvent): Boolean {
@@ -210,12 +230,14 @@ class GestureInterpreter(
 
         override fun onLongPress(e: MotionEvent) {
             logger.debug(GI_LOG) {"$e"}
-            fireLongTapEvent()
+            fireLongTapEvent(e.x, e.y)
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
             logger.debug(GI_LOG) {"$e"}
-            return fireDoubleTapEvent()
+            return if(!rapidTap) {
+                fireDoubleTapEvent(e.x, e.y)
+            } else false
         }
 
         override fun onDoubleTapEvent(e: MotionEvent): Boolean {

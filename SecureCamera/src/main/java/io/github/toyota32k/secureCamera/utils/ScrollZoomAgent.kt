@@ -3,8 +3,6 @@ package io.github.toyota32k.secureCamera.utils
 import android.animation.Animator
 import android.animation.ValueAnimator
 import android.view.View
-import android.view.animation.Animation
-import android.view.animation.Animation.AnimationListener
 import io.github.toyota32k.lib.player.common.TpFitterEx
 import io.github.toyota32k.utils.UtLog
 import java.lang.Float.min
@@ -58,7 +56,7 @@ interface ITargetViewInfo {
     fun changePage(orientation: Orientation, dir:Direction):Boolean
 }
 
-class ScrollZoomConstraint(val targetViewInfo:ITargetViewInfo) {
+class ScrollZoomAgent(val targetViewInfo:ITargetViewInfo) {
     var minScale:Float = 1f
     var maxScale:Float = 10f
 

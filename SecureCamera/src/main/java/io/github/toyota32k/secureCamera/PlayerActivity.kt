@@ -34,10 +34,8 @@ import io.github.toyota32k.utils.bindCommand
 import io.github.toyota32k.utils.disposableObserve
 import kotlinx.coroutines.flow.*
 import java.io.File
-import java.lang.Float.max
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
 
 class PlayerActivity : AppCompatActivity() {
     enum class ListMode(val resId:Int) {
@@ -352,31 +350,31 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     inner class ViewerManipulator : ITargetViewInfo {
-        val constraint = ScrollZoomConstraint(this)
+        val agent = ScrollZoomAgent(this)
         fun onScroll(event: GestureInterpreter.IScrollEvent) {
-            constraint.onScroll(event)
+            agent.onScroll(event)
 //            controls.imageView.translationX  -= event.dx
 //            controls.imageView.translationY  -= event.dy
         }
 
         fun onScale(event: GestureInterpreter.IScaleEvent) {
-            constraint.onScale(event)
+            agent.onScale(event)
 //            val newScale = (controls.imageView.scaleX * event.scale).run {
 //                max(1f, min(10f, this))
 //            }
 //            controls.imageView.scaleX = newScale
 //            controls.imageView.scaleY = newScale
         }
-        fun onTap() {
+        fun onTap(event: GestureInterpreter.IPositionalEvent) {
 
         }
-        fun onDoubleTap() {
+        fun onDoubleTap(event: GestureInterpreter.IPositionalEvent) {
             controls.imageView.translationX = 0f
             controls.imageView.translationY = 0f
             controls.imageView.scaleX = 1f
             controls.imageView.scaleY = 1f
         }
-        fun onLongTap() {
+        fun onLongTap(event: GestureInterpreter.IPositionalEvent) {
 
         }
 
