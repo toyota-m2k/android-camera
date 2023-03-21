@@ -29,6 +29,7 @@ class MainActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Settings.initialize(this)
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
         UtStandardString.setContext(applicationContext)
