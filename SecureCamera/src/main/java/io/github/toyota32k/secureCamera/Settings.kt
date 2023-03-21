@@ -12,8 +12,10 @@ object Settings {
     }
 
     object Camera {
-        val tapToTakePhoto:Boolean by spd.pref(false)
-        val tapToTakeVideo:Boolean by spd.pref(true)
+        const val TAP_NONE = 0
+        const val TAP_VIDEO = 1
+        const val TAP_PHOTO = 2
+        val tapAction:Int by spd.pref(TAP_VIDEO)
         val hidePanelOnStart:Boolean by spd.pref(false)
     }
 

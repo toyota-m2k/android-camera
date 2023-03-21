@@ -17,3 +17,14 @@ class WeakReferenceDelegate<T>(value:T?=null) {
         }
     }
 }
+
+class WeakReferenceNonNullDelegate<T> {
+    lateinit var ref:WeakReference<T>
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        return ref.get()!!
+    }
+
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        ref = WeakReference(value)
+    }
+}

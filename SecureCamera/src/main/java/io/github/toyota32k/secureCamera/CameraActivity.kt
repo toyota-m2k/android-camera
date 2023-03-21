@@ -271,16 +271,24 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         onFlickHorizontal {
                             viewModel.showControlPanel.value = it.direction == Direction.Start
                         }
-                        onDoubleTap {
-                            if(!viewModel.showControlPanel.value) {
-                                viewModel.takeVideoCommand.invoke()
-                            }
-                        }
+//                        onDoubleTap {
+//                            if(!viewModel.showControlPanel.value) {
+//                                viewModel.takeVideoCommand.invoke()
+//                            }
+//                        }
                         onTap {
                             if(!viewModel.showControlPanel.value) {
-                                controls.miniShutterIndicator.x = it.x - controls.miniShutterIndicator.width/2
-                                controls.miniShutterIndicator.y = it.y - controls.miniShutterIndicator.height/2
-                                viewModel.takePictureCommand.invoke()
+                                when(Settings.Camera.tapAction) {
+                                    Settings.Camera.TAP_PHOTO -> {
+                                        controls.miniShutterIndicator.x = it.x - controls.miniShutterIndicator.width / 2
+                                        controls.miniShutterIndicator.y = it.y - controls.miniShutterIndicator.height / 2
+                                        viewModel.takePictureCommand.invoke()
+                                    }
+                                    Settings.Camera.TAP_VIDEO -> {
+                                        viewModel.takeVideoCommand.invoke()
+                                    }
+                                    else -> {}
+                                }
                             }
                         }
                     }

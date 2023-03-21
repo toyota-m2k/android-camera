@@ -2,6 +2,7 @@ package io.github.toyota32k.lib.camera
 
 import android.content.Context
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.view.PreviewView
 import androidx.concurrent.futures.await
@@ -106,6 +107,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         this.camera = camera
         this.previewView = previewView
         this.gestureScope = gestureScope ?: owner.lifecycleScope
+        zoomReserved = null
 
         ListenerBuilder().apply {
             setupMe()
@@ -137,16 +139,19 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
 
 //    private val isBusy = AtomicBoolean(false)
 
+    var zoomReserved:Float? = null
     private fun zoom(event: UtGestureInterpreter.IScaleEvent) {
         val camera = this.camera ?: return
         val zoomState = camera.cameraInfo.zoomState.value ?: return
 //        if(!isBusy.compareAndSet(false, true)) return
-        val zoom = clip(zoomState.zoomRatio*event.scale, zoomState.minZoomRatio, zoomState.maxZoomRatio)
-        logger.debug("current:${zoomState.zoomRatio} x scale:${event.scale} = ${zoomState.zoomRatio*event.scale} / min:${zoomState.minZoomRatio}-max:${zoomState.maxZoomRatio} -> $zoom")
-
+        val zoom = clip((zoomReserved ?: zoomState.zoomRatio)*event.scale, zoomState.minZoomRatio, zoomState.maxZoomRatio)
+//        logger.debug("current:${zoomState.zoomRatio} x scale:${event.scale} = ${zoomState.zoomRatio*event.scale} / min:${zoomState.minZoomRatio}-max:${zoomState.maxZoomRatio} -> $zoom")
+        zoomReserved = zoom
         gestureScope.launch {
             try {
                 camera.cameraControl.setZoomRatio(zoom).await()
+            } catch(e: CameraControl.OperationCanceledException) {
+                logger.debug("zoom operation cancelled.")
             } catch(e:Throwable) {
                 logger.error(e)
             }

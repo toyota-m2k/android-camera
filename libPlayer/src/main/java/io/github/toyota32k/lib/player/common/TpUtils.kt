@@ -8,7 +8,6 @@ package io.github.toyota32k.lib.player.common
 
 import android.content.Context
 import android.util.Size
-import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup
 import android.content.ContextWrapper
@@ -16,10 +15,6 @@ import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.lib.player.TpLib
 import java.text.SimpleDateFormat
 import java.util.*
-
-
-
-
 
 fun View.setLayoutWidth(width:Int) {
     val params = layoutParams
@@ -117,7 +112,7 @@ fun Context.getActivity():FragmentActivity? {
 //    return px2dp(px.toFloat()).toInt()
 //}
 
-class AmvTimeSpan(private val ms : Long) {
+class TpTimeSpan(private val ms : Long) {
     val milliseconds: Long
         get() = ms % 1000
 
@@ -168,8 +163,8 @@ fun parseIso8601DateString(dateString:String) : Date? {
 }
 
 fun formatTime(time:Long, duration:Long) : String {
-    val v = AmvTimeSpan(time)
-    val t = AmvTimeSpan(duration)
+    val v = TpTimeSpan(time)
+    val t = TpTimeSpan(duration)
     return when {
         t.hours>0 -> v.formatH()
         t.minutes>0 -> v.formatM()
