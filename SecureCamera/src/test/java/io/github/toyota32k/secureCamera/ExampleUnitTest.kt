@@ -1,6 +1,5 @@
 package io.github.toyota32k.secureCamera
 
-import io.github.toyota32k.secureCamera.utils.Sorter
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -15,17 +14,17 @@ class ExampleUnitTest {
     fun sorterTest() {
         val list = mutableListOf<Int>(10, 5, 30, 15, 20)
         val comparator = Comparator<Int> { a,b-> a-b }  // 昇順
-        val sorter = Sorter<Int>(list, false, comparator)
+        val utSorter = io.github.toyota32k.shared.UtSorter<Int>(list, false, comparator)
 
         assertEquals(5, list.first())
         assertEquals(30, list.last())
-        assertEquals(2, sorter.find(15))
+        assertEquals(2, utSorter.find(15))
 
-        val i = sorter.add(25)
+        val i = utSorter.add(25)
         assertEquals(6, list.size)
         assertEquals(4, i)
 
-        val j = sorter.add(5)
+        val j = utSorter.add(5)
         assertEquals(-1, j)
     }
 }

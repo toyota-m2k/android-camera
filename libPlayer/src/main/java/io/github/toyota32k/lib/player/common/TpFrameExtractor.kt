@@ -44,10 +44,8 @@ class TpFrameExtractor(context: Context, uri: Uri) : AutoCloseable {
             )
         }
 
-    fun thumbnailSize(fitter: AmvFitter): Size {
-        val thumbnailSize = MuSize()
-        fitter.fit(MuSize(size), thumbnailSize)
-        return thumbnailSize.asSize
+    fun thumbnailSize(fitter: UtFitter): Size {
+        return fitter.fit(size).resultSize
     }
 
     fun calcHD720Size(width: Int, height: Int): Size {
@@ -62,11 +60,11 @@ class TpFrameExtractor(context: Context, uri: Uri) : AutoCloseable {
         return Size((width * r).roundToInt(), (height * r).roundToInt())
     }
 
-    val hd720Fitter: AmvFitter by lazy {
-        AmvFitter(FitMode.Fit, MuSize(calcHD720Size(size.width, size.height)))
+    val hd720Fitter: UtFitter by lazy {
+        UtFitter(FitMode.Fit, calcHD720Size(size.width, size.height))
     }
 
-    suspend fun extractFrame(pos: Long, fitter: AmvFitter? = null): Bitmap? {
+    suspend fun extractFrame(pos: Long, fitter: UtFitter? = null): Bitmap? {
         return withContext(Dispatchers.IO) {
             val pos2 = if (pos >= 0 && pos < properties.duration) pos else min(
                 2000L,

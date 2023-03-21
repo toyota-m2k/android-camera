@@ -83,6 +83,7 @@ dependencies {
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
     implementation 'com.github.toyota-m2k:android-media-processor:1.1.0'
 
+    implementation project(path: ':shared')
     implementation project(path: ':libCamera')
     implementation project(path: ':libPlayer')
 

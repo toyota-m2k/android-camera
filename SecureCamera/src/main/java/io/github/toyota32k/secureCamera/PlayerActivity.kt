@@ -35,10 +35,8 @@ import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.flow.*
 import java.io.File
-import java.lang.Float.max
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
 
 class PlayerActivity : AppCompatActivity() {
     enum class ListMode(val resId:Int) {
@@ -106,7 +104,10 @@ class PlayerActivity : AppCompatActivity() {
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
             val collection = ObservableList<String>()
-            val sorter = Sorter(collection, allowDuplication = true) { a,b-> ((filename2date(a)?.time?:0) - (filename2date(b)?.time?:0)).toInt() }
+            val sorter = io.github.toyota32k.shared.UtSorter(
+                collection,
+                allowDuplication = true
+            ) { a, b -> ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt() }
             val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
@@ -266,7 +267,7 @@ class PlayerActivity : AppCompatActivity() {
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
-    val gestureInterpreter:GestureInterpreter by lazy { GestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
+    val gestureInterpreter:UtGestureInterpreter by lazy { UtGestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
@@ -318,7 +319,7 @@ class PlayerActivity : AppCompatActivity() {
                 view.setImageBitmap(bitmap)
             }
             .headlessBinding(viewModel.playlist.currentSelection) {
-                manipulator.constraint.resetScrollAndScale()
+                manipulator.agent.resetScrollAndScale()
             }
 //            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
@@ -349,37 +350,36 @@ class PlayerActivity : AppCompatActivity() {
 
 
         gestureInterpreter.setup(this, controls.viewerArea) {
-            onScroll = manipulator::onScroll
-            onScale = manipulator::onScale
-            onTap = manipulator::onTap
-            onDoubleTap = manipulator::onDoubleTap
-//            onLongTap = manipulator::onLongTap
-            onFlickVertical = manipulator::onFlick
+            onScroll(manipulator::onScroll)
+            onScale(manipulator::onScale)
+            onTap(manipulator::onTap)
+            onDoubleTap(manipulator::onDoubleTap)
+            onFlickVertical(manipulator::onFlick)
         }
     }
 
-    inner class ViewerManipulator : ITargetViewInfo {
-        val constraint = ScrollZoomConstraint(this)
-        fun onScroll(event: GestureInterpreter.IScrollEvent) {
-            constraint.onScroll(event)
+    inner class ViewerManipulator : IUtManipulationTarget {
+        val agent = UtManipulationAgent(this)
+        fun onScroll(event: UtGestureInterpreter.IScrollEvent) {
+            agent.onScroll(event)
 //            controls.imageView.translationX  -= event.dx
 //            controls.imageView.translationY  -= event.dy
         }
 
-        fun onScale(event: GestureInterpreter.IScaleEvent) {
-            constraint.onScale(event)
+        fun onScale(event: UtGestureInterpreter.IScaleEvent) {
+            agent.onScale(event)
 //            val newScale = (controls.imageView.scaleX * event.scale).run {
 //                max(1f, min(10f, this))
 //            }
 //            controls.imageView.scaleX = newScale
 //            controls.imageView.scaleY = newScale
         }
-        fun onTap() {
+        fun onTap(event:UtGestureInterpreter.IPositionalEvent) {
             if(viewModel.playlist.isVideo.value) {
                 viewModel.playerControllerModel.playerModel.togglePlay()
             }
         }
-        fun onDoubleTap() {
+        fun onDoubleTap(event:UtGestureInterpreter.IPositionalEvent) {
             contentView.translationX = 0f
             contentView.translationY = 0f
             contentView.scaleX = 1f
@@ -391,7 +391,7 @@ class PlayerActivity : AppCompatActivity() {
 //            }
 //        }
 
-        fun onFlick(eventIFlickEvent: GestureInterpreter.IFlickEvent) {
+        fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
             if(viewModel.playlist.isVideo.value) {
                 viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
             }
@@ -454,16 +454,16 @@ class PlayerActivity : AppCompatActivity() {
         value = !value
     }
 
-    private fun onPlayerTapped() {
-        when(viewModel.playerControllerModel.windowMode.value) {
-            PlayerControllerModel.WindowMode.FULLSCREEN -> {
-                viewModel.playerControllerModel.showControlPanel.toggle()
-            }
-            else -> {
-                viewModel.playerControllerModel.playerModel.togglePlay()
-            }
-        }
-    }
+//    private fun onPlayerTapped() {
+//        when(viewModel.playerControllerModel.windowMode.value) {
+//            PlayerControllerModel.WindowMode.FULLSCREEN -> {
+//                viewModel.playerControllerModel.showControlPanel.toggle()
+//            }
+//            else -> {
+//                viewModel.playerControllerModel.playerModel.togglePlay()
+//            }
+//        }
+//    }
 
     private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
         when(mode) {

@@ -1,6 +1,9 @@
-package io.github.toyota32k.secureCamera.utils
+package io.github.toyota32k.shared
 
-class Sorter<T>(val list:MutableList<T>, val allowDuplication:Boolean, val comparator:Comparator<T>) {
+/**
+ * MutableList（主に ObservableListを想定）を内包し、ソート状態を維持しながら、要素の追加ができるようにする。
+ */
+class UtSorter<T>(val list:MutableList<T>, val allowDuplication:Boolean, val comparator:Comparator<T>) {
     init {
         if(list.size>1) {
             list.sortWith(comparator)

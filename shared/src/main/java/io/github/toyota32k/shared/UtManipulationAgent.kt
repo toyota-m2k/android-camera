@@ -3,7 +3,7 @@ package io.github.toyota32k.secureCamera.utils
 import android.animation.Animator
 import android.animation.ValueAnimator
 import android.view.View
-import io.github.toyota32k.lib.player.common.TpFitterEx
+import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +15,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.*
 
-interface ITargetViewInfo {
+/**
+ * スクロール/ズームの対象（View）に関する情報
+ */
+interface IUtManipulationTarget {
     val parentView:View      // contentViewのコンテナ（通常、このビューがタッチイベントを受け取る-->GestureInterrupter に attachViewする）
     val contentView:View     // 移動/拡大するビュー : containerView 上にセンタリングされて配置されることを想定
 
@@ -58,7 +61,10 @@ interface ITargetViewInfo {
     // endregion
 }
 
-class ScrollZoomConstraint(val targetViewInfo:ITargetViewInfo) {
+/**
+ * スクロール / ズーム操作をシンプルに実現したい
+ */
+class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
     var minScale:Float = 1f
     var maxScale:Float = 10f
 
@@ -91,7 +97,7 @@ class ScrollZoomConstraint(val targetViewInfo:ITargetViewInfo) {
         get() = contentView.translationY
         set(v) { contentView.translationY = v }
 
-    val fitter = TpFitterEx()
+    val fitter = UtFitter()
 
 
     /**
@@ -147,7 +153,7 @@ class ScrollZoomConstraint(val targetViewInfo:ITargetViewInfo) {
     /**
      * スクロール処理
      */
-    fun onScroll(p:GestureInterpreter.IScrollEvent) {
+    fun onScroll(p:UtGestureInterpreter.IScrollEvent) {
         if(changingPageNow) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
@@ -174,7 +180,7 @@ class ScrollZoomConstraint(val targetViewInfo:ITargetViewInfo) {
     /**
      * ズーム処理
      */
-    fun onScale(p:GestureInterpreter.IScaleEvent) {
+    fun onScale(p:UtGestureInterpreter.IScaleEvent) {
         if(changingPageNow) {
             // ページ切り替えアニメーション中は次の操作を止める
             return

@@ -6,6 +6,9 @@ import androidx.camera.core.Preview
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
 import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
 
+/**
+ * TcCameraManager が作成するカメラとその情報を保持するクラス
+ */
 data class TcCamera(
     val camera: Camera,
     val frontCamera:Boolean,

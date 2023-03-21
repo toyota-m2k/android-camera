@@ -12,7 +12,7 @@ import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.video.VideoSize
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.common.TpFitterEx
+import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.FitMode
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.IUtPropOwner
@@ -386,7 +386,7 @@ open class BasicPlayerModel(
         }
     }
 
-    private val mFitter = TpFitterEx(FitMode.Inside)
+    private val mFitter = UtFitter(FitMode.Inside)
     override val playerSize = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
         logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
         val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))

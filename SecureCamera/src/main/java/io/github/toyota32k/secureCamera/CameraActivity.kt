@@ -30,14 +30,18 @@ import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
+import io.github.toyota32k.secureCamera.utils.Direction
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.UtObservableFlag
 import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -50,11 +54,11 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     class CameraViewModel : ViewModel() {
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
-        val fullControlPanel = MutableStateFlow(true)
+//        val fullControlPanel = MutableStateFlow(true)
         val recordingState = MutableStateFlow(TcVideoCapture.RecordingState.NONE)
 
-        val expandPanelCommand = LiteCommand<Boolean> { fullControlPanel.value = it }
-        val showPanelCommand = LiteCommand<Boolean> { showControlPanel.value = it }
+//        val expandPanelCommand = LiteCommand<Boolean> { fullControlPanel.value = it }
+//        val showPanelCommand = LiteCommand<Boolean> { showControlPanel.value = it }
 
         @ExperimentalZeroShutterLag // region UseCases
         val imageCapture by lazy { TcImageCapture.Builder().zeroLag().build() }
@@ -81,13 +85,20 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             videoCapture.dispose()
         }
 
+        val pictureTakingStatus = UtObservableFlag()
         val takePictureCommand = LiteUnitCommand {
             viewModelScope.launch {
-                val bitmap = imageCapture.takePicture() ?: return@launch
-                val file = newImageFile()
-                file.outputStream().use {
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
-                    it.flush()
+                pictureTakingStatus.set()
+                try {
+                    val bitmap = imageCapture.takePicture() ?: return@launch
+                    val file = newImageFile()
+                    file.outputStream().use {
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                        it.flush()
+                    }
+                } finally {
+                    delay(200)
+                    pictureTakingStatus.reset()
                 }
             }
         }
@@ -119,7 +130,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
     private val viewModel by viewModels<CameraViewModel>()
-    lateinit var cameraGestureManager: CameraGestureManager
+    private val cameraManipulator : TcCameraManipulator by lazy { TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.LongTap, rapidTap = false) }
 
     private lateinit var controls: ActivityCameraBinding
 
@@ -141,28 +152,31 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
             .visibilityBinding(controls.controlPanel, viewModel.showControlPanel)
-            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state== TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.miniRecIndicator, combine(viewModel.showControlPanel,viewModel.recordingState) {panel,rec-> !panel && rec==TcVideoCapture.RecordingState.STARTED}, boolConvert = BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.miniShutterIndicator, combine(viewModel.showControlPanel, viewModel.pictureTakingStatus) {panel,taking-> !panel && taking}, boolConvert = BoolConvert.Straight, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.flipCameraButton, viewModel.recordingState.map { it==TcVideoCapture.RecordingState.NONE}, boolConvert = BoolConvert.Straight, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state== TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+//            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it== TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
-            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
-            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
+//            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
+//            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
+//            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
             .bindCommand(viewModel.takePictureCommand, controls.photoButton)
             .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton)
             .bindCommand(viewModel.finalizeVideoCommand, controls.videoStopButton)
             .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
 
-        cameraGestureManager = CameraGestureManager.Builder()
-            .enableFocusGesture()
-            .enableZoomGesture()
-            .longTapCustomAction {
-                viewModel.showControlPanel.value = !viewModel.showControlPanel.value
-                true
-            }
-            .build(this)
+//        cameraGestureManager = CameraGestureManager.Builder()
+//            .enableFocusGesture()
+//            .enableZoomGesture()
+//            .longTapCustomAction {
+//                viewModel.showControlPanel.value = !viewModel.showControlPanel.value
+//                true
+//            }
+//            .build(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -249,6 +263,29 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 .imageCapture(viewModel.imageCapture)
                 .videoCapture(viewModel.videoCapture)
                 .build(this)
+                .apply {
+                    cameraManipulator.attachCamera(this@CameraActivity, camera, controls.previewView) {
+                        onFlickVertical {
+                            viewModel.showControlPanel.value = it.direction == Direction.Start
+                        }
+                        onFlickHorizontal {
+                            viewModel.showControlPanel.value = it.direction == Direction.Start
+                        }
+                        onDoubleTap {
+                            if(!viewModel.showControlPanel.value) {
+                                viewModel.takeVideoCommand.invoke()
+                            }
+                        }
+                        onTap {
+                            if(!viewModel.showControlPanel.value) {
+                                controls.miniShutterIndicator.x = it.x - controls.miniShutterIndicator.width/2
+                                controls.miniShutterIndicator.y = it.y - controls.miniShutterIndicator.height/2
+                                viewModel.takePictureCommand.invoke()
+                            }
+                        }
+                    }
+                }
+
 
         } catch (e: Throwable) {
             logger.error(e)

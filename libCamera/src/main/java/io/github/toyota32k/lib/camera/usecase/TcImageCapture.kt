@@ -20,11 +20,13 @@ import kotlin.coroutines.suspendCoroutine
 
 class ImageCaptureCallback(private val continuation: Continuation<Bitmap>): OnImageCapturedCallback() {
     override fun onCaptureSuccess(imageProxy: ImageProxy) {
-        val bitmap = ImageUtils.imageToBitmap(imageProxy, 0f)
-        if(bitmap!=null) {
-            continuation.resume(bitmap)
-        } else {
-            continuation.resumeWithException(IllegalStateException("cannot convert image to bitmap."))
+        imageProxy.use {
+            val bitmap = ImageUtils.imageToBitmap(imageProxy, 0f)
+            if (bitmap != null) {
+                continuation.resume(bitmap)
+            } else {
+                continuation.resumeWithException(IllegalStateException("cannot convert image to bitmap."))
+            }
         }
     }
 
@@ -111,11 +113,13 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         get() = imageCapture
 
     override suspend fun takePicture(): Bitmap? {
-        return try {
-            imageCapture.take()
-        } catch (e:Throwable) {
-            TcLib.logger.error(e)
-            null
+        TcLib.logger.chronos {
+            return try {
+                imageCapture.take()
+            } catch (e: Throwable) {
+                TcLib.logger.error(e)
+                null
+            }
         }
     }
     @RequiresApi(Build.VERSION_CODES.Q)
