@@ -20,7 +20,8 @@ object Settings {
     }
 
     object Player {
-
+        val spanOfSkipForward:Long by spd.pref(1000)
+        val spanOfSkipBackward:Long by spd.pref(300)
     }
 
     object Security {

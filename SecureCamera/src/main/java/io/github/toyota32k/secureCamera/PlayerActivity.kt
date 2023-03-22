@@ -81,6 +81,7 @@ class PlayerActivity : AppCompatActivity() {
             .supportSnapshot(::onSnapshot)
             .enableRotateRight()
             .enableRotateLeft()
+            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 
