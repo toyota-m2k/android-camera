@@ -78,22 +78,22 @@
                 android:layout_gravity="bottom|center_horizontal"
                 android:background="@color/translucent_white"
                 >
-                <ImageButton
-                    android:id="@+id/image_prev_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_chevron_left"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
-                    />
-                <ImageButton
-                    android:id="@+id/image_next_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_chevron_right"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
-                    />
+<!--                <ImageButton-->
+<!--                    android:id="@+id/image_prev_button"-->
+<!--                    android:layout_width="@dimen/media_button_width"-->
+<!--                    android:layout_height="@dimen/media_button_height"-->
+<!--                    app:srcCompat="@drawable/ic_chevron_left"-->
+<!--                    app:tint="?attr/iconColor"-->
+<!--                    android:background="?attr/selectableItemBackground"-->
+<!--                    />-->
+<!--                <ImageButton-->
+<!--                    android:id="@+id/image_next_button"-->
+<!--                    android:layout_width="@dimen/media_button_width"-->
+<!--                    android:layout_height="@dimen/media_button_height"-->
+<!--                    app:srcCompat="@drawable/ic_chevron_right"-->
+<!--                    app:tint="?attr/iconColor"-->
+<!--                    android:background="?attr/selectableItemBackground"-->
+<!--                    />-->
                 <ImageButton
                     android:id="@+id/image_rotate_left_button"
                     android:layout_width="@dimen/media_button_width"

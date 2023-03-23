@@ -8,12 +8,11 @@ import androidx.lifecycle.ViewModel
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.dialog.UtMessageBox
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
-import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
 
@@ -60,4 +59,5 @@ class MainActivity : UtMortalActivity() {
     private fun showLicense() {
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
+
 }

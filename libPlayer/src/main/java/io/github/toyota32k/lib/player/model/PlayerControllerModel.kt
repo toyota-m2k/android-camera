@@ -28,7 +28,8 @@ open class PlayerControllerModel(
     val snapshotHandler:((Long,Bitmap)->Unit)?,
     val enableRotateRight:Boolean,
     val enableRotateLeft:Boolean,
-    val playerTapToPlay:Boolean,
+    val showNextPreviousButton:Boolean,
+//    val playerTapToPlay:Boolean,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {
@@ -46,7 +47,7 @@ open class PlayerControllerModel(
         private var mSnapshotHandler:((Long,Bitmap)->Unit)? = null
         private var mEnableRotateRight:Boolean = false
         private var mEnableRotateLeft:Boolean = false
-        private var mPlayerTapToPlay:Boolean = false
+        private var mShowNextPreviousButton:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
         private var mScope:CoroutineScope? = null
@@ -75,8 +76,8 @@ open class PlayerControllerModel(
             return this
         }
 
-        fun playerTapToPlay():Builder {
-            mPlayerTapToPlay = true
+        fun showNextPreviousButton():Builder {
+            mShowNextPreviousButton = true
             return this
         }
 
@@ -116,7 +117,7 @@ open class PlayerControllerModel(
                 snapshotHandler = mSnapshotHandler,
                 enableRotateRight = mEnableRotateRight,
                 enableRotateLeft = mEnableRotateLeft,
-                playerTapToPlay = mPlayerTapToPlay,
+                showNextPreviousButton = mShowNextPreviousButton,
                 seekRelativeForward = mSeekForward,
                 seekRelativeBackword = mSeekBackword
             )

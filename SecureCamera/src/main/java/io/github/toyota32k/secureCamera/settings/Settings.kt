@@ -1,4 +1,4 @@
-package io.github.toyota32k.secureCamera
+package io.github.toyota32k.secureCamera.settings
 
 import android.content.Context
 import io.github.toyota32k.shared.SharedPreferenceDelegate

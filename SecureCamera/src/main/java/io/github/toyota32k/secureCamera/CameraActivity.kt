@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
@@ -22,7 +23,6 @@ import io.github.toyota32k.bindit.*
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcLib
-import io.github.toyota32k.lib.camera.gesture.CameraGestureManager
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
@@ -36,6 +36,7 @@ import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.Direction
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.UtObservableFlag
@@ -86,7 +87,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
 
         val pictureTakingStatus = UtObservableFlag()
-        val takePictureCommand = LiteUnitCommand {
+        val takePictureCommand = LiteUnitCommand()
+
+        fun takePicture() {
             viewModelScope.launch {
                 pictureTakingStatus.set()
                 try {
@@ -153,7 +156,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
             .visibilityBinding(controls.controlPanel, viewModel.showControlPanel)
             .visibilityBinding(controls.miniRecIndicator, combine(viewModel.showControlPanel,viewModel.recordingState) {panel,rec-> !panel && rec==TcVideoCapture.RecordingState.STARTED}, boolConvert = BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.miniShutterIndicator, combine(viewModel.showControlPanel, viewModel.pictureTakingStatus) {panel,taking-> !panel && taking}, boolConvert = BoolConvert.Straight, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.miniShutterIndicator, viewModel.pictureTakingStatus, boolConvert = BoolConvert.Straight, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.flipCameraButton, viewModel.recordingState.map { it==TcVideoCapture.RecordingState.NONE}, boolConvert = BoolConvert.Straight, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state== TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
@@ -164,7 +167,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
 //            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
 //            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
-            .bindCommand(viewModel.takePictureCommand, controls.photoButton)
+            .bindCommand(viewModel.takePictureCommand, controls.photoButton) { takePicture() }
             .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton)
             .bindCommand(viewModel.finalizeVideoCommand, controls.videoStopButton)
             .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
@@ -280,9 +283,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                             if(!viewModel.showControlPanel.value) {
                                 when(Settings.Camera.tapAction) {
                                     Settings.Camera.TAP_PHOTO -> {
-                                        controls.miniShutterIndicator.x = it.x - controls.miniShutterIndicator.width / 2
-                                        controls.miniShutterIndicator.y = it.y - controls.miniShutterIndicator.height / 2
-                                        viewModel.takePictureCommand.invoke()
+                                        takePicture(it.x, it.y)
                                     }
                                     Settings.Camera.TAP_VIDEO -> {
                                         viewModel.takeVideoCommand.invoke()
@@ -299,6 +300,28 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             logger.error(e)
         }
     }
+
+    private fun takePicture(x:Float=-1f, y:Float=-1f) {
+        if(x<0||y<0) {
+            // 画面中央に表示
+            controls.miniShutterIndicator.x = controls.root.width/2f - controls.miniShutterIndicator.width / 2f
+            controls.miniShutterIndicator.y = controls.root.height/2f - controls.miniShutterIndicator.height / 2f
+        } else {
+            // 指定位置に表示
+            controls.miniShutterIndicator.x = x - controls.miniShutterIndicator.width / 2
+            controls.miniShutterIndicator.y = y - controls.miniShutterIndicator.height / 2
+        }
+        viewModel.takePicture()
+    }
+
+    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+        if(keyCode==KeyEvent.KEYCODE_VOLUME_UP && event?.action==KeyEvent.ACTION_DOWN) {
+            takePicture()
+            return true
+        }
+        return super.handleKeyEvent(keyCode, event)
+    }
+
 
     // ICameraGestureOwner
     override val context: Context

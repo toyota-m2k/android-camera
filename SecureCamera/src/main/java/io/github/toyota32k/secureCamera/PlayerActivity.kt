@@ -28,6 +28,7 @@ import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.bindCommand
@@ -109,20 +110,22 @@ class PlayerActivity : AppCompatActivity() {
                 collection,
                 allowDuplication = true
             ) { a, b -> ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt() }
-            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
+//            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
             val currentSelection:StateFlow<String?> = MutableStateFlow<String?>(null)
             var photoSelection:String? = null
             var videoSelection:String? = null
+            val isVideo: StateFlow<Boolean> = currentSelection.map { it?.endsWith(VIDEO_EXTENSION) == true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+            val isPhoto: StateFlow<Boolean> = currentSelection.map { it?.endsWith(PHOTO_EXTENSION) == true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
             val listMode = MutableStateFlow(ListMode.ALL)
 
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
 
-            val commandNext = LiteUnitCommand(::next)
-            val commandPrev = LiteUnitCommand(::previous)
+//            val commandNext = LiteUnitCommand(::next)
+//            val commandPrev = LiteUnitCommand(::previous)
             val photoRotation : StateFlow<Int> = MutableStateFlow(0)
 
             init {
@@ -135,8 +138,7 @@ class PlayerActivity : AppCompatActivity() {
                     currentSource.value = null
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
-                    playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    isVideo.mutable.value = false
+//                    playerControllerModel.playerModel.rotate(Rotation.NONE)
                     currentSelection.mutable.value = null
                     return
                 }
@@ -145,7 +147,6 @@ class PlayerActivity : AppCompatActivity() {
                     currentSource.value = null
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
-                    isVideo.mutable.value = false
                     currentSelection.mutable.value = null
                     return
                 }
@@ -155,7 +156,6 @@ class PlayerActivity : AppCompatActivity() {
                 currentSelection.mutable.value = item
                 if(item.endsWith(VIDEO_EXTENSION)) {
                     videoSelection = item
-                    isVideo.mutable.value = true
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
@@ -163,7 +163,6 @@ class PlayerActivity : AppCompatActivity() {
                 } else {
                     photoSelection = item
                     currentSource.value = null
-                    isVideo.mutable.value = false
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = BitmapFactory.decodeFile(File(context.filesDir, item).path)
                 }
@@ -295,20 +294,18 @@ class PlayerActivity : AppCompatActivity() {
 
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
-            .combinatorialVisibilityBinding(viewModel.playlist.isVideo) {
-                straightInvisible(controls.videoViewer)
-                inverseInvisible(controls.photoViewer)
-            }
-            .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
-            .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
+            .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
+            .visibilityBinding(controls.photoViewer, viewModel.playlist.isPhoto)
+//            .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
+//            .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
             .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map {it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
                 straightGone(controls.collapseButton)
                 inverseGone(controls.expandButton)
             }
-            .visibilityBinding(controls.photoButtonPanel, viewModel.playlist.currentSelection.map {it!=null}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
-            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
+//            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
+//            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
             .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
 //            .bindCommand(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
@@ -347,8 +344,8 @@ class PlayerActivity : AppCompatActivity() {
                     }
 
             }
-        controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
 
+        controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
 
         gestureInterpreter.setup(this, controls.viewerArea) {
             onScroll(manipulator::onScroll)
@@ -375,12 +372,12 @@ class PlayerActivity : AppCompatActivity() {
 //            controls.imageView.scaleX = newScale
 //            controls.imageView.scaleY = newScale
         }
-        fun onTap(event:UtGestureInterpreter.IPositionalEvent) {
+        fun onTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
             if(viewModel.playlist.isVideo.value) {
                 viewModel.playerControllerModel.playerModel.togglePlay()
             }
         }
-        fun onDoubleTap(event:UtGestureInterpreter.IPositionalEvent) {
+        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
             contentView.translationX = 0f
             contentView.translationY = 0f
             contentView.scaleX = 1f
@@ -393,9 +390,7 @@ class PlayerActivity : AppCompatActivity() {
 //        }
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
-            if(viewModel.playlist.isVideo.value) {
-                viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
-            }
+            viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
         }
 
         override val parentView: View
@@ -449,10 +444,6 @@ class PlayerActivity : AppCompatActivity() {
                 viewModel.playlist.select(item)
             }
         }
-    }
-
-    fun MutableStateFlow<Boolean>.toggle() {
-        value = !value
     }
 
 //    private fun onPlayerTapped() {
