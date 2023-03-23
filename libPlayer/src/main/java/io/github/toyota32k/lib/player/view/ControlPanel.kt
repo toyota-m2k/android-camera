@@ -21,6 +21,7 @@ import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.player.lib.databinding.V2ControlPanelBinding
+import io.github.toyota32k.shared.UtClickRepeater
 import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
@@ -90,7 +91,7 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
         controls.slider.addOnChangeListener(this)
 //        slider.addOnSliderTouchListener(this)
 
-        findViewById<ChapterView>(R.id.chapter_view).bindViewModel(model.playerModel, binder)
+        controls.chapterView.bindViewModel(model.playerModel, binder)
 
         val chapterHandler = model.playerModel as? IChapterHandler
         val playlistHandler = model.playerModel as? IPlaylistHandler
@@ -135,6 +136,8 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
                     bindCommand(chapterHandler.commandPrevChapter, controls.prevChapterButton)
                 }
             }
+            .add(UtClickRepeater(controls.seekBackButton))
+            .add(UtClickRepeater(controls.seekForwardButton))
     }
 
     @SuppressLint("RestrictedApi")
