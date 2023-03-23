@@ -4,4 +4,9 @@
     <dimen name="media_button_width">48dp</dimen>
     <dimen name="menu_button_width">200dp</dimen>
     <dimen name="menu_button_spacing">10dp</dimen>
+
+    <dimen name="dlg_text_large">32sp</dimen>
+    <dimen name="dlg_text_medium">24sp</dimen>
+    <dimen name="dlg_text_small">18sp</dimen>
+    <dimen name="dlg_item_margin">10dp</dimen>
 </resources>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    >
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/security_title"
+        android:textColor="?attr/colorSecondary"
+        android:textSize="@dimen/dlg_text_large"
+        />
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/enable_password_check"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/enable_pwd_label"
+        android:textSize="@dimen/dlg_text_medium"
+        />
+    <com.google.android.material.textfield.TextInputLayout
+        android:hint="@string/password_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:imeOptions="actionNext"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/block_password_error_check"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/block_password_error"
+        android:textSize="@dimen/dlg_text_medium"
+        />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/max_pwd_error_label"
+            android:textSize="@dimen/dlg_text_medium"
+            android:layout_gravity="center"
+            />
+        <EditText
+            android:id="@+id/number_of_incorrect_password"
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            />
+    </LinearLayout>
+    <com.google.android.material.slider.Slider
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="50dp"
+        android:valueFrom="0"
+        android:valueTo="10"
+        android:stepSize="1"
+        />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/camera_title"
+        android:textColor="?attr/colorSecondary"
+        android:textSize="@dimen/dlg_text_large"
+        />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/tap_action_label"
+        android:textSize="@dimen/dlg_text_medium"
+        />
+
+</LinearLayout>
