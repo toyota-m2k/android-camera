@@ -12,6 +12,7 @@ import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
+import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
@@ -38,7 +39,7 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand {startActivity(Intent(this, CameraActivity::class.java))}, controls.cameraButton )
             .bindCommand(LiteUnitCommand {startActivity(Intent(this, PlayerActivity::class.java))}, controls.playerButton )
             .bindCommand(LiteUnitCommand(::clearAll), controls.clearAllButton)
-            .bindCommand(LiteUnitCommand(::showLicense), controls.settingsButton)
+            .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
     }
 
     private fun clearAll() {
@@ -56,7 +57,11 @@ class MainActivity : UtMortalActivity() {
         }
     }
 
-    private fun showLicense() {
+    private fun setting() {
+        UtImmortalSimpleTask.run("Setting") {
+            showDialog(taskName) { SettingDialog() }
+            true
+        }
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
 

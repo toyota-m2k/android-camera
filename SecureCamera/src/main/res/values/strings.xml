@@ -20,8 +20,9 @@
     <string name="security_title">Security</string>
     <string name="enable_pwd_label">Protection by Password</string>
     <string name="password_hint">Password</string>
-    <string name="block_password_error">Block on Password Error</string>
-    <string name="max_pwd_error_label">Allowable Password Error</string>
+    <string name="block_password_error">Clear All on Wrong Password</string>
+    <string name="max_pwd_error_label">Allow Wrong Password</string>
+    <string name="max_pwd_error_label_2">times</string>
     <string name="camera_title">Camera</string>
     <string name="tap_action_label">Action on Tapped</string>
 </resources>

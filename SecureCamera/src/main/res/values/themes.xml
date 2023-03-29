@@ -19,13 +19,16 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
 
-        <item name="controlPanelColor">@color/translucent_white</item>
-        <item name="iconColor">@color/black</item>
-        <item name="recIconColor">@color/red</item>
-        <item name="pauseIconColor">@color/blue</item>
-        <item name="stopIconColor">@color/red</item>
+        <item name="controlPanelColor">#40FFFFFF</item>
+        <item name="iconColor">?attr/colorPrimary</item>
+        <item name="recIconColor">#FF4080</item>
+        <item name="pauseIconColor">#8080FF</item>
+        <item name="stopIconColor">?attr/pauseIconColor</item>
 
         <!-- libPlayer theme -->
         <item name="playerBackground">@color/black</item>
+
+        <item name="colorDialogSurface">?attr/colorSurface</item>
+        <item name="colorOnDialogSurface">?android:textColorPrimary</item>
     </style>
 </resources>

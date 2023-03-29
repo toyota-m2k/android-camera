@@ -6,6 +6,12 @@ import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.secureCamera.R
 
 class SettingDialog : UtDialogEx() {
+    override fun preCreateBodyView() {
+        setLeftButton(BuiltInButtonType.CANCEL)
+        setRightButton(BuiltInButtonType.DONE)
+        setLimitWidth(400)
+
+    }
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         return inflater.inflate(R.layout.dialog_setting)
     }

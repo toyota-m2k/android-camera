@@ -11,5 +11,8 @@
 <!--    <declare-styleable name="ExoPlayerHost">-->
 <!--        <attr name="playerBackground" format="color"/>-->
 <!--    </declare-styleable>-->
-
+    <declare-styleable name="SettingDialog">
+        <attr name="colorDialogSurface" format="color"/>
+        <attr name="colorOnDialogSurface" format="color"/>
+    </declare-styleable>
 </resources>
