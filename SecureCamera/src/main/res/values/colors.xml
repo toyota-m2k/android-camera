@@ -10,4 +10,12 @@
     <color name="red">#FFFF0000</color>
     <color name="blue">#FF0000FF</color>
     <color name="translucent_white">#80FFFFFF</color>
+
+    <color name="my_tint_color">#FF4081</color>
+    <color name="my_tint_color_pressed">#FF80AB</color>
+    <color name="my_tint_color_focused">#FF4081</color>
+    <color name="my_tint_color_activated">#FF4081</color>
+    <color name="my_tint_color_selected">#FF4081</color>
+    <color name="my_tint_color_disabled">#BDBDBD</color>
+
 </resources>

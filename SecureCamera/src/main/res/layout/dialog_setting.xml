@@ -11,82 +11,149 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/security_title"
-        android:textColor="?attr/colorSecondary"
+        android:textColor="?attr/colorPrimary"
         android:textSize="@dimen/dlg_text_large" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="@dimen/dlg_item_margin">
-
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1"
+            android:text="@string/enable_pwd_label"/>
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/enable_password_check"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/enable_pwd_label"
-            android:textColor="?attr/colorOnDialogSurface"
-            android:textSize="@dimen/dlg_text_medium" />
+            />
+    </LinearLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:hint="@string/password_hint" />
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1"
+            android:text="@string/password_not_set"/>
+        <com.google.android.material.button.MaterialButton
+            style="?attr/materialButtonOutlinedStyle"
+            android:id="@+id/change_pwd_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/change_pwd_label"
+            android:textColor="?attr/colorSecondary"
+            />
+    </LinearLayout>
+
+    <!-- - - - - - - - - - - - - - - - - - -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="@string/block_password_error"/>
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/block_password_error_check"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/block_password_error"
-            android:textColor="?attr/colorOnDialogSurface"
-            android:textSize="@dimen/dlg_text_medium" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <com.google.android.material.textview.MaterialTextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:text="@string/max_pwd_error_label"
-                android:textSize="@dimen/dlg_text_medium"
-                tools:text="Allow Wrong Password 3 times"
-                android:textColor="?attr/colorOnDialogSurface"
-                />
-            <ImageButton
-                android:id="@+id/allow_error_minus"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_minus"
-                app:tint="?attr/iconColor"
-                android:background="?attr/selectableItemBackground"
-                />
-            <ImageButton
-                android:id="@+id/allow_error_plus"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_plus"
-                app:tint="?attr/iconColor"
-                android:background="?attr/selectableItemBackground"
-                />
-        </LinearLayout>
-
+            />
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="@string/max_pwd_error_label"
+            tools:text="Allow Wrong Password 3 times"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/Widget.Material3.Button.IconButton.Outlined"
+            android:id="@+id/allow_error_minus"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:icon="@drawable/ic_minus"
+            app:iconTint="?attr/iconColor"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/Widget.Material3.Button.IconButton.Outlined"
+            android:id="@+id/allow_error_plus"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:icon="@drawable/ic_plus"
+            app:iconTint="?attr/iconColor"
+            />
+    </LinearLayout>
+    <!-- - - - - - - - - - - - - - - - - - -->
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/camera_title"
-        android:textColor="?attr/colorSecondary"
+        android:textColor="?attr/colorPrimary"
         android:textSize="@dimen/dlg_text_large" />
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/tap_action_label"
-        android:textSize="@dimen/dlg_text_medium" />
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tap_action_label"
+            android:textSize="@dimen/dlg_text_medium" />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggleGroupAsRadio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@+id/radioValue"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:gravity="center_horizontal"
+            >
+            <Button
+                android:id="@+id/radio_camera_action_none"
+                android:text="@string/camera_action_none"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+            <Button
+                android:id="@+id/mtRadio2"
+                android:text="@string/radio2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+            <Button
+                android:id="@+id/mtRadio3"
+                android:text="@string/radio3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    </LinearLayout>
 
 </LinearLayout>
