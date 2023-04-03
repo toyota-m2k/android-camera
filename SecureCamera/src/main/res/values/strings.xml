@@ -29,4 +29,11 @@
     <string name="tap_action_label">Action on Tapping</string>
     <string name="change_pwd_label">Change</string>
     <string name="camera_action_none">None</string>
+    <string name="camera_action_photo">Photo</string>
+    <string name="camera_action_video">Video</string>
+    <string name="hide_panel_on_open_camera">HIde Control Panel</string>
+    <string name="player_title">Player</string>
+    <string name="skip_forward_by">Skip Forward by %d ms</string>
+    <string name="skip_backword_by">Skip Backword by %d ms</string>
+    <string name="skip_backward_by">Skip Backward by %d ms</string>
 </resources>

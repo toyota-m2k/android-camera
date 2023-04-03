@@ -10,7 +10,8 @@ class SettingDialog : UtDialogEx() {
         setLeftButton(BuiltInButtonType.CANCEL)
         setRightButton(BuiltInButtonType.DONE)
         setLimitWidth(400)
-
+        scrollable = true
+        heightOption = HeightOption.AUTO_SCROLL
     }
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         return inflater.inflate(R.layout.dialog_setting)
