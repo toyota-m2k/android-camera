@@ -16,6 +16,8 @@ import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class MainActivity : UtMortalActivity() {
     override val logger = UtLog("MAIN")
