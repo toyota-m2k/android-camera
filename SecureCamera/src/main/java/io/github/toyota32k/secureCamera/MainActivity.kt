@@ -60,10 +60,7 @@ class MainActivity : UtMortalActivity() {
     }
 
     private fun setting() {
-        UtImmortalSimpleTask.run("Setting") {
-            showDialog(taskName) { SettingDialog() }
-            true
-        }
+        SettingDialog.show(application)
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
 
