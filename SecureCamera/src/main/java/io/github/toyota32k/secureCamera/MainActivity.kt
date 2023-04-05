@@ -4,20 +4,18 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
-//import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
-import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
+import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.dialog.UtStandardString
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtMortalActivity
-import io.github.toyota32k.dialog.task.showOkCancelMessageBox
+import io.github.toyota32k.dialog.task.*
+import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
+import io.github.toyota32k.secureCamera.settings.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
     override val logger = UtLog("MAIN")
@@ -38,30 +36,49 @@ class MainActivity : UtMortalActivity() {
 //        setContentView(R.layout.activity_main)
 
         binder.owner(this)
-            .bindCommand(LiteUnitCommand {startActivity(Intent(this, CameraActivity::class.java))}, controls.cameraButton )
-            .bindCommand(LiteUnitCommand {startActivity(Intent(this, PlayerActivity::class.java))}, controls.playerButton )
-            .bindCommand(LiteUnitCommand(::clearAll), controls.clearAllButton)
+            .bindCommand(LiteUnitCommand(::startCamera), controls.cameraButton )
+            .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )
+            .bindCommand(LiteUnitCommand(::clearAllData), controls.clearAllButton)
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
     }
 
-    private fun clearAll() {
-        UtImmortalSimpleTask.run("ClearAll") {
-            if(showOkCancelMessageBox(getString(R.string.clear_all), getString(R.string.msg_confirm))) {
-                withOwner { owner ->
-                    owner.asContext().apply {
-                        for (name in fileList()) {
-                            deleteFile(name)
-                        }
-                    }
-                }
-            }
-            true
-        }
+    private fun startCamera() {
+        startActivity(Intent(this, CameraActivity::class.java))
     }
 
+    private fun startPlayer() {
+        lifecycleScope.launch {
+            if(PasswordDialog.checkPassword()) {
+                startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
+            }
+        }
+    }
     private fun setting() {
         SettingDialog.show(application)
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
+    }
+
+    companion object {
+        private fun clearAllData() {
+            UtImmortalSimpleTask.run("ClearAll") {
+                if(showOkCancelMessageBox(getString(R.string.clear_all), getString(R.string.msg_confirm))) {
+                    resetAll(false)
+                }
+                true
+            }
+        }
+
+        fun resetAll(resetSettings:Boolean=false) {
+            UtImmortalTaskManager.application.apply {
+                for (name in fileList()) {
+                    deleteFile(name)
+                }
+                if(resetSettings) {
+                    Settings.reset()
+                }
+            }
+        }
+
     }
 
 }

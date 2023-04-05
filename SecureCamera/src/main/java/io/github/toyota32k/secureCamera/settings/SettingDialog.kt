@@ -7,22 +7,25 @@ import androidx.annotation.IdRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import io.github.toyota32k.bindit.*
-import io.github.toyota32k.dialog.UtDialog
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
+import io.github.toyota32k.utils.observe
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.lang.Integer.max
 import java.lang.Integer.min
 import java.util.*
 
-class SettingDialog : UtDialog() {
+class SettingDialog : UtDialogEx() {
     class SettingViewModel(application: Application) : AndroidViewModel(application), IUtImmortalTaskMutableContextSource, IUtPropOwner {
         override lateinit var immortalTaskContext: IUtImmortalTaskContext
 
@@ -34,10 +37,10 @@ class SettingDialog : UtDialog() {
             }
 
             fun createBy(taskName:String, application: Application):SettingViewModel {
-                return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task")
+                return logger.chronos { UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task") }
             }
             fun instanceFor(dlg:SettingDialog):SettingViewModel {
-                return ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java]
+                return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
             }
         }
         enum class CameraTapAction(val value:Int, @IdRes val id:Int) {
@@ -57,12 +60,13 @@ class SettingDialog : UtDialog() {
         }
 
         val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
-        val cameraHidePanelOnStart: StateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
+        val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
         val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipForward.toFloat()/1000f)
         val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipBackward.toFloat()/1000f)
-        val securityEnablePassword: StateFlow<Boolean> = MutableStateFlow(Settings.Security.enablePassword)
-        val securityPassword: StateFlow<String> = MutableStateFlow(Settings.Security.password)
-        val securityNumberOfIncorrectPassword: StateFlow<Int> = MutableStateFlow(Settings.Security.numberOfIncorrectPassword)
+        val securityEnablePassword: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Security.enablePassword)
+        val securityPassword: MutableStateFlow<String> = MutableStateFlow(Settings.Security.password)
+        val securityNumberOfIncorrectPassword: MutableStateFlow<Int> = MutableStateFlow(Settings.Security.numberOfIncorrectPassword)
+        val securityClearAllOnPasswordError = MutableStateFlow(Settings.Security.clearAllOnPasswordError)
 
         val passwordText: Flow<String> = securityPassword.map { if(it.isBlank()) application.getString(R.string.password_not_set) else application.getString(R.string.password_set) }
         val allowWrongPasswordText: Flow<String> = securityNumberOfIncorrectPassword.map { application.getString(R.string.max_pwd_error_label).format(Locale.US, clipNumberOfIncorrectPassword(it)) }
@@ -70,13 +74,36 @@ class SettingDialog : UtDialog() {
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
         private fun updateNip(diff:Int) {
-            val before = securityNumberOfIncorrectPassword.value + diff
-            val after = min(maxNumberOfIncorrectPassword, max(minNumberOfIncorrectPassword, before))
+            val before = securityNumberOfIncorrectPassword.value
+            val after = min(maxNumberOfIncorrectPassword, max(minNumberOfIncorrectPassword, before+diff))
             if(before!=after) {
                 securityNumberOfIncorrectPassword.mutable.value = after
             }
         }
         val commandNip = LiteCommand(this::updateNip)
+
+        fun save() {
+            Settings.apply {
+                Settings.Camera.tapAction = cameraTapAction.value
+                Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
+                Settings.Player.spanOfSkipForward = (playerSpanOfSkipForward.value*1000).toLong()
+                Settings.Player.spanOfSkipBackward = (playerSpanOfSkipBackward.value*1000).toLong()
+                Settings.Security.enablePassword = securityEnablePassword.value
+                Settings.Security.password = securityPassword.value
+                Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
+                Settings.Security.numberOfIncorrectPassword = securityNumberOfIncorrectPassword.value
+            }
+        }
+        fun reset() {
+            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
+            cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
+            playerSpanOfSkipForward.value = Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat()/1000f
+            playerSpanOfSkipBackward.value = Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat()/1000f
+            securityEnablePassword.value = Settings.Security.DEF_ENABLE_PASSWORD
+            securityPassword.value = Settings.Security.DEF_PASSWORD
+            securityClearAllOnPasswordError.value = Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
+            securityNumberOfIncorrectPassword.value = Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+        }
     }
     override fun preCreateBodyView() {
         setLeftButton(BuiltInButtonType.CANCEL)
@@ -88,28 +115,70 @@ class SettingDialog : UtDialog() {
 
     lateinit var controls:DialogSettingBinding
     val viewModel: SettingViewModel by lazy { SettingViewModel.instanceFor(this) }
-    val binder = Binder()
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogSettingBinding.inflate(inflater.layoutInflater)
-        return inflater.inflate(R.layout.dialog_setting).also { dlg->
-            binder
-                .owner(this)
-                .textBinding(controls.passwordText, viewModel.passwordText)
-                .textBinding(controls.allowWrongPasswordText, viewModel.allowWrongPasswordText)
-                .textBinding(dlg.findViewById(R.id.skip_forward_text), viewModel.skipForwardText)
-                .textBinding(controls.skipBackwardText, viewModel.skipBackwardText)
-                .sliderBinding(dlg.findViewById(R.id.slider_skip_forward), viewModel.playerSpanOfSkipForward)
-                .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
-                .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
-                .bindCommand(viewModel.commandNip, controls.allowErrorPlus, -1)
-                .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
+        return logger.chronos { controls.root.also { _->
+                binder
+                    .textBinding(controls.passwordText, viewModel.passwordText)
+                    .textBinding(controls.allowWrongPasswordText, viewModel.allowWrongPasswordText)
+                    .textBinding(controls.skipForwardText, viewModel.skipForwardText)
+                    .textBinding(controls.skipBackwardText, viewModel.skipBackwardText)
+                    .checkBinding(controls.enablePasswordCheck, viewModel.securityEnablePassword)
+                    .checkBinding(controls.blockPasswordErrorCheck, viewModel.securityClearAllOnPasswordError)
+                    .checkBinding(controls.hidePanelOnCameraCheck, viewModel.cameraHidePanelOnStart)
+                    .sliderBinding(controls.sliderSkipForward, viewModel.playerSpanOfSkipForward)
+                    .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
+                    .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+                    .visibilityBinding(controls.passwordCountGroup, viewModel.securityClearAllOnPasswordError)
+                    .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
+                    .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
+                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
+                    .observe(viewModel.securityEnablePassword) {
+                        if(it&&viewModel.securityPassword.value.isEmpty()) {
+                            setPassword()
+                        }
+                    }
+                    .bindCommand(LiteUnitCommand(::changePassword), controls.changePwdButton)
+                    .bindCommand(LiteUnitCommand(::resetAll), controls.resetButton)
 
+            }
         }
     }
 
+    private fun resetAll() {
+        viewModel.reset()
+    }
+
+    private fun setPassword() {
+        CoroutineScope(Dispatchers.Main).launch {
+            val pwd = PasswordDialog.newPassword()
+            if(pwd.isNullOrEmpty()) {
+                viewModel.securityEnablePassword.value = false
+            } else {
+                viewModel.securityPassword.value = pwd
+            }
+        }
+    }
+    private fun changePassword() {
+        CoroutineScope(Dispatchers.Main).launch {
+            val pwd = PasswordDialog.newPassword()
+            if(!pwd.isNullOrEmpty()) {
+                viewModel.securityPassword.value = pwd
+            }
+        }
+    }
+
+    override fun onPositive() {
+        viewModel.save()
+        super.onPositive()
+    }
     companion object {
+        val logger = UtLog("Setting", null, this::class.java)
         fun show(application: Application) {
             UtImmortalSimpleTask.run(this::class.java.name) {
+                if(!PasswordDialog.checkPassword()) {
+                    return@run false
+                }
                 SettingViewModel.createBy(taskName, application)
                 showDialog(taskName) { SettingDialog() }
                 true

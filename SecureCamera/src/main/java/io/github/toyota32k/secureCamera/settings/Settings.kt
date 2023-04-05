@@ -15,18 +15,44 @@ object Settings {
         const val TAP_NONE = 0
         const val TAP_VIDEO = 1
         const val TAP_PHOTO = 2
-        val tapAction:Int by spd.pref(TAP_VIDEO)
-        val hidePanelOnStart:Boolean by spd.pref(false)
+
+        const val DEF_TAP_ACTION = TAP_VIDEO
+        const val DEF_HIDE_PANEL_ON_START = false
+
+        var tapAction:Int by spd.pref(DEF_TAP_ACTION)
+        var hidePanelOnStart:Boolean by spd.pref(DEF_HIDE_PANEL_ON_START)
+
     }
 
     object Player {
-        val spanOfSkipForward:Long by spd.pref(1000)
-        val spanOfSkipBackward:Long by spd.pref(300)
+        const val DEF_SPAN_OF_SKIP_FORWARD = 15000L
+        const val DEF_SPAN_OF_SKIP_BACKWARD = 5000L
+        var spanOfSkipForward:Long by spd.pref(DEF_SPAN_OF_SKIP_FORWARD)
+        var spanOfSkipBackward:Long by spd.pref(DEF_SPAN_OF_SKIP_BACKWARD)
     }
 
     object Security {
-        val enablePassword:Boolean by spd.pref(false)
-        val password:String by spd.pref("")
-        val numberOfIncorrectPassword:Int by spd.pref(0)
+        const val DEF_ENABLE_PASSWORD = false
+        const val DEF_PASSWORD = ""
+        const val DEF_CLEAR_ALL_ON_PASSWORD_ERROR = false
+        const val DEF_NUMBER_OF_INCORRECT_PASSWORD = 3
+
+        var enablePassword:Boolean by spd.pref(DEF_ENABLE_PASSWORD)
+        var password:String by spd.pref(DEF_PASSWORD)
+        var clearAllOnPasswordError by spd.pref(DEF_CLEAR_ALL_ON_PASSWORD_ERROR)
+        var numberOfIncorrectPassword:Int by spd.pref(DEF_NUMBER_OF_INCORRECT_PASSWORD)
+        var incorrectCount:Int by spd.pref(0)
+    }
+
+    fun reset() {
+        Camera.tapAction = Camera.DEF_TAP_ACTION
+        Camera.hidePanelOnStart = Camera.DEF_HIDE_PANEL_ON_START
+        Player.spanOfSkipForward = Player.DEF_SPAN_OF_SKIP_FORWARD
+        Player.spanOfSkipBackward = Player.DEF_SPAN_OF_SKIP_BACKWARD
+        Security.enablePassword = Security.DEF_ENABLE_PASSWORD
+        Security.password = Security.DEF_PASSWORD
+        Security.clearAllOnPasswordError = Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
+        Security.numberOfIncorrectPassword = Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+        Security.incorrectCount = 0
     }
 }

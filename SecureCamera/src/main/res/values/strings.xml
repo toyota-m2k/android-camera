@@ -19,9 +19,15 @@
     <string name="msg_confirm">Are you OK?</string>
     <string name="security_title">Security</string>
     <string name="enable_pwd_label">Protection by Password</string>
-    <string name="password_hint">Password</string>
+    <string name="password">Password.</string>
+    <string name="password_hint">Input Your Password.</string>
+    <string name="password_hint_new">Input New Password.</string>
+    <string name="password_hint_confirm">Input again to confirm.</string>
     <string name="password_not_set">Password: n/a</string>
     <string name="password_set">Password: ********</string>
+    <string name="password_incorrect">Password is incorrect.</string>
+    <string name="passwords_not_match">Passwords do not match. Try again.</string>
+    <string name="password_error">The password has been entered incorrectly %d times. All data have been cleared.</string>
     <string name="block_password_error">Clear All on Wrong Password</string>
     <string name="max_pwd_error_label">Allow Wrong Password %d Times</string>
     <string name="max_pwd_error_label_2">times</string>
@@ -35,4 +41,5 @@
     <string name="player_title">Player</string>
     <string name="skip_forward_by">Skip Forward by %.1f sec</string>
     <string name="skip_backward_by">Skip Backward by %.1f sec</string>
+    <string name="reset">Reset All</string>
 </resources>

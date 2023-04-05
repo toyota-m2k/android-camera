@@ -32,6 +32,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/password_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
@@ -54,6 +55,7 @@
 
     <!-- - - - - - - - - - - - - - - - - - -->
     <LinearLayout
+        android:id="@+id/password_criteria_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
@@ -72,6 +74,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/password_count_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
@@ -130,6 +133,7 @@
             android:orientation="horizontal"
             app:singleSelection="true"
             app:selectionRequired="true"
+            android:layout_marginLeft="10dp"
             >
             <Button
                 android:id="@+id/radio_camera_action_none"
@@ -230,5 +234,13 @@
             android:stepSize="0.1"
             />
     </LinearLayout>
+    <Button
+        android:id="@+id/reset_button"
+        android:text="@string/reset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        />
 
 </LinearLayout>
