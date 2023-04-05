@@ -51,7 +51,6 @@ import java.io.File
 
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
-
     class CameraViewModel : ViewModel() {
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
@@ -86,12 +85,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             videoCapture.dispose()
         }
 
-        val pictureTakingStatus = UtObservableFlag()
+        val pictureTakingStatus = MutableStateFlow<Boolean>(false)
         val takePictureCommand = LiteUnitCommand()
 
-        fun takePicture() {
+        fun takePicture(logger:UtLog) {
             viewModelScope.launch {
-                pictureTakingStatus.set()
+                pictureTakingStatus.value = true
                 try {
                     val bitmap = imageCapture.takePicture() ?: return@launch
                     val file = newImageFile()
@@ -99,9 +98,11 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
+                } catch(e:Throwable) {
+                    logger.error(e)
                 } finally {
                     delay(200)
-                    pictureTakingStatus.reset()
+                    pictureTakingStatus.value = false
                 }
             }
         }
@@ -311,7 +312,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             controls.miniShutterIndicator.x = x - controls.miniShutterIndicator.width / 2
             controls.miniShutterIndicator.y = y - controls.miniShutterIndicator.height / 2
         }
-        viewModel.takePicture()
+        viewModel.takePicture(logger)
     }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
