@@ -10,10 +10,10 @@ buildscript {
 //    ext.m2k_android_dialog_version = "LOCAL"
     ext.m2k_viewex_version = "0.0.1"
 
-//    dependencies {
+    dependencies {
 //        classpath 'com.google.android.gms:oss-licenses-plugin:0.10.6'
-//    }
-
+        classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlin_version"
+    }
 }
 
 plugins {
