@@ -39,6 +39,8 @@ interface IMutableChapterList : IChapterList {
     fun updateChapter(position: Long, label:String?=null, skip:Boolean?=null):Boolean
     fun updateChapter(chapter:IChapter, label:String?=null, skip:Boolean?=null):Boolean
         = updateChapter(chapter.position, label, skip)
+    fun updateChapter(chapter:IChapter):Boolean
+            = updateChapter(chapter.position, chapter.label, chapter.skip)
 
     fun skipChapter(position:Long, skip: Boolean):Boolean {
         return updateChapter(position, null, skip)
