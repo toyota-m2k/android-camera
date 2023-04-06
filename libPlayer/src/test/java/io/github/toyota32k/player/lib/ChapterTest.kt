@@ -3,6 +3,7 @@ package io.github.toyota32k.player.lib
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
+import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import org.junit.Test
 import org.junit.Assert.*
 
@@ -10,7 +11,7 @@ class ChapterTest {
     @Test
     fun addRemoveChapterTest() {
         ChapterList.MIN_CHAPTER_INTERVAL = 100L
-        val chapterList = ChapterList()
+        val chapterList = MutableChapterList()
         assertEquals(1, chapterList.chapters.size)
         for(i in 1..10) {
             chapterList.addChapter(i*1000L, "$i", false)
@@ -21,9 +22,9 @@ class ChapterTest {
         assertEquals(5000L, chapterList.chapters[5].position)
         var chapter = chapterList.getChapterAround(5500)
         assertEquals(5000L, chapter.position)
-        assertTrue(chapterList.removeChapter(chapter))
+        assertTrue(chapterList.removeChapter(chapter.position))
         assertEquals(10, chapterList.chapters.size)
-        assertFalse(chapterList.removeChapter(chapter))
+        assertFalse(chapterList.removeChapter(chapter.position))
         chapter = chapterList.getChapterAround(5500)
         assertEquals(4000L, chapter.position)
         chapterList.addChapter(8500, "850", false)
@@ -34,18 +35,18 @@ class ChapterTest {
     @Test
     fun updateTest() {
         ChapterList.MIN_CHAPTER_INTERVAL = 100L
-        val chapterList = ChapterList()
+        val chapterList = MutableChapterList()
         assertEquals(1, chapterList.chapters.size)
         for(i in 1..10) {
             chapterList.addChapter(i*1000L, "$i", false)
         }
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500), "xxx", null))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, "xxx", null))
         assertEquals("xxx", chapterList.chapters[5].label)
         assertFalse(chapterList.chapters[5].skip)
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500), null, true))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, null, true))
         assertEquals("xxx", chapterList.chapters[5].label)
         assertTrue(chapterList.chapters[5].skip)
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500), "yyy", false))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, "yyy", false))
         assertEquals("yyy", chapterList.chapters[5].label)
         assertFalse(chapterList.chapters[5].skip)
         assertTrue(chapterList.updateChapter(Chapter(8000, "zzz", true)))
@@ -63,7 +64,7 @@ class ChapterTest {
     @Test
     fun serializeTest() {
         ChapterList.MIN_CHAPTER_INTERVAL = 100L
-        val chapterList = ChapterList()
+        val chapterList = MutableChapterList()
         assertEquals(1, chapterList.chapters.size)
         for(i in 1..10) {
             chapterList.addChapter(i*1000L, "$i", i%3==0)
@@ -81,7 +82,7 @@ class ChapterTest {
     @Test
     fun rangeNoTrimTest() {
         ChapterList.MIN_CHAPTER_INTERVAL = 100L
-        val chapterList = ChapterList()
+        val chapterList = MutableChapterList()
         assertEquals(1, chapterList.chapters.size)
         // 有効領域で始まり、有効領域で終わるケース
         for(i in 1..10) {
@@ -193,11 +194,11 @@ class ChapterTest {
     @Test
     fun rangeWithTrimming() {
         ChapterList.MIN_CHAPTER_INTERVAL = 100L
-        val chapterList = ChapterList()
+        val chapterList = MutableChapterList()
 
         // ------|== trimming ==|-----
         // ---|=== Chapter =======|---
-        chapterList.skipChapter(chapterList.chapters[0], true)
+        chapterList.skipChapter(0, true)
         chapterList.addChapter(2000, "enabled", false)
         chapterList.addChapter(8000, "disabled", true)
         var ranges = chapterList.enabledRanges(Range(3000,5000)).toList()
@@ -211,7 +212,7 @@ class ChapterTest {
         // ----|====== trimming =====|-----
         // -------|== Chapter ==|----------
         chapterList.reset()
-        chapterList.skipChapter(chapterList.chapters[0], true)
+        chapterList.skipChapter(0, true)
         chapterList.addChapter(3000, "enabled", false)
         chapterList.addChapter(5000, "disabled", true)
         ranges = chapterList.enabledRanges(Range(2000,8000)).toList()
@@ -238,7 +239,7 @@ class ChapterTest {
         // ----|=== trimming ===|---------------
         // ----------|=== Chapter ===|----------
         chapterList.reset()
-        chapterList.skipChapter(chapterList.chapters[0], true)
+        chapterList.skipChapter(0, true)
         chapterList.addChapter(4000, "enabled", false)
         chapterList.addChapter(8000, "disabled", true)
         ranges = chapterList.enabledRanges(Range(3000,5000)).toList()

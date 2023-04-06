@@ -3,22 +3,29 @@ package io.github.toyota32k.lib.player.model.chapter
 import androidx.annotation.MainThread
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
+import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.shared.UtSortedList
 import io.github.toyota32k.shared.UtSorter
+import io.github.toyota32k.utils.Listeners
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.onTrue
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapterList {
-    private val sortedList = UtSortedList(mutableList, allowDuplication = false, comparator = ::chapterComparator)
+open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapterList {
+    protected val sortedList = UtSortedList(mutableList, allowDuplication = false, comparator = ::chapterComparator)
     private val workPosition = UtSorter.Position()
-    private val workChapter = DmyChapter()  // 検索用のダミー
-    private class DmyChapter:IChapter {
+    protected val workChapter = DmyChapter()  // 検索用のダミー
+    protected class DmyChapter:IChapter {
         override var position: Long = 0
         override val label: String = ""
         override val skip: Boolean = false
+        fun at(p:Long) : IChapter {
+            position = p
+            return this
+        }
     }
 
     companion object {
@@ -68,14 +75,12 @@ class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapte
     }
 
     override fun prev(current: Long): IChapter? {
-        workChapter.position = current
-        sortedList.sorter.findPosition(workChapter, workPosition)
+        sortedList.sorter.findPosition(workChapter.at(current), workPosition)
         return if(0<=workPosition.prev&&workPosition.prev<sortedList.size) sortedList[workPosition.prev] else null
     }
 
     override fun next(current: Long): IChapter? {
-        workChapter.position = current
-        sortedList.sorter.findPosition(workChapter, workPosition)
+        sortedList.sorter.findPosition(workChapter.at(current), workPosition)
         return if(0<=workPosition.next&&workPosition.next<sortedList.size) sortedList[workPosition.next] else null
     }
 
@@ -108,39 +113,7 @@ class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapte
         return NeighborChapter(count-1,-1,-1)
     }
 
-    fun addChapter(position:Long, label:String="", skip:Boolean):Boolean {
-        val neighbor = getNeighborChapters(position)
-        if(neighbor.hit>=0) {
-            return false
-        }
-        if(neighbor.prevChapter()?.let{ position - it.position < MIN_CHAPTER_INTERVAL} == true) {
-            return false
-        }
-        if(neighbor.nextChapter()?.let { it.position - position < MIN_CHAPTER_INTERVAL} == true ) {
-            return false
-        }
-        return sortedList.add(Chapter(position,label,skip))
-    }
-
-    fun updateChapter(chapter: Chapter):Boolean {
-        return sortedList.replace(chapter)
-    }
-    fun updateChapter(chapter:IChapter, label:String?=null, skip:Boolean?=null):Boolean {
-        return updateChapter(Chapter(chapter.position, label?:chapter.label, skip?:chapter.skip))
-    }
-
-    fun skipChapter(chapter:IChapter, skip: Boolean):Boolean {
-        return updateChapter(chapter, null, skip)
-    }
-
-    fun removeChapter(chapter:IChapter):Boolean {
-        if(chapter.position == 0L) return false  // 先頭のChapterは必ず存在し、削除は禁止
-        val i = sortedList.sorter.find(chapter)
-        if(i<0) return false
-        return sortedList.remove(chapter)
-    }
-
-    fun getChapterAround(position:Long):IChapter {
+    override fun getChapterAround(position:Long):IChapter {
         val neighbor = getNeighborChapters(position)
         neighbor.hitChapter()?.apply {
             return this
@@ -223,7 +196,7 @@ class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapte
         }
     }
 
-    fun enabledRanges(trimming: Range) :Sequence<Range> {
+    override fun enabledRanges(trimming: Range) :Sequence<Range> {
         return if(trimming.start==0L && trimming.end==0L) {
             enabledRangesNoTrimming()
         } else {
@@ -244,4 +217,61 @@ class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapte
         }
         yield(Range(checking, 0))
     }
+}
+
+class MutableChapterList : ChapterList(), IMutableChapterList {
+    override val modifiedListener = Listeners<Unit>()
+    /**
+     * チャプターを挿入
+     *
+     * @param position  挿入位置
+     * @param label チャプター名（任意）
+     * @param skip false: スキップしない / true:スキップする / null: 挿入位置の状態を継承
+     * @return  true: 挿入した / 挿入できなかった
+     */
+    override fun addChapter(position:Long, label:String, skip:Boolean?):Boolean {
+        val neighbor = getNeighborChapters(position)
+        if(neighbor.hit>=0) {
+            return false
+        }
+        if(neighbor.prevChapter()?.let{ position - it.position < ChapterList.MIN_CHAPTER_INTERVAL } == true) {
+            return false
+        }
+        if(neighbor.nextChapter()?.let { it.position - position < ChapterList.MIN_CHAPTER_INTERVAL } == true ) {
+            return false
+        }
+        return sortedList.add(Chapter(position,label,skip?:neighbor.prevChapter()?.skip?:false)).onTrue { modifiedListener.invoke(Unit) }
+    }
+
+    /**
+     * チャプターの属性を変更
+     *
+     * @param position  挿入位置
+     * @param label チャプター名 / nullなら変更しない
+     * @param skip false: スキップしない / true:スキップする / null: 変更しない
+     * @return true: 変更した / false: 変更しなかった（チャプターが存在しない、or 属性が変化しない）
+     */
+    override fun updateChapter(position:Long, label:String?, skip:Boolean?):Boolean {
+        val index = sortedList.sorter.find(workChapter.at(position))
+        if(index<0) return false
+        if(label==null && skip==null) return false
+        val chapter = sortedList[index]
+        if((label==null || chapter.label == label) && (skip!=null && chapter.skip == skip)) return false
+        return sortedList.replace(Chapter(position, label?:chapter.label, skip?:chapter.skip)).onTrue { modifiedListener.invoke(Unit) }
+    }
+
+    /**
+     * チャプターを削除する
+     * @param position 削除するチャプターのposition
+     * @return true: 変更した / false: 変更しなかった（チャプターが存在しない　or 削除禁止の先頭チャプター）
+     */
+    override fun removeChapter(position: Long): Boolean {
+        if(position == 0L) return false  // 先頭のChapterは必ず存在し、削除は禁止
+        val i = sortedList.sorter.find(workChapter.at(position))
+        if(i<0) return false    // 存在しない
+        sortedList.removeAt(i)
+        modifiedListener.invoke(Unit)
+        return true
+    }
+
 }
