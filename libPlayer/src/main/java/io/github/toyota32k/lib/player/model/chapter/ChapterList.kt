@@ -274,4 +274,10 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
         return true
     }
 
+    override fun removeChapterAt(index: Int): Boolean {
+        if(index<=0||sortedList.size<=index) return false
+        sortedList.removeAt(index)
+        modifiedListener.invoke(Unit)
+        return true
+    }
 }

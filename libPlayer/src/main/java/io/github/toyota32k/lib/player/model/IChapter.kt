@@ -55,6 +55,7 @@ interface IMutableChapterList : IChapterList {
     fun removeChapter(position:Long):Boolean
     fun removeChapter(chapter: IChapter):Boolean
         = removeChapter(chapter.position)
+    fun removeChapterAt(index:Int):Boolean
 
     val modifiedListener: Listeners<Unit>
 }
