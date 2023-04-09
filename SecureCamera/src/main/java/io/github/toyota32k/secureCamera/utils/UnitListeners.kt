@@ -14,7 +14,7 @@ class UnitListeners(private val listeners:Listeners<Unit> = Listeners<Unit>()) {
 
     fun add(owner: LifecycleOwner, fn: () -> Unit): IDisposable
             = listeners.add(owner) { fn() }
-    fun addForever(owner: LifecycleOwner, fn: () -> Unit): IDisposable
+    fun addForever(fn: () -> Unit): IDisposable
             = listeners.addForever { fn() }
 
     fun invoke() {

@@ -8,13 +8,22 @@ interface IChapter {
     val skip:Boolean
 }
 
+data class NeighborChapter(val prev:Int, val hit:Int, val next:Int)
+
 interface IChapterList {
     val chapters:List<IChapter>
     fun prev(current:Long) : IChapter?
     fun next(current:Long) : IChapter?
     fun getChapterAround(position:Long):IChapter
-    fun enabledRanges(trimming: Range) : Sequence<Range>
-    fun disabledRanges(trimming: Range) : Sequence<Range>
+    fun enabledRanges(trimming: Range) : List<Range>
+    fun disabledRanges(trimming: Range) : List<Range>
+
+    fun getNeighborChapters(pivot:Long): NeighborChapter
+
+    val isEmpty:Boolean
+        get() = chapters.isEmpty()|| chapters[0].position==0L && !chapters[0].skip
+
+    val isNotEmpty:Boolean get() = !isEmpty
 }
 
 interface IMutableChapterList : IChapterList {

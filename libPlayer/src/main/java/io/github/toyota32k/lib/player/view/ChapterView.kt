@@ -14,8 +14,7 @@ import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.player.lib.R
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.lifecycleOwner
+import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
@@ -32,7 +31,7 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private lateinit var model: IPlayerModel
     private val duration:Long get() = model.naturalDuration.value
     private val chapterList: IChapterList? get() = (model.currentSource.value as? IMediaSourceWithChapter)?.chapterList
-    private val disabledRanges:List<Range>? get() = model.currentSource.value?.disabledRanges
+    private val disabledRanges:List<Range>? get() = chapterList?.disabledRanges(model.currentSource.value?.trimming?:Range.empty)
 
     @ColorInt private val defaultColor:Int
     @ColorInt private val tickColor:Int
@@ -48,18 +47,39 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         sa.recycle()
     }
 
+//    private lateinit var binder:Binder
     fun bindViewModel(model: IPlayerModel, @Suppress("UNUSED_PARAMETER") binder: Binder) {
         this.model = model
+//        this.binder = binder
         val owner = lifecycleOwner()!!
         val scope = owner.lifecycleScope
 
+//        val mutableChapterList = chapterList as? IMutableChapterList
+//        if(mutableChapterList!=null) {
+//            binder.add(mutableChapterList.modifiedListener.add(owner) { invalidate() })
+//        }
+
+        model.currentSource.onEach(::bindChapterList).launchIn(scope)
+
         val flow = if(model is IChapterHandler) {
-            combine(model.chapterList, model.naturalDuration) { list, dur-> list !=null && dur>0 }
+            combine(model.currentSource, model.naturalDuration) { src, dur->
+                src !=null && dur>0
+            }
         } else model.naturalDuration.filter { it>0 }
 
         flow.onEach {
             invalidate()
         }.launchIn(scope)
+    }
+
+    var chapterListened:IDisposable? = null
+    private fun bindChapterList(src:IMediaSource?) {
+        chapterListened?.dispose()
+        chapterListened = null
+        src ?: return
+        val sourceWithChapter = src as? IMediaSourceWithChapter ?: return
+        val mutableChapterList = sourceWithChapter.chapterList as? IMutableChapterList ?: return
+        chapterListened = mutableChapterList.modifiedListener.add(lifecycleOwner()!!) { invalidate() }
     }
 
     private fun time2x(time: Long): Float {
@@ -75,6 +95,8 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         if(canvas==null) return
         if(mWidth==0||mHeight==0) return
         if(!this::model.isInitialized) return
+        if(duration<=0L) return
+        val list = chapterList?.chapters ?: return
 
         val width = mWidth.toFloat()
         val height = mHeight.toFloat()
@@ -85,8 +107,6 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         canvas.drawRect(rect,paint)
 
         // chapters
-        if(duration<=0L) return
-        val list = chapterList?.chapters ?: return
         val dr = disabledRanges
         if(list.isEmpty() && dr.isNullOrEmpty()) return
 

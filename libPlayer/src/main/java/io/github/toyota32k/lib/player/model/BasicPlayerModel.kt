@@ -15,9 +15,8 @@ import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.FitMode
 import io.github.toyota32k.player.lib.R
-import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.SuspendableEvent
-import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.shared.UtManualIncarnateResetableValue
+import io.github.toyota32k.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.math.max
@@ -25,7 +24,6 @@ import kotlin.math.min
 
 open class BasicPlayerModel(
     context: Context,
-    final override val scope: CoroutineScope // dispose()まで有効なコルーチンスコープ)
 ) : IPlayerModel, IUtPropOwner {
     companion object {
         val logger by lazy { UtLog("PM", TpLib.logger) }
@@ -33,10 +31,6 @@ open class BasicPlayerModel(
 
     // region Properties / Status
     final override val context: Application = context.applicationContext as Application           // ApplicationContextならViewModelが持っていても大丈夫だと思う。
-
-    /**
-     * プレーヤーの状態
-     */
 
     enum class PlayerState {
         None,       // 初期状態
@@ -46,15 +40,90 @@ open class BasicPlayerModel(
     }
     protected val state: StateFlow<PlayerState> = MutableStateFlow(PlayerState.None)
 
-    final override val isLoading = state.map { it == PlayerState.Loading }.stateIn(scope, SharingStarted.Eagerly, false)
-    final override val isReady = state.map { it== PlayerState.Ready }.stateIn(scope, SharingStarted.Eagerly, false)
-    final override val isPlaying = MutableStateFlow<Boolean>(false)
+    private inner class DependsOnScope {
+        val scope = UtManualIncarnateResetableValue { CoroutineScope(Dispatchers.Main+ SupervisorJob()) }
+        val isLoading = UtManualIncarnateResetableValue { state.map { it == PlayerState.Loading }.stateIn(scope.value, SharingStarted.Eagerly, false) }
+        val isReady = UtManualIncarnateResetableValue { state.map { it== PlayerState.Ready }.stateIn(scope.value, SharingStarted.Eagerly, false) }
+        val isError = UtManualIncarnateResetableValue { errorMessage.map { !it.isNullOrBlank() }.stateIn(scope.value, SharingStarted.Lazily, false) }
+        private val resetables = arrayOf(isLoading, isReady, isError)
+        init {
+            openIfNeed()
+        }
+        fun openIfNeed():Boolean {
+            if(scope.hasValue) {
+                return false
+            } else {
+                scope.incarnate()
+                resetables.forEach {
+                    it.incarnate()
+                }
+
+                isPlaying.onEach {
+                    if(it) {
+                        watchPositionEvent.set()
+                    }
+                }.launchIn(scope.value)
+
+                ended.onEach {
+                    if(it) {
+                        onPlaybackCompleted()
+                    }
+                }.launchIn(scope.value)
+
+                scope.value.launch {
+                    while(!isDisposed) {
+                        watchPositionEvent.waitOne()
+                        if(isPlaying.value) {
+                            withPlayer { player ->
+                                val src = currentSource.value as? IMediaSourceWithChapter
+                                val pos = player.currentPosition
+                                playerSeekPosition.mutable.value = pos
+                                // 無効区間、トリミングによる再生スキップの処理
+                                if (src is IMediaSourceWithChapter && src.chapterList.isNotEmpty) {
+                                    val dr = src.chapterList.disabledRanges(src.trimming)
+                                    val hit = dr.firstOrNull { it.contains(pos) }
+                                    if (hit != null) {
+                                        if (hit.end == 0L || hit.end >= naturalDuration.value) {
+                                            ended.value = true
+                                        } else {
+                                            player.seekTo(hit.end)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            watchPositionEvent.reset()
+                        }
+                        delay(50)
+                    }
+                }
+                return true
+            }
+        }
+
+        fun close() {
+            scope.reset { scope->
+                scope.cancel()
+                resetables.forEach {
+                    it.reset()
+                }
+            }
+        }
+    }
+    private val dependsOnScope = DependsOnScope()
+
+    final override val scope: CoroutineScope
+        get() = dependsOnScope.scope.value
+    final override val isLoading
+        get() = dependsOnScope.isLoading.value
+    final override val isReady
+        get() = dependsOnScope.isReady.value
+    final override val isPlaying = MutableStateFlow(false)
+
 
     protected val ended = MutableStateFlow(false)                   // 次回再生開始時に先頭に戻すため、最後まで再生したことを覚えておくフラグ
     private val watchPositionEvent = SuspendableEvent(signal = false, autoReset = false)    // スライダー位置監視を止めたり、再開したりするためのイベント
 
-    private var isDisposed:Boolean = false      // close済みフラグ
-        private set
 
     /**
      * エラーメッセージ
@@ -94,44 +163,47 @@ open class BasicPlayerModel(
     // region Initialize / Termination
 
     init {
-        isPlaying.onEach {
-            if(it) {
-                watchPositionEvent.set()
-            }
-        }.launchIn(scope)
-
-        ended.onEach {
-            if(it) {
-                onPlaybackCompleted()
-            }
-        }.launchIn(scope)
-
-
-        scope.launch {
-            while(!isDisposed) {
-                watchPositionEvent.waitOne()
-                if(isPlaying.value) {
-                    val src = currentSource.value as? IMediaSourceWithChapter
-                    val pos = player.currentPosition
-                    playerSeekPosition.mutable.value = pos
-                    // 無効区間、トリミングによる再生スキップの処理
-                    val dr = src?.disabledRanges
-                    if(dr!=null) {
-                        val hit = dr.firstOrNull { it.contains(pos) }
-                        if (hit != null) {
-                            if (hit.end == 0L || hit.end >= naturalDuration.value) {
-                                ended.value = true
-                            } else {
-                                player.seekTo(hit.end)
-                            }
-                        }
-                    }
-                } else {
-                    watchPositionEvent.reset()
-                }
-                delay(50)
-            }
-        }
+        dependsOnScope.openIfNeed()
+//        isPlaying.onEach {
+//            if(it) {
+//                watchPositionEvent.set()
+//            }
+//        }.launchIn(scope)
+//
+//        ended.onEach {
+//            if(it) {
+//                onPlaybackCompleted()
+//            }
+//        }.launchIn(scope)
+//
+//
+//        scope.launch {
+//            while(!isDisposed) {
+//                watchPositionEvent.waitOne()
+//                if(isPlaying.value) {
+//                    withPlayer { player ->
+//                        val src = currentSource.value as? IMediaSourceWithChapter
+//                        val pos = player.currentPosition
+//                        playerSeekPosition.mutable.value = pos
+//                        // 無効区間、トリミングによる再生スキップの処理
+//                        if (src is IMediaSourceWithChapter && src.chapterList.isNotEmpty) {
+//                            val dr = src.chapterList.disabledRanges(src.trimming)
+//                            val hit = dr.firstOrNull { it.contains(pos) }
+//                            if (hit != null) {
+//                                if (hit.end == 0L || hit.end >= naturalDuration.value) {
+//                                    ended.value = true
+//                                } else {
+//                                    player.seekTo(hit.end)
+//                                }
+//                            }
+//                        }
+//                    }
+//                } else {
+//                    watchPositionEvent.reset()
+//                }
+//                delay(50)
+//            }
+//        }
     }
 
     /**
@@ -139,10 +211,17 @@ open class BasicPlayerModel(
      */
     override fun close() {
         logger.debug()
-        player.removeListener(listener)
-        player.release()
-        scope.cancel()
-        isDisposed = true
+        currentSource.value = null
+        resetablePlayer.reset { player->
+            player.removeListener(listener)
+            player.release()
+        }
+        dependsOnScope.close()
+    }
+
+    override fun openIfNeed(): Boolean {
+        logger.debug()
+        return dependsOnScope.openIfNeed()
     }
 
     // endregion
@@ -170,14 +249,18 @@ open class BasicPlayerModel(
 
         fun setFastSeek() {
             if(!fastSync) {
-                player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
-                fastSync = true
+                runOnPlayer {
+                    setSeekParameters(SeekParameters.CLOSEST_SYNC)
+                    fastSync = true
+                }
             }
         }
         fun setExactSync() {
             if(fastSync) {
-                player.setSeekParameters(SeekParameters.EXACT)
-                fastSync = false
+                runOnPlayer {
+                    setSeekParameters(SeekParameters.EXACT)
+                    fastSync = false
+                }
             }
         }
         fun reset() {
@@ -209,14 +292,18 @@ open class BasicPlayerModel(
      * pseudoClippingを考慮したシーク
      */
     protected fun clippingSeekTo(pos:Long, awareTrimming:Boolean) {
-        val clippedPos = clipPosition(pos, if(awareTrimming) currentSource.value?.trimming else null )
-        player.seekTo(clippedPos)
-        playerSeekPosition.mutable.value = clippedPos
+        withPlayer { player ->
+            val clippedPos = clipPosition(pos, if (awareTrimming) currentSource.value?.trimming else null)
+            player.seekTo(clippedPos)
+            playerSeekPosition.mutable.value = clippedPos
+        }
     }
 
     override fun seekRelative(seek:Long) {
         if(!isReady.value) return
-        clippingSeekTo(player.currentPosition + seek, true )
+        withPlayer { player ->
+            clippingSeekTo(player.currentPosition + seek, true)
+        }
     }
 
     override fun seekTo(seek:Long) {
@@ -276,26 +363,26 @@ open class BasicPlayerModel(
                     if(state.value == PlayerState.None) {
                         state.mutable.value = PlayerState.Loading
                     } else {
-                        scope.launch {
-                            for (i in 0..20) {
-                                delay(100)
-                                if (player.playbackState != Player.STATE_BUFFERING) {
-                                    break
-                                }
-                            }
-                            if (player.playbackState == Player.STATE_BUFFERING) {
-                                // ２秒以上bufferingならロード中に戻す
-                                logger.debug("buffering more than 2 sec")
-                                state.mutable.value = PlayerState.Loading
-                            }
-                        }
+//                        scope.launch {
+//                            for (i in 0..20) {
+//                                delay(100)
+//                                if (runOnPlayer(PlayerState.None) { playbackState } != Player.STATE_BUFFERING) {
+//                                    break
+//                                }
+//                            }
+//                            if (runOnPlayer(PlayerState.None) { playbackState } == Player.STATE_BUFFERING) {
+//                                // ２秒以上bufferingならロード中に戻す
+//                                logger.debug("buffering more than 2 sec")
+//                                state.mutable.value = PlayerState.Loading
+//                            }
+//                        }
                     }
 
                 }
                 Player.STATE_READY ->  {
                     ended.value = false
                     state.mutable.value = PlayerState.Ready
-                    naturalDuration.mutable.value = player.duration
+                    naturalDuration.mutable.value = runOnPlayer(0L) { duration }
                 }
                 Player.STATE_ENDED -> {
 //                    player.playWhenReady = false
@@ -323,12 +410,30 @@ open class BasicPlayerModel(
     private val listener =  PlayerListener()
 
     // ExoPlayer
-    protected val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
-        addListener(listener)
+    private val resetablePlayer = UtManualIncarnateResetableValue<ExoPlayer> { ExoPlayer.Builder(context).build().apply {addListener(listener)} }
+    private val isDisposed:Boolean get() = !resetablePlayer.hasValue      // close済みフラグ
+    protected val player: ExoPlayer? = if(resetablePlayer.hasValue) resetablePlayer.value else null
+    protected inline fun <T> withPlayer(def:T, fn:(ExoPlayer)->T):T {
+        return player?.run {
+            fn(this)
+        } ?: def
+    }
+    protected inline fun withPlayer(fn:(ExoPlayer)->Unit) {
+        player?.apply{ fn(this) }
+    }
+    protected inline fun <T> runOnPlayer(def:T, fn:ExoPlayer.()->T):T {
+        return player?.run {
+            fn()
+        } ?: def
+    }
+    protected inline fun runOnPlayer(fn:ExoPlayer.()->Unit) {
+        player?.apply {
+            fn()
+        }
     }
 
     override val currentPosition: Long
-        get() = player.currentPosition
+        get() = runOnPlayer(0L) { currentPosition }
 
 
     /**
@@ -416,8 +521,10 @@ open class BasicPlayerModel(
         currentSource.value = src
         val pos = max(src.trimming.start, src.startPosition.getAndSet(0L))
 
-        player.setMediaSource(makeMediaSource(src), pos)
-        player.prepare()
+        runOnPlayer {
+            setMediaSource(makeMediaSource(src), pos)
+            prepare()
+        }
         if(autoPlay) {
             play()
         }
@@ -440,7 +547,8 @@ open class BasicPlayerModel(
      * Play / Pauseをトグル
      */
     override fun togglePlay() {
-        if(player.playWhenReady) {
+        if(isDisposed) return
+        if(runOnPlayer(false) { playWhenReady} ) {
             pause()
         } else {
             play()
@@ -454,7 +562,7 @@ open class BasicPlayerModel(
         logger.debug()
         if(isDisposed) return
         errorMessage.mutable.value = null
-        player.playWhenReady = true
+        runOnPlayer {playWhenReady = true }
     }
 
     /**
@@ -463,7 +571,7 @@ open class BasicPlayerModel(
     override fun pause() {
         logger.debug()
         if(isDisposed) return
-        player.playWhenReady = false
+        runOnPlayer {playWhenReady = false }
     }
 
     // endregion

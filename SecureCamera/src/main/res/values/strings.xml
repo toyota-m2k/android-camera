@@ -42,4 +42,5 @@
     <string name="skip_forward_by">Skip Forward by %.1f sec</string>
     <string name="skip_backward_by">Skip Backward by %.1f sec</string>
     <string name="reset">Reset All</string>
+    <string name="start_editing">Edit Video</string>
 </resources>

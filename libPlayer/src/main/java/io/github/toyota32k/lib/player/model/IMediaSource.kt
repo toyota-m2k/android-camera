@@ -9,7 +9,7 @@ interface IMediaSource {
     val trimming: Range
     val type: String    // 拡張子(.なし）
     var startPosition: AtomicLong
-    val disabledRanges: List<Range>    // null: 未定義（初期値） / empty: 無効領域なし
+//    val disabledRanges: List<Range>    // null: 未定義（初期値） / empty: 無効領域なし
 //
 //    suspend fun getChapterList():IChapterList?
 //
@@ -20,20 +20,5 @@ interface IMediaSource {
 }
 
 interface IMediaSourceWithChapter : IMediaSource {
-    val chapterList:IChapterList?
-    suspend fun prepareChapterList():IChapterList?
-
-    // override val disabledRanges      chapterListを考慮してdisabledRangesを作る
-
-// todo:
-//    {
-//        if(chapterList==null) {
-//            chapterList = getChapterList() ?: ChapterList.emptyList
-//        }
-//        if(disabledRanges==null) {
-//            disabledRanges = chapterList?.disabledRanges(trimming)?.toList()
-//        }
-//    }
-
-
+    val chapterList:IChapterList
 }

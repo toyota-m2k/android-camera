@@ -1,10 +1,7 @@
 package io.github.toyota32k.lib.player.model.chapter
 
 import androidx.annotation.MainThread
-import io.github.toyota32k.lib.player.model.IChapter
-import io.github.toyota32k.lib.player.model.IChapterList
-import io.github.toyota32k.lib.player.model.IMutableChapterList
-import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.shared.UtSortedList
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.utils.Listeners
@@ -84,8 +81,6 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         return if(0<=workPosition.next&&workPosition.next<sortedList.size) sortedList[workPosition.next] else null
     }
 
-    data class NeighborChapter(val prev:Int, val hit:Int, val next:Int)
-
     fun NeighborChapter.prevChapter():IChapter? {
         return if(0<=prev&&prev<sortedList.size) sortedList[prev] else null
     }
@@ -96,7 +91,7 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         return if(0<=hit&&hit<sortedList.size) sortedList[hit] else null
     }
 
-    fun getNeighborChapters(pivot:Long): NeighborChapter {
+    override fun getNeighborChapters(pivot:Long): NeighborChapter {
         val count:Int = sortedList.size
         fun clipIndex(index:Int):Int {
             return if(index in 0 until count) index else -1;
@@ -196,7 +191,7 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         }
     }
 
-    override fun enabledRanges(trimming: Range) :Sequence<Range> {
+    private fun enabledRangesSub(trimming: Range): Sequence<Range> {
         return if(trimming.start==0L && trimming.end==0L) {
             enabledRangesNoTrimming()
         } else {
@@ -204,9 +199,9 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         }
     }
 
-    override fun disabledRanges(trimming: Range)= sequence<Range> {
+    private fun disabledRangesSub(trimming: Range)= sequence<Range> {
         var checking = 0L
-        for(r in enabledRanges(trimming)) {
+        for(r in enabledRangesSub(trimming)) {
             if(checking<r.start) {
                 yield(Range(checking, r.start))
             }
@@ -216,6 +211,41 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
             }
         }
         yield(Range(checking, 0))
+    }
+
+    inner class RangeCache {
+        private var mEnabledRange:List<Range>? = null
+        private var mDisabledRange:List<Range>? = null
+        private var mTrimming:Range = Range.empty
+
+        fun invalidate() {
+            mEnabledRange = null
+            mDisabledRange = null
+            mTrimming = Range.empty
+        }
+
+        fun enabledRange(trimming:Range):List<Range> {
+            if(mTrimming!==trimming) {
+                mEnabledRange = null
+            }
+            return mEnabledRange ?: enabledRangesSub(trimming).toList().apply { mEnabledRange = this }
+        }
+
+        fun disabledRange(trimming:Range):List<Range> {
+            if(mTrimming!==trimming) {
+                mDisabledRange = null
+            }
+            return mDisabledRange ?: disabledRangesSub(trimming).toList().apply { mDisabledRange = this }
+        }
+    }
+    protected val rangeCache by lazy { RangeCache() }
+
+    override fun enabledRanges(trimming: Range) :List<Range> {
+        return rangeCache.enabledRange(trimming)
+    }
+
+    override fun disabledRanges(trimming: Range): List<Range> {
+        return rangeCache.disabledRange(trimming)
     }
 }
 
@@ -240,7 +270,7 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
         if(neighbor.nextChapter()?.let { it.position - position < ChapterList.MIN_CHAPTER_INTERVAL } == true ) {
             return false
         }
-        return sortedList.add(Chapter(position,label,skip?:neighbor.prevChapter()?.skip?:false)).onTrue { modifiedListener.invoke(Unit) }
+        return sortedList.add(Chapter(position,label,skip?:neighbor.prevChapter()?.skip?:false)).onTrue(::invalidate)
     }
 
     /**
@@ -257,7 +287,7 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
         if(label==null && skip==null) return false
         val chapter = sortedList[index]
         if((label==null || chapter.label == label) && (skip!=null && chapter.skip == skip)) return false
-        return sortedList.replace(Chapter(position, label?:chapter.label, skip?:chapter.skip)).onTrue { modifiedListener.invoke(Unit) }
+        return sortedList.replace(Chapter(position, label?:chapter.label, skip?:chapter.skip)).onTrue(::invalidate)
     }
 
     /**
@@ -270,14 +300,19 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
         val i = sortedList.sorter.find(workChapter.at(position))
         if(i<0) return false    // 存在しない
         sortedList.removeAt(i)
-        modifiedListener.invoke(Unit)
+        invalidate()
         return true
     }
 
     override fun removeChapterAt(index: Int): Boolean {
         if(index<=0||sortedList.size<=index) return false
         sortedList.removeAt(index)
-        modifiedListener.invoke(Unit)
+        invalidate()
         return true
+    }
+
+    private fun invalidate() {
+        rangeCache.invalidate()
+        modifiedListener.invoke(Unit)
     }
 }

@@ -18,8 +18,8 @@ open class PlaylistPlayerModel constructor(private val playerModel: IPlayerModel
     }
 }
 
-fun PlaylistPlayerModel(context:Context, scope:CoroutineScope, playlist:IMediaFeed, autoPlay:Boolean, continuousPlay:Boolean):PlaylistPlayerModel {
-    val playerModel = BasicPlayerModel(context, scope)
+fun PlaylistPlayerModel(context:Context, playlist:IMediaFeed, autoPlay:Boolean, continuousPlay:Boolean):PlaylistPlayerModel {
+    val playerModel = BasicPlayerModel(context)
     val playlistHandler = PlaylistHandlerImpl(playerModel, playlist, autoPlay, continuousPlay)
     return PlaylistPlayerModel(playerModel, playlistHandler)
 }
@@ -27,16 +27,16 @@ fun PlaylistPlayerModel(context:Context, scope:CoroutineScope, playlist:IMediaFe
 class ChapterPlayerModel constructor(private val playerModel: IPlayerModel, private val chapterHandler: ChapterHandlerImpl)
     : IPlayerModel by playerModel, IChapterHandler by chapterHandler
 
-fun ChapterPlayerModel(context:Context, scope: CoroutineScope):ChapterPlayerModel {
-    val playerModel = BasicPlayerModel(context, scope)
+fun ChapterPlayerModel(context:Context):ChapterPlayerModel {
+    val playerModel = BasicPlayerModel(context)
     val chapterHandler = ChapterHandlerImpl(playerModel)
     return ChapterPlayerModel(playerModel, chapterHandler)
 }
 
 class PlaylistChapterPlayerModel constructor(playerModel: IPlayerModel, playlistHandler: IPlaylistHandler, private val chapterHandler: ChapterHandlerImpl)
     : PlaylistPlayerModel(playerModel, playlistHandler), IChapterHandler by chapterHandler
-fun PlaylistChapterPlayerModel(context: Context, scope: CoroutineScope, playlist:IMediaFeed, autoPlay: Boolean, continuousPlay: Boolean):PlaylistChapterPlayerModel {
-    val playerModel = BasicPlayerModel(context, scope)
+fun PlaylistChapterPlayerModel(context: Context, playlist:IMediaFeed, autoPlay: Boolean, continuousPlay: Boolean):PlaylistChapterPlayerModel {
+    val playerModel = BasicPlayerModel(context)
     val playlistHandler = PlaylistHandlerImpl(playerModel, playlist, autoPlay, continuousPlay)
     val chapterHandler = ChapterHandlerImpl(playerModel)
     return PlaylistChapterPlayerModel(playerModel, playlistHandler, chapterHandler)

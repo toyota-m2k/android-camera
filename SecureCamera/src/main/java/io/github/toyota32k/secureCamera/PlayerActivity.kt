@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -9,6 +10,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +19,8 @@ import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.*
+import io.github.toyota32k.bindit.command.LongClickCommand
+import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
@@ -102,7 +106,7 @@ class PlayerActivity : AppCompatActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-            override val disabledRanges: List<Range> = emptyList()
+//            override val disabledRanges: List<Range> = emptyList()
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
             val collection = ObservableList<String>()
@@ -273,6 +277,7 @@ class PlayerActivity : AppCompatActivity() {
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
         hideActionBar()
+        viewModel.playerControllerModel.openIfNeed()
 
         val normalColor: Drawable
         val normalTextColor: Int
@@ -331,6 +336,7 @@ class PlayerActivity : AppCompatActivity() {
                 itemBinder
                     .owner(this)
                     .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
+                    .bindCommand(LongClickUnitCommand { startEditing(views, name) }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == name }) { hit->
                         if(hit) {
                             views.background = selectedColor
@@ -354,6 +360,21 @@ class PlayerActivity : AppCompatActivity() {
             onDoubleTap(manipulator::onDoubleTap)
             onFlickVertical(manipulator::onFlick)
         }
+    }
+
+    private fun startEditing(anchor:View, name:String) {
+        PopupMenu(this, anchor).apply {
+            menu.add(R.string.start_editing)
+            setOnMenuItemClickListener {
+                viewModel.playlist.select(null)
+                viewModel.playerControllerModel.close()
+                val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, name) }
+                startActivity(intent)
+                true
+            }
+            show()
+        }
+
     }
 
     inner class ViewerManipulator : IUtManipulationTarget {
