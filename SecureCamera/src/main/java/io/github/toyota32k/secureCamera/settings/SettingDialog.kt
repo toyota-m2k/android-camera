@@ -11,6 +11,7 @@ import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
+import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand

@@ -43,8 +43,9 @@ interface IPlayerModel : AutoCloseable {
     val scope: CoroutineScope
     val context: Application
 
-    // close()後、再初期化する
-    fun openIfNeed():Boolean
+    fun killPlayer()
+    fun revivePlayer():Boolean
+
 }
 
 interface IPlaylistHandler {

@@ -10,7 +10,7 @@ import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
-import io.github.toyota32k.secureCamera.settings.PasswordDialog
+import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog

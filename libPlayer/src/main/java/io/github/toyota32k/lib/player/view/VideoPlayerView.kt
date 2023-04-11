@@ -32,4 +32,8 @@ class VideoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribu
         controls.controller.bindViewModel(model, binder)
         binder.visibilityBinding(controls.controller, model.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
     }
+
+    fun associatePlayer(flag:Boolean) {
+        controls.player.associatePlayer(flag)
+    }
 }

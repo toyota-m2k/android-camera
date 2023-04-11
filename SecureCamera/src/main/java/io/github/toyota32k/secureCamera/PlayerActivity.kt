@@ -80,7 +80,7 @@ class PlayerActivity : AppCompatActivity() {
         private val context: Application
             get() = getApplication()
         val playlist = Playlist()
-        val playerControllerModel = PlayerControllerModel.Builder(application)
+        val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
             .supportSnapshot(::onSnapshot)
@@ -113,7 +113,17 @@ class PlayerActivity : AppCompatActivity() {
             val sorter = io.github.toyota32k.shared.UtSorter(
                 collection,
                 allowDuplication = true
-            ) { a, b -> ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt() }
+            ) { a, b ->
+                val ta = filename2date(a)?.time ?: 0L
+                val tb = filename2date(b)?.time ?: 0L
+//                if(ta==tb) {
+//                    TpLib.logger.debug("same value")
+//                }
+//                TpLib.logger.debug("compare: $ta with $tb = ${ta-tb} (${(ta-tb).toInt()}")
+//                ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt()
+                val d = ta - tb
+                if(d<0) -1 else if(d>0) 1 else 0
+            }
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
@@ -277,7 +287,6 @@ class PlayerActivity : AppCompatActivity() {
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
         hideActionBar()
-        viewModel.playerControllerModel.openIfNeed()
 
         val normalColor: Drawable
         val normalTextColor: Int
@@ -367,7 +376,8 @@ class PlayerActivity : AppCompatActivity() {
             menu.add(R.string.start_editing)
             setOnMenuItemClickListener {
                 viewModel.playlist.select(null)
-                viewModel.playerControllerModel.close()
+                viewModel.playerControllerModel.playerModel.killPlayer()
+                controls.videoViewer.associatePlayer(false)
                 val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, name) }
                 startActivity(intent)
                 true
@@ -513,4 +523,10 @@ class PlayerActivity : AppCompatActivity() {
 //        controls.imageView.scaleY = newScale
 //        return true
 //    }
+    override fun onResume() {
+        super.onResume()
+        if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
+            controls.videoViewer.associatePlayer(true)
+        }
+    }
 }

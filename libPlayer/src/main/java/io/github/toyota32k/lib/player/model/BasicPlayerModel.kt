@@ -24,6 +24,7 @@ import kotlin.math.min
 
 open class BasicPlayerModel(
     context: Context,
+    coroutineScope: CoroutineScope
 ) : IPlayerModel, IUtPropOwner {
     companion object {
         val logger by lazy { UtLog("PM", TpLib.logger) }
@@ -31,6 +32,11 @@ open class BasicPlayerModel(
 
     // region Properties / Status
     final override val context: Application = context.applicationContext as Application           // ApplicationContextならViewModelが持っていても大丈夫だと思う。
+    final override val isPlaying = MutableStateFlow(false)
+    /**
+     * エラーメッセージ
+     */
+    final override val errorMessage: StateFlow<String?> = MutableStateFlow<String?>(null)
 
     enum class PlayerState {
         None,       // 初期状態
@@ -39,108 +45,56 @@ open class BasicPlayerModel(
         Error,
     }
     protected val state: StateFlow<PlayerState> = MutableStateFlow(PlayerState.None)
-
-    private inner class DependsOnScope {
-        val scope = UtManualIncarnateResetableValue { CoroutineScope(Dispatchers.Main+ SupervisorJob()) }
-        val isLoading = UtManualIncarnateResetableValue { state.map { it == PlayerState.Loading }.stateIn(scope.value, SharingStarted.Eagerly, false) }
-        val isReady = UtManualIncarnateResetableValue { state.map { it== PlayerState.Ready }.stateIn(scope.value, SharingStarted.Eagerly, false) }
-        val isError = UtManualIncarnateResetableValue { errorMessage.map { !it.isNullOrBlank() }.stateIn(scope.value, SharingStarted.Lazily, false) }
-        private val resetables = arrayOf(isLoading, isReady, isError)
-        init {
-            openIfNeed()
-        }
-        fun openIfNeed():Boolean {
-            if(scope.hasValue) {
-                return false
-            } else {
-                scope.incarnate()
-                resetables.forEach {
-                    it.incarnate()
-                }
-
-                isPlaying.onEach {
-                    if(it) {
-                        watchPositionEvent.set()
-                    }
-                }.launchIn(scope.value)
-
-                ended.onEach {
-                    if(it) {
-                        onPlaybackCompleted()
-                    }
-                }.launchIn(scope.value)
-
-                scope.value.launch {
-                    while(!isDisposed) {
-                        watchPositionEvent.waitOne()
-                        if(isPlaying.value) {
-                            withPlayer { player ->
-                                val src = currentSource.value as? IMediaSourceWithChapter
-                                val pos = player.currentPosition
-                                playerSeekPosition.mutable.value = pos
-                                // 無効区間、トリミングによる再生スキップの処理
-                                if (src is IMediaSourceWithChapter && src.chapterList.isNotEmpty) {
-                                    val dr = src.chapterList.disabledRanges(src.trimming)
-                                    val hit = dr.firstOrNull { it.contains(pos) }
-                                    if (hit != null) {
-                                        if (hit.end == 0L || hit.end >= naturalDuration.value) {
-                                            ended.value = true
-                                        } else {
-                                            player.seekTo(hit.end)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            watchPositionEvent.reset()
-                        }
-                        delay(50)
-                    }
-                }
-                return true
-            }
-        }
-
-        fun close() {
-            scope.reset { scope->
-                scope.cancel()
-                resetables.forEach {
-                    it.reset()
-                }
-            }
-        }
-    }
-    private val dependsOnScope = DependsOnScope()
-
-    final override val scope: CoroutineScope
-        get() = dependsOnScope.scope.value
-    final override val isLoading
-        get() = dependsOnScope.isLoading.value
-    final override val isReady
-        get() = dependsOnScope.isReady.value
-    final override val isPlaying = MutableStateFlow(false)
-
-
     protected val ended = MutableStateFlow(false)                   // 次回再生開始時に先頭に戻すため、最後まで再生したことを覚えておくフラグ
     private val watchPositionEvent = SuspendableEvent(signal = false, autoReset = false)    // スライダー位置監視を止めたり、再開したりするためのイベント
 
+    // ExoPlayerのリスナー
+    private val listener =  PlayerListener()
 
-    /**
-     * エラーメッセージ
-     */
-    final override val errorMessage: StateFlow<String?> = MutableStateFlow<String?>(null)
+//    private val resetables = ManualResetables()
+    val resetablePlayer = UtManualIncarnateResetableValue(
+        onIncarnate = {
+            ExoPlayer.Builder(context).build().apply {addListener(listener)}
+        },
+        onReset = { player->
+            player.removeListener(listener)
+            player.release()
+        }
+    )
+
+
+    final override val scope = CoroutineScope( coroutineScope.coroutineContext + SupervisorJob() )
+    final override val isLoading = state.map { it == PlayerState.Loading }.stateIn(scope, SharingStarted.Eagerly, false)
+    final override val isReady = state.map { it== PlayerState.Ready }.stateIn(scope, SharingStarted.Eagerly, false)
     final override val isError = errorMessage.map { !it.isNullOrBlank() }.stateIn(scope, SharingStarted.Lazily, false)
 
-    /**
-     * （外部から）エラーメッセージを設定する
-     */
-    fun setErrorMessage(msg:String?) {
-        errorMessage.mutable.value = msg
+    // ExoPlayer
+    private val isDisposed:Boolean get() = !resetablePlayer.hasValue      // close済みフラグ
+    protected val player: ExoPlayer? get() = if(resetablePlayer.hasValue) resetablePlayer.value else null
+
+    fun requirePlayer():ExoPlayer {
+        return player ?: throw IllegalStateException("ExoPlayer has been killed.")
     }
 
-    // endregion
+    protected inline fun <T> withPlayer(def:T, fn:(ExoPlayer)->T):T {
+        return player?.run {
+            fn(this)
+        } ?: def
+    }
 
-    // region About Current Movie
+    protected inline fun withPlayer(fn:(ExoPlayer)->Unit) {
+        player?.apply{ fn(this) }
+    }
+    protected inline fun <T> runOnPlayer(def:T, fn:ExoPlayer.()->T):T {
+        return player?.run {
+            fn()
+        } ?: def
+    }
+    protected inline fun runOnPlayer(fn:ExoPlayer.()->Unit) {
+        player?.apply {
+            fn()
+        }
+    }
 
     /**
      * 現在再生中の動画のソース
@@ -158,52 +112,106 @@ open class BasicPlayerModel(
      */
     val videoSize: StateFlow<VideoSize?> = MutableStateFlow<VideoSize?>(null)
 
+    /**
+     * （外部から）エラーメッセージを設定する
+     */
+    fun setErrorMessage(msg:String?) {
+        errorMessage.mutable.value = msg
+    }
+
+    // endregion
+    /**
+     * VideoSizeはExoPlayerの持ち物なので、ライブラリ利用者が明示的にexoplayerをリンクしていないとアクセスできない。
+     * そのような不憫な人のために中身を開示してあげる。
+     */
+    val videoWidth:Int? get() = videoSize.value?.width
+    val videoHeight:Int? get() = videoSize.value?.height
+
+    /**
+     * 動画プレーヤーを配置するルートビューのサイズ
+     * AmvExoVideoPlayerビュークラスのonSizeChanged()からonRootViewSizeChanged()経由で設定される。
+     * このルートビューの中に収まるよう、動画プレーヤーのサイズが調整される。
+     */
+    private val rootViewSize: StateFlow<Size?> = MutableStateFlow<Size?>(null)
+
+    /**
+     * ルートビューに動画プレーヤーを配置する方法を指定
+     *  true: ルートビューにぴったりフィット（Aspectは無視）
+     *  false: ルートビューの中に収まるサイズ（Aspect維持）
+     */
+    // var stretchVideoToView = false
+    override val stretchVideoToView = MutableStateFlow(false)
+    final override val rotation = MutableStateFlow(0)
+    override fun rotate(value: Rotation) {
+        if(value == Rotation.NONE) {
+            rotation.value = 0
+        } else {
+            rotation.value = Rotation.normalize(rotation.value + value.degree)
+        }
+    }
+
+    private val mFitter = UtFitter(FitMode.Inside)
+    override val playerSize: StateFlow<Size> = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
+        logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
+        val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))
+        Rotation.transposeSize(rotation,mFitter
+            .setLayoutWidth(rootViewSize.width)
+            .setLayoutHeight(rootViewSize.height)
+            .fit(size.width, size.height)
+            .resultSize)
+            .apply { logger.debug("result playerSize = (${width} x ${height})") }
+    }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+    /**
+     * １つのアプリで、同時に、ExoPlayer を１つ以上インスタンス化できないようなので、
+     * 複数のActivityでExoPlayerを使う場合に、ビューモデルを閉じて(close)、開き直す(openIfNeed) ことを可能にする。
+     */
+    // region About Current Movie
+
     // endregion
 
     // region Initialize / Termination
 
     init {
-        dependsOnScope.openIfNeed()
-//        isPlaying.onEach {
-//            if(it) {
-//                watchPositionEvent.set()
-//            }
-//        }.launchIn(scope)
-//
-//        ended.onEach {
-//            if(it) {
-//                onPlaybackCompleted()
-//            }
-//        }.launchIn(scope)
-//
-//
-//        scope.launch {
-//            while(!isDisposed) {
-//                watchPositionEvent.waitOne()
-//                if(isPlaying.value) {
-//                    withPlayer { player ->
-//                        val src = currentSource.value as? IMediaSourceWithChapter
-//                        val pos = player.currentPosition
-//                        playerSeekPosition.mutable.value = pos
-//                        // 無効区間、トリミングによる再生スキップの処理
-//                        if (src is IMediaSourceWithChapter && src.chapterList.isNotEmpty) {
-//                            val dr = src.chapterList.disabledRanges(src.trimming)
-//                            val hit = dr.firstOrNull { it.contains(pos) }
-//                            if (hit != null) {
-//                                if (hit.end == 0L || hit.end >= naturalDuration.value) {
-//                                    ended.value = true
-//                                } else {
-//                                    player.seekTo(hit.end)
-//                                }
-//                            }
-//                        }
-//                    }
-//                } else {
-//                    watchPositionEvent.reset()
-//                }
-//                delay(50)
-//            }
-//        }
+        isPlaying.onEach {
+            if (it) {
+                watchPositionEvent.set()
+            }
+        }.launchIn(scope)
+
+        ended.onEach {
+            if (it) {
+                onPlaybackCompleted()
+            }
+        }.launchIn(scope)
+
+        scope.launch {
+            while (!isDisposed) {
+                watchPositionEvent.waitOne()
+                if (isPlaying.value) {
+                    withPlayer { player ->
+                        val src = currentSource.value as? IMediaSourceWithChapter
+                        val pos = player.currentPosition
+                        playerSeekPosition.mutable.value = pos
+                        // 無効区間、トリミングによる再生スキップの処理
+                        if (src is IMediaSourceWithChapter && src.chapterList.isNotEmpty) {
+                            val dr = src.chapterList.disabledRanges(src.trimming)
+                            val hit = dr.firstOrNull { it.contains(pos) }
+                            if (hit != null) {
+                                if (hit.end == 0L || hit.end >= naturalDuration.value) {
+                                    ended.value = true
+                                } else {
+                                    player.seekTo(hit.end)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    watchPositionEvent.reset()
+                }
+                delay(50)
+            }
+        }
     }
 
     /**
@@ -212,27 +220,35 @@ open class BasicPlayerModel(
     override fun close() {
         logger.debug()
         currentSource.value = null
-        resetablePlayer.reset { player->
-            player.removeListener(listener)
-            player.release()
-        }
-        dependsOnScope.close()
+        resetablePlayer.reset()
+        scope.cancel()
     }
 
-    override fun openIfNeed(): Boolean {
+    override fun killPlayer() {
         logger.debug()
-        return dependsOnScope.openIfNeed()
+        resetablePlayer.reset()
     }
 
+    override fun revivePlayer():Boolean {
+        logger.debug()
+        return resetablePlayer.incarnate()
+    }
     // endregion
 
     // region Seeking
 
     inner class SeekManagerEx : ISeekManager {
-        override val requestedPositionFromSlider = MutableStateFlow<Long>(-1L)
+        override val requestedPositionFromSlider = MutableStateFlow(-1L)
         var lastOperationTick:Long = 0L
         var fastSync = false
+        var running = false
         init {
+            run()
+        }
+
+        private fun run() {
+            if(running) return
+            running = true
             requestedPositionFromSlider.onEach {
                 val tick = System.currentTimeMillis()
                 if(0<=it && it<=naturalDuration.value) {
@@ -244,10 +260,13 @@ open class BasicPlayerModel(
                     clippingSeekTo(it, false)
                 }
                 delay(200L)
+            }.onCompletion {
+                logger.debug("SeekManager stopped.")
+                running = false
             }.launchIn(scope)
         }
 
-        fun setFastSeek() {
+        private fun setFastSeek() {
             if(!fastSync) {
                 runOnPlayer {
                     setSeekParameters(SeekParameters.CLOSEST_SYNC)
@@ -255,7 +274,7 @@ open class BasicPlayerModel(
                 }
             }
         }
-        fun setExactSync() {
+        private fun setExactSync() {
             if(fastSync) {
                 runOnPlayer {
                     setSeekParameters(SeekParameters.EXACT)
@@ -406,32 +425,6 @@ open class BasicPlayerModel(
 //        }
     }
 
-    // ExoPlayerのリスナー
-    private val listener =  PlayerListener()
-
-    // ExoPlayer
-    private val resetablePlayer = UtManualIncarnateResetableValue<ExoPlayer> { ExoPlayer.Builder(context).build().apply {addListener(listener)} }
-    private val isDisposed:Boolean get() = !resetablePlayer.hasValue      // close済みフラグ
-    protected val player: ExoPlayer? = if(resetablePlayer.hasValue) resetablePlayer.value else null
-    protected inline fun <T> withPlayer(def:T, fn:(ExoPlayer)->T):T {
-        return player?.run {
-            fn(this)
-        } ?: def
-    }
-    protected inline fun withPlayer(fn:(ExoPlayer)->Unit) {
-        player?.apply{ fn(this) }
-    }
-    protected inline fun <T> runOnPlayer(def:T, fn:ExoPlayer.()->T):T {
-        return player?.run {
-            fn()
-        } ?: def
-    }
-    protected inline fun runOnPlayer(fn:ExoPlayer.()->Unit) {
-        player?.apply {
-            fn()
-        }
-    }
-
     override val currentPosition: Long
         get() = runOnPlayer(0L) { currentPosition }
 
@@ -440,14 +433,18 @@ open class BasicPlayerModel(
      * View （StyledPlayerView）に Playerを関連付ける
      */
     override fun associatePlayerView(playerView: StyledPlayerView) {
-        playerView.player = player
+        withPlayer { player ->
+            playerView.player = player
+        }
     }
 
     /**
      * バックグラウンド再生（PlayerNotificationManager）対応用
      */
     fun associateNotificationManager(manager: PlayerNotificationManager) {
-        manager.setPlayer(player)
+        withPlayer { player ->
+            manager.setPlayer(player)
+        }
     }
 
     // endregion
@@ -455,53 +452,11 @@ open class BasicPlayerModel(
     // region Sizing of Player View
 
     /**
-     * VideoSizeはExoPlayerの持ち物なので、ライブラリ利用者が明示的にexoplayerをリンクしていないとアクセスできない。
-     * そのような不憫な人のために中身を開示してあげる。
-     */
-    val videoWidth:Int? get() = videoSize.value?.width
-    val videoHeight:Int? get() = videoSize.value?.height
-
-    /**
-     * 動画プレーヤーを配置するルートビューのサイズ
-     * AmvExoVideoPlayerビュークラスのonSizeChanged()からonRootViewSizeChanged()経由で設定される。
-     * このルートビューの中に収まるよう、動画プレーヤーのサイズが調整される。
-     */
-    private val rootViewSize: StateFlow<Size?> = MutableStateFlow<Size?>(null)
-
-    /**
      * ルートビューサイズ変更のお知らせ
      */
     override fun onRootViewSizeChanged(size: Size) {
         rootViewSize.mutable.value = size
     }
-
-    /**
-     * ルートビューに動画プレーヤーを配置する方法を指定
-     *  true: ルートビューにぴったりフィット（Aspectは無視）
-     *  false: ルートビューの中に収まるサイズ（Aspect維持）
-     */
-    // var stretchVideoToView = false
-    override val stretchVideoToView = MutableStateFlow(false)
-    final override val rotation = MutableStateFlow(0)
-    override fun rotate(value: Rotation) {
-        if(value == Rotation.NONE) {
-            rotation.value = 0
-        } else {
-            rotation.value = Rotation.normalize(rotation.value + value.degree)
-        }
-    }
-
-    private val mFitter = UtFitter(FitMode.Inside)
-    override val playerSize = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
-        logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
-        val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))
-        Rotation.transposeSize(rotation,mFitter
-            .setLayoutWidth(rootViewSize.width)
-            .setLayoutHeight(rootViewSize.height)
-            .fit(size.width, size.height)
-            .resultSize)
-            .apply { logger.debug("result playerSize = (${width} x ${height})") }
-    }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
     // endregion
 
@@ -540,8 +495,11 @@ open class BasicPlayerModel(
     override fun reset() {
         logger.debug()
         pause()
+        currentSource.value = null
         seekManager.reset()
-        errorMessage.mutable.value = null    }
+        playerSeekPosition.mutable.value = 0L
+        errorMessage.mutable.value = null
+    }
 
     /**
      * Play / Pauseをトグル

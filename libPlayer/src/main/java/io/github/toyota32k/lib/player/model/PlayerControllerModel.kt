@@ -38,7 +38,7 @@ open class PlayerControllerModel(
         val logger by lazy { UtLog("CPM", TpLib.logger) }
     }
 
-    class Builder(val context:Context) {
+    class Builder(val context:Context, val coroutineScope: CoroutineScope) {
         private var mSupportChapter:Boolean = false
         private var mPlaylist:IMediaFeed? = null
         private var mAutoPlay:Boolean = false
@@ -100,10 +100,10 @@ open class PlayerControllerModel(
 
         fun build():PlayerControllerModel {
             val playerModel = when {
-                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                mSupportChapter -> ChapterPlayerModel(context)
-                mPlaylist!=null -> PlaylistPlayerModel(context, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                else -> BasicPlayerModel(context)
+                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                mSupportChapter -> ChapterPlayerModel(context, coroutineScope)
+                mPlaylist!=null -> PlaylistPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                else -> BasicPlayerModel(context, coroutineScope)
             }
             return PlayerControllerModel(
                 playerModel,
@@ -236,9 +236,4 @@ open class PlayerControllerModel(
     override fun close() {
         playerModel.close()
     }
-
-    fun openIfNeed():Boolean {
-        return playerModel.openIfNeed()
-    }
-
 }
