@@ -21,7 +21,7 @@ interface IChapterList {
     fun getNeighborChapters(pivot:Long): NeighborChapter
 
     val isEmpty:Boolean
-        get() = chapters.isEmpty()|| chapters[0].position==0L && !chapters[0].skip
+        get() = chapters.isEmpty() || (chapters.size==1 && chapters[0].position==0L && !chapters[0].skip)
 
     val isNotEmpty:Boolean get() = !isEmpty
 }

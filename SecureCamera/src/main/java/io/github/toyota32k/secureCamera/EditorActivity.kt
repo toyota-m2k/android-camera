@@ -2,16 +2,14 @@ package io.github.toyota32k.secureCamera
 
 import android.app.Application
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.viewModels
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
-import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.media.lib.converter.Converter
@@ -167,16 +165,18 @@ class EditorActivity : UtMortalActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 val r = awaiter.await()
                 try {
-                    if (r.succeeded && dstFile.length()>0) {
-                        logger.debug("${stringInKb(srcFile.length())} --> ${stringInKb(dstFile.length())}")
-                        UtImmortalSimpleTask.run("completeMessage") {
-                            showConfirmMessageBox("Completed.", "${stringInKb(srcFile.length())} → ${stringInKb(dstFile.length())}")
-                            finish()
-                            true
-                        }
-                        viewModel.playerModel.reset()
+                    val srcLen = srcFile.length()
+                    val dstLen = dstFile.length()
+                    if (r.succeeded && dstLen>0) {
+                        logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
+                        withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         safeDelete(srcFile)
                         dstFile.renameTo(srcFile)
+                        UtImmortalSimpleTask.run("completeMessage") {
+                            showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
+                            getActivity()?.finish()
+                            true
+                        }
                     }
                 } catch(e:Throwable) {
                     logger.error(e)
@@ -197,6 +197,20 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
+    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+        if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
+            if(viewModel.chapterList?.isNotEmpty==true) {
+                UtImmortalSimpleTask.run {
+                    if(showYesNoMessageBox(null, "Chapters are editing. Are you sure to abort them?")) {
+                        getActivity()?.finish()
+                    }
+                    true
+                }
+                return true
+            }
+        }
+        return super.handleKeyEvent(keyCode, event)
+    }
     companion object {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)
