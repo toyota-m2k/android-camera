@@ -170,8 +170,11 @@ class EditorActivity : UtMortalActivity() {
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-                        safeDelete(srcFile)
-                        dstFile.renameTo(srcFile)
+//                        safeDelete(srcFile)
+//                        dstFile.renameTo(srcFile)
+                        val testFile = File(filesDir, "mov-2030.01.01-00:00:00.mp4")
+                        safeDelete(testFile)
+                        dstFile.renameTo(testFile)
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             getActivity()?.finish()

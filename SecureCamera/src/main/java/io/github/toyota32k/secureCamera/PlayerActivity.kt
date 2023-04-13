@@ -18,6 +18,8 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.toyota32k.bindit.*
 import io.github.toyota32k.bindit.command.LongClickCommand
 import io.github.toyota32k.bindit.command.LongClickUnitCommand
@@ -26,6 +28,7 @@ import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
@@ -73,7 +76,7 @@ class PlayerActivity : AppCompatActivity() {
                     filename.startsWith(VIDEO_PREFIX)-> filename.substringAfter(VIDEO_PREFIX).substringBefore(VIDEO_EXTENSION)
                     else -> return null
                 }
-                return ITcUseCase.dateFormatForFilename.parse(dateString)
+                return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
             }
         }
 
@@ -305,7 +308,7 @@ class PlayerActivity : AppCompatActivity() {
         val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
-
+        controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
@@ -339,9 +342,11 @@ class PlayerActivity : AppCompatActivity() {
             }
             .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, dragToMove = false, swipeToDelete = true, deletionHandler = ::onDeletingItem) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
+                val sizeView = views.findViewById<TextView>(R.id.size_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val isVideo = name.endsWith(VIDEO_EXTENSION)
                 textView.text = name
+                sizeView.text = "${formatSize(File(filesDir, name).length())}"
                 itemBinder
                     .owner(this)
                     .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
