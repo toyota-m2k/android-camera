@@ -14,8 +14,8 @@ import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
-import io.github.toyota32k.media.lib.format.NoConvertAudioStrategy
-import io.github.toyota32k.media.lib.format.NoConvertVideoStrategy
+import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
+import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -126,22 +126,22 @@ class EditorActivity : UtMortalActivity() {
             }
         } else null
         return if(remaining!=null) {
-            "${percentage} % (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
-        } else "${percentage} % (${formatTime(current, total)}/${formatTime(total,total)})"
+            "$percentage % (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
+        } else "$percentage % (${formatTime(current, total)}/${formatTime(total,total)})"
     }
 
-    fun stringInKb(size: Long): String {
+    private fun stringInKb(size: Long): String {
         return String.format("%,d KB", size / 1000L)
     }
 
-    fun safeDelete(file:File) {
+    private fun safeDelete(file:File) {
         try {
             file.delete()
         } catch (e:Throwable) {
             logger.error(e)
         }
     }
-    fun trimmingAndSave() {
+    private fun trimmingAndSave() {
         val srcFile = File(application.filesDir ?: return, (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.name ?: return)
         val dstFile = File(application.cacheDir ?: return, "trimming")
         val ranges = viewModel.chapterList?.enabledRanges(Range.empty) ?: return
@@ -152,8 +152,8 @@ class EditorActivity : UtMortalActivity() {
             val converter = Converter.Factory()
                 .input(srcFile)
                 .output(dstFile)
-                .audioStrategy(NoConvertAudioStrategy)
-                .videoStrategy(NoConvertVideoStrategy)
+                .audioStrategy(PresetAudioStrategies.AACDefault)
+                .videoStrategy(PresetVideoStrategies.HEVC1080Profile)
                 .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
                 .setProgressHandler {
                     vm.progress.value = it.percentage

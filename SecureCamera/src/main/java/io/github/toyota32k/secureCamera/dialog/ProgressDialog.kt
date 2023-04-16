@@ -47,7 +47,7 @@ class ProgressDialog : UtDialogEx() {
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogProgressBinding.inflate(inflater.layoutInflater)
-        return controls.root.also { dlg->
+        return controls.root.also { _->
             binder
                 .textBinding(controls.message, viewModel.message)
                 .textBinding(controls.progressText, viewModel.progressText)
