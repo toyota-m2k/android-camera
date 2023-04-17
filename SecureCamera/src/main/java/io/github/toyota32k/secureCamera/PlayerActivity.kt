@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -9,6 +10,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -16,12 +18,17 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.toyota32k.bindit.*
+import io.github.toyota32k.bindit.command.LongClickCommand
+import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
@@ -69,14 +76,14 @@ class PlayerActivity : AppCompatActivity() {
                     filename.startsWith(VIDEO_PREFIX)-> filename.substringAfter(VIDEO_PREFIX).substringBefore(VIDEO_EXTENSION)
                     else -> return null
                 }
-                return ITcUseCase.dateFormatForFilename.parse(dateString)
+                return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
             }
         }
 
         private val context: Application
             get() = getApplication()
         val playlist = Playlist()
-        val playerControllerModel = PlayerControllerModel.Builder(application)
+        val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
             .supportSnapshot(::onSnapshot)
@@ -102,14 +109,24 @@ class PlayerActivity : AppCompatActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-            override val disabledRanges: List<Range> = emptyList()
+//            override val disabledRanges: List<Range> = emptyList()
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
             val collection = ObservableList<String>()
             val sorter = io.github.toyota32k.shared.UtSorter(
                 collection,
                 allowDuplication = true
-            ) { a, b -> ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt() }
+            ) { a, b ->
+                val ta = filename2date(a)?.time ?: 0L
+                val tb = filename2date(b)?.time ?: 0L
+//                if(ta==tb) {
+//                    TpLib.logger.debug("same value")
+//                }
+//                TpLib.logger.debug("compare: $ta with $tb = ${ta-tb} (${(ta-tb).toInt()}")
+//                ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt()
+                val d = ta - tb
+                if(d<0) -1 else if(d>0) 1 else 0
+            }
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
@@ -291,7 +308,7 @@ class PlayerActivity : AppCompatActivity() {
         val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
-
+        controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
@@ -325,12 +342,15 @@ class PlayerActivity : AppCompatActivity() {
             }
             .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, dragToMove = false, swipeToDelete = true, deletionHandler = ::onDeletingItem) { itemBinder, views, name->
                 val textView = views.findViewById<TextView>(R.id.text_view)
+                val sizeView = views.findViewById<TextView>(R.id.size_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val isVideo = name.endsWith(VIDEO_EXTENSION)
                 textView.text = name
+                sizeView.text = "${formatSize(File(filesDir, name).length())}"
                 itemBinder
                     .owner(this)
                     .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
+                    .bindCommand(LongClickUnitCommand { startEditing(views, name) }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == name }) { hit->
                         if(hit) {
                             views.background = selectedColor
@@ -354,6 +374,22 @@ class PlayerActivity : AppCompatActivity() {
             onDoubleTap(manipulator::onDoubleTap)
             onFlickVertical(manipulator::onFlick)
         }
+    }
+
+    private fun startEditing(anchor:View, name:String) {
+        PopupMenu(this, anchor).apply {
+            menu.add(R.string.start_editing)
+            setOnMenuItemClickListener {
+                viewModel.playlist.select(null)
+                viewModel.playerControllerModel.playerModel.killPlayer()
+                controls.videoViewer.associatePlayer(false)
+                val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, name) }
+                startActivity(intent)
+                true
+            }
+            show()
+        }
+
     }
 
     inner class ViewerManipulator : IUtManipulationTarget {
@@ -492,4 +528,10 @@ class PlayerActivity : AppCompatActivity() {
 //        controls.imageView.scaleY = newScale
 //        return true
 //    }
+    override fun onResume() {
+        super.onResume()
+        if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
+            controls.videoViewer.associatePlayer(true)
+        }
+    }
 }

@@ -17,7 +17,7 @@ data class Range (val start:Long, val end:Long=0) {
 
     fun contains(pos:Long):Boolean {
         return if(start<end) {
-            start<=pos && pos<end
+            pos in start until end
         } else {
             start<=pos
         }
@@ -25,5 +25,18 @@ data class Range (val start:Long, val end:Long=0) {
 
     companion object {
         val empty = Range(0,0)
+
+        /**
+         * end = 0 で「最後まで」を表している Rangeに、duration の値をセットする
+         */
+        fun terminate(range:Range, duration:Long):Range {
+            return if(range.end>0) range else Range(range.start, duration)
+        }
+
+        fun terminate(ranges:Sequence<Range>, duration:Long) = sequence<Range> {
+            for(r in ranges) {
+                yield(terminate(r, duration))
+            }
+        }
     }
 }

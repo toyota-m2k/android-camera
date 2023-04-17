@@ -18,9 +18,21 @@ class UtSorter<T>(val list:MutableList<T>, val allowDuplication:Boolean, val com
         }
     }
 
+    fun findPosition(element:T, position:Position):Int {
+        return synchronized(this) {
+            find(list, comparator, element, position)
+        }
+    }
+    fun findPosition(element:T):Position {
+        return Position().apply {
+            findPosition(element, this)
+        }
+    }
+
     fun replace(elements:Collection<T>) {
+        val sorted = elements.sortedWith(comparator)
         list.clear()
-        list.addAll(elements.sortedWith(comparator))
+        list.addAll(sorted)
     }
 
     fun add(element:T):Int {

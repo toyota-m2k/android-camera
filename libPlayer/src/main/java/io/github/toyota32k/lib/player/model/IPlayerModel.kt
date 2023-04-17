@@ -42,6 +42,10 @@ interface IPlayerModel : AutoCloseable {
 
     val scope: CoroutineScope
     val context: Application
+
+    fun killPlayer()
+    fun revivePlayer():Boolean
+
 }
 
 interface IPlaylistHandler {
@@ -59,10 +63,7 @@ interface IPlaylistHandler {
 interface  IChapterHandler {
     val commandNextChapter: IUnitCommand
     val commandPrevChapter: IUnitCommand
-//    fun nextChapter()
-//    fun prevChapter()
 
-    val chapterList:StateFlow<IChapterList?>
-    val hasChapters:StateFlow<Boolean>
-//    val disabledRanges:List<Range>?
+//    val chapterList:StateFlow<IChapterList?>
+//    val hasChapters:StateFlow<Boolean>
 }

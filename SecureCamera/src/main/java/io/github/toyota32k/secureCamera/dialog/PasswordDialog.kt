@@ -1,4 +1,4 @@
-package io.github.toyota32k.secureCamera.settings
+package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
@@ -14,6 +14,8 @@ import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
+import io.github.toyota32k.secureCamera.settings.HashGenerator
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
 import io.github.toyota32k.utils.onTrue
@@ -27,7 +29,7 @@ class PasswordDialog : UtDialogEx() {
             CHECK_PASSWORD,     // パスワード照合用（n回までリトライ）
         }
 
-        var mode:Mode = Mode.NEW_PASSWORD
+        var mode: Mode = Mode.NEW_PASSWORD
         lateinit var passwordToCheck:String
 
         val password = MutableStateFlow("")
@@ -39,40 +41,40 @@ class PasswordDialog : UtDialogEx() {
             NG,
             BLOCKED,
         }
-        var checkResult:CheckPasswordResult = CheckPasswordResult.NG
+        var checkResult: CheckPasswordResult = CheckPasswordResult.NG
 
         val ready : StateFlow<Boolean> = combine(password, passwordConf) { p, c ->
             when(mode) {
-                Mode.NEW_PASSWORD-> p.isNotEmpty() && p==c
-                Mode.CHECK_PASSWORD->p.isNotEmpty()
+                Mode.NEW_PASSWORD -> p.isNotEmpty() && p==c
+                Mode.CHECK_PASSWORD ->p.isNotEmpty()
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
         fun checkPasswords():Boolean {
-            if(mode!=Mode.CHECK_PASSWORD) throw IllegalStateException("entering new password")
+            if(mode!= Mode.CHECK_PASSWORD) throw IllegalStateException("entering new password")
             if(password.value.isEmpty()) return false
             return passwordToCheck == HashGenerator.hash(password.value)
         }
 
         fun getPassword():String? {
-            if(mode!=Mode.NEW_PASSWORD) throw IllegalStateException("checking passwords")
+            if(mode!= Mode.NEW_PASSWORD) throw IllegalStateException("checking passwords")
             if(password.value.isEmpty()) return null
             return HashGenerator.hash(password.value)
         }
 
         companion object {
-            fun createForNewPassword(taskName:String):PasswordViewModel {
+            fun createForNewPassword(taskName:String): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel() ?: throw IllegalStateException("no task")
             }
 
-            fun createForCheckPassword(taskName:String, hashedPassword:String):PasswordViewModel {
+            fun createForCheckPassword(taskName:String, hashedPassword:String): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
                     mode = Mode.CHECK_PASSWORD
                     passwordToCheck = hashedPassword
                 } ?: throw IllegalStateException("no task")
             }
 
-            fun instanceFor(dlg:PasswordDialog): PasswordViewModel {
+            fun instanceFor(dlg: PasswordDialog): PasswordViewModel {
                 return ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[PasswordViewModel::class.java]
             }
         }
@@ -146,9 +148,9 @@ class PasswordDialog : UtDialogEx() {
         }
 
         var msg = getString(R.string.password_incorrect)
-        if(Settings.Security.numberOfIncorrectPassword>1) {
+        if(Settings.Security.numberOfIncorrectPassword >1) {
             Settings.Security.incorrectCount++
-            if(Settings.Security.incorrectCount>=Settings.Security.numberOfIncorrectPassword) {
+            if(Settings.Security.incorrectCount >= Settings.Security.numberOfIncorrectPassword) {
                 // Blocked
                 onPasswordBlocked()
                 return true
@@ -171,9 +173,10 @@ class PasswordDialog : UtDialogEx() {
         suspend fun checkPassword():Boolean {
             if(!Settings.Security.enablePassword) return true
             return UtImmortalSimpleTask.runAsync("checkPassword") {
-                val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
+                val vm =
+                    PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
                 showDialog(taskName) { PasswordDialog() }.status.ok.onTrue {
-                    if(vm.checkResult==PasswordViewModel.CheckPasswordResult.BLOCKED) {
+                    if(vm.checkResult== PasswordViewModel.CheckPasswordResult.BLOCKED) {
                         showConfirmMessageBox(getString(R.string.password), getString(R.string.password_error))
                     }
                 }

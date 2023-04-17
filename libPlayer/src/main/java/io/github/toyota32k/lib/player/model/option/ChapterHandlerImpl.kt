@@ -5,12 +5,13 @@ import io.github.toyota32k.lib.player.model.*
 import kotlinx.coroutines.flow.*
 
 class ChapterHandlerImpl(val playerModel: IPlayerModel) : IChapterHandler {
-    init {
-        playerModel.currentSource.onEach(::onSourceChanged).launchIn(playerModel.scope)
-    }
+//    init {
+//        playerModel.currentSource.onEach(::onSourceChanged).launchIn(playerModel.scope)
+//    }
 
-    override val chapterList = MutableStateFlow<IChapterList?>(null)
-    override val hasChapters = MutableStateFlow(false)
+//    override val chapterList = MutableStateFlow<IChapterList?>(null)
+//    override val hasChapters = MutableStateFlow(false)
+    val chapterList:IChapterList? get() = (playerModel.currentSource.value as? IMediaSourceWithChapter)?.chapterList
 
 //    override var disabledRanges:List<Range>? = null
 //        private set
@@ -19,20 +20,20 @@ class ChapterHandlerImpl(val playerModel: IPlayerModel) : IChapterHandler {
     override val commandPrevChapter = LiteUnitCommand(::prevChapter)
 
 
-    private suspend fun onSourceChanged(src: IMediaSource?) {
-        chapterList.value = null
-        hasChapters.value = false
-        if(src !is IMediaSourceWithChapter) return
-
-        src.prepareChapterList()?.apply {
-            chapterList.value = this
-            hasChapters.value = chapters.isNotEmpty()
-        }
-    }
+//    private suspend fun onSourceChanged(src: IMediaSource?) {
+//        chapterList.value = null
+//        hasChapters.value = false
+//        if(src !is IMediaSourceWithChapter) return
+//
+//        src.prepareChapterList()?.apply {
+//            chapterList.value = this
+//            hasChapters.value = chapters.isNotEmpty()
+//        }
+//    }
 
     private fun nextChapter() {
         val src = playerModel.currentSource.value as? IMediaSourceWithChapter ?: return
-        val c = src.chapterList?.run {
+        val c = src.chapterList.run {
             next(playerModel.currentPosition)
         } ?: return
         playerModel.seekTo(c.position)
@@ -40,7 +41,7 @@ class ChapterHandlerImpl(val playerModel: IPlayerModel) : IChapterHandler {
 
     private fun prevChapter() {
         val src = playerModel.currentSource.value as? IMediaSourceWithChapter ?: return
-        val c = src.chapterList?.run {
+        val c = src.chapterList.run {
             prev(playerModel.currentPosition)
         } ?: return
         playerModel.seekTo(c.position)

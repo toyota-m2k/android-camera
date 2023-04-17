@@ -9,6 +9,7 @@ import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.TpFrameExtractor
 import io.github.toyota32k.lib.player.common.formatTime
+import io.github.toyota32k.shared.UtManualIncarnateResetableValue
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.*
@@ -37,7 +38,7 @@ open class PlayerControllerModel(
         val logger by lazy { UtLog("CPM", TpLib.logger) }
     }
 
-    class Builder(val context:Context) {
+    class Builder(val context:Context, val coroutineScope: CoroutineScope) {
         private var mSupportChapter:Boolean = false
         private var mPlaylist:IMediaFeed? = null
         private var mAutoPlay:Boolean = false
@@ -50,7 +51,7 @@ open class PlayerControllerModel(
         private var mShowNextPreviousButton:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
-        private var mScope:CoroutineScope? = null
+//        private var mScope:CoroutineScope? = null
 
         fun supportChapter():Builder {
             mSupportChapter = true
@@ -95,20 +96,14 @@ open class PlayerControllerModel(
             return this
         }
 
-        fun coroutineScope(scope: CoroutineScope):Builder {
-            mScope = scope + SupervisorJob()
-            return this
-        }
-
-        private val scope:CoroutineScope
-            get() = mScope ?: CoroutineScope(Dispatchers.Main+ SupervisorJob())
+//        private val scope:CoroutineScope by lazy { CoroutineScope(Dispatchers.Main+ SupervisorJob()) }
 
         fun build():PlayerControllerModel {
             val playerModel = when {
-                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                mSupportChapter -> ChapterPlayerModel(context, scope)
-                mPlaylist!=null -> PlaylistPlayerModel(context, scope, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                else -> BasicPlayerModel(context, scope)
+                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                mSupportChapter -> ChapterPlayerModel(context, coroutineScope)
+                mPlaylist!=null -> PlaylistPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
+                else -> BasicPlayerModel(context, coroutineScope)
             }
             return PlayerControllerModel(
                 playerModel,
@@ -128,7 +123,8 @@ open class PlayerControllerModel(
      * コントローラーのCoroutineScope
      * playerModel.scope を継承するが、ライフサイクルが異なるので、新しいインスタンスにしておく。
      */
-    val scope:CoroutineScope = CoroutineScope(playerModel.scope.coroutineContext)
+//    val scope:CoroutineScope = CoroutineScope(playerModel.scope.coroutineContext)
+//    private val resetableScope = UtManualIncarnateResetableValue { CoroutineScope(playerModel.scope.coroutineContext) }
 
     /**
      * ApplicationContext参照用
@@ -190,7 +186,7 @@ open class PlayerControllerModel(
                         Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
                     } else this
                 } ?: return@use
-                withContext(scope.coroutineContext) {
+                withContext(Dispatchers.Main) {
                     handler(pos, bitmap)
                 }
             }
@@ -238,8 +234,6 @@ open class PlayerControllerModel(
 //    }
 
     override fun close() {
-        scope.cancel()
         playerModel.close()
     }
-
 }
