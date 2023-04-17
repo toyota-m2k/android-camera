@@ -82,7 +82,7 @@ dependencies {
 
     implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
-    implementation 'com.github.toyota-m2k:android-media-processor:LOCALv2'
+    implementation 'com.github.toyota-m2k:android-media-processor:2.0.1'
 
     implementation project(path: ':shared')
     implementation project(path: ':libCamera')

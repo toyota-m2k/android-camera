@@ -5,10 +5,10 @@ buildscript {
     ext.exoplayer_version = '2.18.5'
     ext.activity_ktx_version = '1.7.0'
     ext.lifecycle_ktx_version = '2.6.1'
-    ext.m2k_bind_it_version = "2.2.8"
-//    ext.m2k_android_dialog_version = "3.5.4"
+    ext.m2k_bind_it_version = "2.2.9"
+    ext.m2k_android_dialog_version = "3.5.5"
 //    ext.m2k_bind_it_version = "LOCAL"
-    ext.m2k_android_dialog_version = "LOCAL"
+//    ext.m2k_android_dialog_version = "LOCAL"
     ext.m2k_viewex_version = "0.0.1"
 
     dependencies {
