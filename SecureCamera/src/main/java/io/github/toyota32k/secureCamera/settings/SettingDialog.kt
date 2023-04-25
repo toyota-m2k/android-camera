@@ -12,6 +12,7 @@ import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
+import io.github.toyota32k.shared.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
@@ -20,10 +21,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.lang.Integer.max
-import java.lang.Integer.min
+import kotlin.math.max
+import kotlin.math.min
 import java.util.*
 
 class SettingDialog : UtDialogEx() {
@@ -74,6 +76,10 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
+        val commandNip = LiteCommand(this::updateNip)
+        val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
+        val commandSkipBackward = LiteCommand(this::updateSkipBackwardSpan)
+
         private fun updateNip(diff:Int) {
             val before = securityNumberOfIncorrectPassword.value
             val after = min(maxNumberOfIncorrectPassword, max(minNumberOfIncorrectPassword, before+diff))
@@ -81,7 +87,16 @@ class SettingDialog : UtDialogEx() {
                 securityNumberOfIncorrectPassword.mutable.value = after
             }
         }
-        val commandNip = LiteCommand(this::updateNip)
+        private fun updateSkipForwardSpan(d:Float) {
+            val v = playerSpanOfSkipForward.value + d
+            playerSpanOfSkipForward.value = max(0.1f, min(30f, v))
+        }
+
+
+        private fun updateSkipBackwardSpan(d:Float) {
+            val v = playerSpanOfSkipBackward.value + d
+            playerSpanOfSkipBackward.value = max(0.1f, min(30f, v))
+        }
 
         fun save() {
             Settings.apply {
@@ -111,6 +126,7 @@ class SettingDialog : UtDialogEx() {
         setRightButton(BuiltInButtonType.DONE)
         setLimitWidth(400)
         scrollable = true
+        cancellable = false
         heightOption = HeightOption.AUTO_SCROLL
     }
 
@@ -130,9 +146,13 @@ class SettingDialog : UtDialogEx() {
                     .sliderBinding(controls.sliderSkipForward, viewModel.playerSpanOfSkipForward)
                     .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-                    .visibilityBinding(controls.passwordCountGroup, viewModel.securityClearAllOnPasswordError)
+                    .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
+                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +0.1f)
+                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardMinus, -0.1f)
+                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +0.1f)
+                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
                     .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {
@@ -141,7 +161,10 @@ class SettingDialog : UtDialogEx() {
                     }
                     .bindCommand(LiteUnitCommand(::changePassword), controls.changePwdButton)
                     .bindCommand(LiteUnitCommand(::resetAll), controls.resetButton)
-
+                    .add(UtClickRepeater(controls.skipBackwardMinus))
+                    .add(UtClickRepeater(controls.skipBackwardPlus))
+                    .add(UtClickRepeater(controls.skipForwardMinus))
+                    .add(UtClickRepeater(controls.skipForwardPlus))
             }
         }
     }

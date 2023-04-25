@@ -44,12 +44,11 @@
             android:layout_weight="1"
             android:text="@string/password_not_set"/>
         <com.google.android.material.button.MaterialButton
-            style="?attr/materialButtonOutlinedStyle"
+            style="@style/Widget.Material3.Button.IconButton.Outlined"
             android:id="@+id/change_pwd_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/change_pwd_label"
-            android:textColor="?attr/colorSecondary"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:icon="@drawable/ic_edit"
             />
     </LinearLayout>
 
@@ -94,7 +93,6 @@
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:icon="@drawable/ic_minus"
-            app:iconTint="?attr/iconColor"
             />
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.Material3.Button.IconButton.Outlined"
@@ -102,7 +100,6 @@
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:icon="@drawable/ic_plus"
-            app:iconTint="?attr/iconColor"
             />
     </LinearLayout>
     <!-- - - - - - - - - - - - - - - - - - -->
@@ -199,6 +196,19 @@
             android:text="@string/skip_forward_by"
             android:layout_gravity="center_vertical"
             />
+        <io.github.toyota32k.viewex.library.Viewbox
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/skip_forward_minus"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:icon="@drawable/ic_minus"
+                />
+        </io.github.toyota32k.viewex.library.Viewbox>
 
         <com.google.android.material.slider.Slider
             android:id="@+id/slider_skip_forward"
@@ -209,6 +219,21 @@
             android:valueTo="30"
             android:stepSize="0.1"
             />
+
+        <io.github.toyota32k.viewex.library.Viewbox
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/skip_forward_plus"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:icon="@drawable/ic_plus"
+                />
+        </io.github.toyota32k.viewex.library.Viewbox>
+
     </LinearLayout>
 
     <LinearLayout
@@ -224,6 +249,20 @@
             android:layout_gravity="center_vertical"
             />
 
+        <io.github.toyota32k.viewex.library.Viewbox
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/skip_backward_minus"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:icon="@drawable/ic_minus"
+                />
+        </io.github.toyota32k.viewex.library.Viewbox>
+
         <com.google.android.material.slider.Slider
             android:id="@+id/slider_skip_backward"
             android:layout_width="0dp"
@@ -233,6 +272,20 @@
             android:valueTo="30"
             android:stepSize="0.1"
             />
+
+        <io.github.toyota32k.viewex.library.Viewbox
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/skip_backward_plus"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:icon="@drawable/ic_plus"
+                />
+        </io.github.toyota32k.viewex.library.Viewbox>
     </LinearLayout>
     <Button
         android:id="@+id/reset_button"
