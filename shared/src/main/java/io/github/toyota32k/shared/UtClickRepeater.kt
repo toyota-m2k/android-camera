@@ -17,13 +17,13 @@ import io.github.toyota32k.utils.UtLog
  */
 class UtClickRepeater(
     view:View?=null,
-    val repeatInterval:Long = 200,
-    val activationTime:Long = 500
+    private val repeatInterval:Long = 100,
+    private val activationTime:Long = 300
 ): IDisposable {
-    var view: View? by WeakReferenceDelegate()
+    private var view: View? by WeakReferenceDelegate()
 
-    val logger = UtLog("ClickRepeater", null, UtClickRepeater::class.java)
-    var chronos = Chronos(logger)
+    private val logger = UtLog("ClickRepeater", null, UtClickRepeater::class.java)
+    private var chronos = Chronos(logger)
 
     enum class RepeatStatus {
         NONE,
@@ -37,17 +37,15 @@ class UtClickRepeater(
         }
     }
 
-    val standby = object: Runnable {
-        override fun run() {
-            if(status == RepeatStatus.STANDBY) {
-                chronos.lap("Touch - Repeat Started")
-                status = RepeatStatus.REPEATING
-                repeat.run()
-            }
+    private val standby = Runnable {
+        if(status == RepeatStatus.STANDBY) {
+            chronos.lap("Touch - Repeat Started")
+            status = RepeatStatus.REPEATING
+            repeat.run()
         }
     }
 
-    val repeat = object: Runnable {
+    private val repeat = object: Runnable {
         override fun run() {
             if(status!=RepeatStatus.REPEATING) return
             chronos.lap("Touch - Perform Repeat")
