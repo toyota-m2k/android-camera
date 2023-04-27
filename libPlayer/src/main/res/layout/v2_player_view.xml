@@ -13,13 +13,14 @@
         <io.github.toyota32k.lib.player.view.ExoPlayerHost
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_gravity="top|center_horizontal"
             android:id="@+id/player"
             />
+        <io.github.toyota32k.lib.player.view.ControlPanel
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/controller"
+            android:layout_gravity="bottom"
+            />
     </FrameLayout>
-    <io.github.toyota32k.lib.player.view.ControlPanel
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/controller"
-        android:layout_gravity="bottom"
-        />
 </LinearLayout>

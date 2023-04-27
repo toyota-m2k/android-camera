@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.widget.FrameLayout
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.VisibilityBinding
+import io.github.toyota32k.bindit.headlessBinding
+import io.github.toyota32k.bindit.headlessNonnullBinding
 import io.github.toyota32k.bindit.visibilityBinding
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
@@ -30,7 +32,8 @@ class VideoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribu
         this.model = model
         controls.player.bindViewModel(model, binder)
         controls.controller.bindViewModel(model, binder)
-        binder.visibilityBinding(controls.controller, model.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+        binder
+            .visibilityBinding(controls.controller, model.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
     }
 
     fun associatePlayer() {

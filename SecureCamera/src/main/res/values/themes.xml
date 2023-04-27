@@ -27,8 +27,9 @@
         <item name="pauseIconColor">#8080FF</item>
         <item name="stopIconColor">?attr/pauseIconColor</item>
 
+        <item name="panelBackgroundColor">#40FFFFFF</item>
         <!-- libPlayer theme -->
-        <item name="playerBackground">@color/black</item>
+        <item name="playerBackground">@color/white</item>
 
         <item name="colorDialogSurface">?attr/colorSurface</item>
         <item name="colorOnDialogSurface">?android:textColorPrimary</item>

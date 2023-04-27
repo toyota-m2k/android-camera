@@ -8,8 +8,10 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -322,6 +324,17 @@ class PlayerActivity : UtMortalActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .headlessBinding(viewModel.playerControllerModel.showControlPanel) {
+//                val params = controls.videoViewer.controls.player.layoutParams as FrameLayout.LayoutParams
+//                if(it==true) {
+//                    controls.photoButtonPanel.visibility = View.VISIBLE
+//                    params.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+//                } else {
+//                    controls.photoButtonPanel.visibility = View.GONE
+//                    params.gravity = Gravity.CENTER
+//                }
+//                controls.videoViewer.controls.player.layoutParams = params
+//            }
             .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
 //            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
@@ -428,7 +441,10 @@ class PlayerActivity : UtMortalActivity() {
 //        }
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
-            viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
+            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+                viewModel.playerControllerModel.showControlPanel.value =
+                    eventIFlickEvent.direction == Direction.Start
+            }
         }
 
         override val parentView: View
