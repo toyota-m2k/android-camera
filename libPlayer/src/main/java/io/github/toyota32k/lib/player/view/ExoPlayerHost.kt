@@ -75,12 +75,11 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
         }
     }
 
-    fun associatePlayer(flag:Boolean) {
-        if(flag) {
-            model.playerModel.associatePlayerView(playerView)
-        } else {
-            playerView.player = null
-        }
+    fun associatePlayer() {
+        model.playerModel.associatePlayerView(playerView)
+    }
+    fun dissociatePlayer() {
+        model.playerModel.dissociatePlayerView(playerView)
     }
 
     fun bindViewModel(playerControllerModel: PlayerControllerModel, binder:Binder) {

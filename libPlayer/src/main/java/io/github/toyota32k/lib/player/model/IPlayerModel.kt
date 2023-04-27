@@ -18,6 +18,7 @@ interface IPlayerModel : AutoCloseable {
     fun seekTo(seek:Long)
 
     fun associatePlayerView(playerView: StyledPlayerView)
+    fun dissociatePlayerView(playerView: StyledPlayerView)
     fun onRootViewSizeChanged(size: Size)
     fun onPlaybackCompleted()
 

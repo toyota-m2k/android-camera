@@ -384,7 +384,7 @@ class PlayerActivity : UtMortalActivity() {
             setOnMenuItemClickListener {
                 viewModel.playlist.select(null)
                 viewModel.playerControllerModel.playerModel.killPlayer()
-                controls.videoViewer.associatePlayer(false)
+                controls.videoViewer.dissociatePlayer()
                 val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, name) }
                 startActivity(intent)
                 true
@@ -533,7 +533,7 @@ class PlayerActivity : UtMortalActivity() {
     override fun onResume() {
         super.onResume()
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
-            controls.videoViewer.associatePlayer(true)
+            controls.videoViewer.associatePlayer()
         }
     }
 
