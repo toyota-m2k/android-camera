@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.PopupMenu
@@ -26,6 +27,7 @@ import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
@@ -46,7 +48,7 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
-class PlayerActivity : AppCompatActivity() {
+class PlayerActivity : UtMortalActivity() {
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -533,5 +535,14 @@ class PlayerActivity : AppCompatActivity() {
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer(true)
         }
+    }
+
+    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+        // return super.handleKeyEvent(keyCode, event)
+        if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+            viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
+            return true
+        }
+        return false
     }
 }
