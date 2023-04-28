@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.animation.Animator
 import android.animation.ValueAnimator
+import android.graphics.PointF
 import android.view.View
 import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.utils.UtLog
@@ -88,6 +89,12 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
             contentView.scaleX = v
             contentView.scaleY = v
         }
+
+    fun setPivot(pivot: PointF?) {
+        pivot?:return
+        contentView.pivotX = pivot.x  // / contentView.width.toFloat()
+        contentView.pivotY = pivot.y  // contentView.height.toFloat()
+    }
 
     var translationX:Float
         get() = contentView.translationX
@@ -185,6 +192,8 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
         }
+        logger.debug("pivot = ${p.pivot}")
+//        setPivot(p.pivot)
         scale = max(minScale, min(maxScale, scale * p.scale))
     }
 

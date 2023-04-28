@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
+import android.graphics.PointF
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -62,6 +63,7 @@ class UtGestureInterpreter(
 
     interface IScaleEvent {
         val scale: Float
+        val pivot: PointF?
         val end: Boolean
     }
 
@@ -71,14 +73,15 @@ class UtGestureInterpreter(
     private val scaleListenerRef =
         UtLazyResetableValue<Listeners<IScaleEvent>> { Listeners<IScaleEvent>() }
 
-    private class ScaleEvent(override var scale: Float, override var end: Boolean) : IScaleEvent
+    private class ScaleEvent(override var scale: Float, override var pivot: PointF?, override var end: Boolean) : IScaleEvent
 
-    private val scaleEvent = ScaleEvent(1f, false)
-    private fun fireScaleEvent(scale: Float, end: Boolean): Boolean {
+    private val scaleEvent = ScaleEvent(1f, null, false)
+    private fun fireScaleEvent(scale: Float, pivot:PointF?, end: Boolean): Boolean {
         return if (scaleListenerRef.hasValue && scaleListener.count > 0) {
             scaleListener.invoke(scaleEvent.apply {
                 this.scale = scale
                 this.end = end
+                this.pivot = pivot
             })
             true
         } else false
@@ -394,9 +397,19 @@ class UtGestureInterpreter(
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        private val pivot = PointF()
+
+        private fun getPivot(detector: ScaleGestureDetector):PointF? {
+            return if(detector.isInProgress) {
+                pivot.apply {
+                    x = detector.focusX
+                    y = detector.focusY
+                }
+            } else null
+        }
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             logger.debug(GI_LOG) {"${detector.scaleFactor}"}
-            return fireScaleEvent(detector.scaleFactor, false)
+            return fireScaleEvent(detector.scaleFactor, getPivot(detector), false)
         }
 
 //        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
@@ -406,7 +419,7 @@ class UtGestureInterpreter(
 
         override fun onScaleEnd(detector: ScaleGestureDetector) {
             logger.debug(GI_LOG) { "$detector}" }
-            fireScaleEvent(detector.scaleFactor, true)
+            fireScaleEvent(detector.scaleFactor, getPivot(detector),true)
         }
     }
     companion object {
