@@ -2,12 +2,17 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.animation.Animator
 import android.animation.ValueAnimator
+import android.graphics.Matrix
 import android.graphics.PointF
+import android.graphics.RectF
 import android.view.View
 import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.utAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.Float.min
 import java.util.EnumSet
@@ -90,11 +95,11 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
             contentView.scaleY = v
         }
 
-    fun setPivot(pivot: PointF?) {
-        pivot?:return
-        contentView.pivotX = pivot.x  // / contentView.width.toFloat()
-        contentView.pivotY = pivot.y  // contentView.height.toFloat()
-    }
+//    fun setPivot(pivot: PointF?) {
+//        pivot?:return
+//        contentView.pivotX = pivot.x  // / contentView.width.toFloat()
+//        contentView.pivotY = pivot.y  // contentView.height.toFloat()
+//    }
 
     var translationX:Float
         get() = contentView.translationX
@@ -161,19 +166,19 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
      * スクロール処理
      */
     fun onScroll(p:UtGestureInterpreter.IScrollEvent) {
-        if(changingPageNow) {
-            // ページ切り替えアニメーション中は次の操作を止める
-            return
-        }
-        translationX = calcTranslation(translationX-p.dx, movableX, overScrollX)
-        translationY = calcTranslation(translationY-p.dy, movableY, overScrollY)
-        if(pageChangeAction()) {
-            return
-        }
-        if(p.end) {
-            logger.debug("$movableX, $overScrollX")
-            onManipulationComplete()
-        }
+//        if(changingPageNow) {
+//            // ページ切り替えアニメーション中は次の操作を止める
+//            return
+//        }
+//        translationX = calcTranslation(translationX-p.dx, movableX, overScrollX)
+//        translationY = calcTranslation(translationY-p.dy, movableY, overScrollY)
+//        if(pageChangeAction()) {
+//            return
+//        }
+//        if(p.end) {
+//            logger.debug("$movableX, $overScrollX")
+//            onManipulationComplete()
+//        }
     }
 
     /**
@@ -184,6 +189,20 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
         return min(movable+overScroll, ad) * sign(translation)
     }
 
+//    var prevPivotX:Float = 0f
+//    var prevPivotY:Float = 0f
+    var prevTx:Float=0f
+    var prevTy:Float=0f
+    var prevScale = 1f
+    var prevPx:Float=0f
+    var prevPy:Float=0f
+
+    private fun Matrix.mapPoint(p:PointF) {
+        val points = floatArrayOf(p.x, p.y)
+        mapPoints(points)
+        p.x = points[0]
+        p.y = points[1]
+    }
     /**
      * ズーム処理
      */
@@ -192,9 +211,110 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
         }
-        logger.debug("pivot = ${p.pivot}")
-//        setPivot(p.pivot)
-        scale = max(minScale, min(maxScale, scale * p.scale))
+        val pivot = p.pivot ?: return
+        logger.info("before: scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY} -> px2=${pivot.x}, px2=${pivot.y}")
+
+//        contentView.pivotX = 0f
+//        contentView.pivotY = 0f
+
+//        val m = Matrix().apply {
+//            postScale(scale, scale, 0f, 0f)
+//            postTranslate(translationX, translationY)
+//        }
+//        val rect = RectF(0f,0f,contentWidth.toFloat(), contentHeight.toFloat())
+//        logger.info("before: $pivot  ($rect)")
+//        val points = floatArrayOf(pivot.x, pivot.y)
+//        m.mapPoints(points)
+//        m.mapRect(rect)
+//        val px = points[0]
+//        val py = points[1]
+//        logger.info("after : ${PointF(px, py)}  ($rect)")
+        val s0 = scale
+        val s1 = max(minScale, min(maxScale, scale * p.scale))
+//
+
+//        val px = -translationX + pivot.x
+//        val py = -translationY + pivot.y
+//
+//        val dx = px * (s1-s0)
+//        val dy = py * (s1-s0)
+////
+//        logger.info("s1-s0 = ${s1-s0}, dx=$dx, dy=$dy")
+//        translationX -= dx
+//        translationY -= dy
+
+
+    //        setPivot(p.pivot)
+//        scale = max(minScale, min(maxScale, scale * p.scale))
+
+        when(p.timing) {
+            Timing.Start -> {
+                val m1 = Matrix()
+//                m1.postTranslate(translationX,translationY)
+                m1.postScale(scale, scale, contentView.pivotX, contentView.pivotY)
+
+                val m2 = Matrix()
+                m1.invert(m2)
+                val p = PointF(pivot.x, pivot.y)
+                m2.mapPoint(p)
+
+                contentView.pivotX = pivot.x
+                contentView.pivotY = pivot.y
+                translationX -= (p.x - pivot.x)*scale
+                translationY -= (p.y - pivot.y)*scale
+
+
+
+                logger.info("start : scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY}")
+            }
+
+            Timing.Repeat ->{
+//                val m1 = Matrix()
+//                m1.postScale(scale, scale, contentView.pivotX, contentView.pivotY)
+//                m1.postTranslate(translationX,translationY)
+//
+//                val m2 = Matrix()
+//                m1.invert(m2)
+//                val p = PointF(pivot.x, pivot.y)
+//                m2.mapPoint(p)
+//
+//                contentView.pivotX = pivot.x
+//                contentView.pivotY = pivot.y
+//                translationX = (p.x - pivot.x)*scale
+//                translationY = (p.y - pivot.y)*scale
+
+                scale = s1
+
+                logger.info("after : scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY}")
+
+            }
+            Timing.End->{
+//                val m1 = Matrix()
+//                m1.setScale(scale, scale, contentView.pivotX, contentView.pivotY)
+//                val p = PointF(contentView.pivotX, contentView.pivotY)
+//                utAssert(p.x == contentView.pivotX && p.y == contentView.pivotY)
+//
+//                val m2 = Matrix()
+//                m1.invert(m2)
+//                p.x = 400f
+//                p.y = 400f
+//                m2.mapPoint(p)
+//                contentView.pivotX = 400f
+//                contentView.pivotY = 400f
+//                translationX = -(p.x - 400f)*scale
+//                translationY = -(p.y - 400f)*scale
+
+
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(1000)
+                    logger.info("end   : scale=$scale, tx=${translationX}, ty={$translationY} px=${contentView.pivotX}, py=${contentView.pivotY}")
+
+                }
+            }
+        }
+
+
     }
 
     /**
