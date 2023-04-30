@@ -451,7 +451,7 @@ class PlayerActivity : UtMortalActivity() {
             get() = controls.viewerArea
 
         override val contentView: View
-            get() = if(viewModel.playlist.isVideo.value) controls.videoViewer.controls.player else  controls.measureSample
+            get() = if(viewModel.playlist.isVideo.value) controls.videoViewer.controls.player else  controls.imageView
         override val overScrollX: Float
             get() = 0.3f
         override val overScrollY: Float

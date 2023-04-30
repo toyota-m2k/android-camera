@@ -4,13 +4,11 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.graphics.Matrix
 import android.graphics.PointF
-import android.graphics.RectF
 import android.view.View
 import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.Float.min
 import java.util.EnumSet
@@ -113,9 +111,9 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
     /**
      * 現在、表示しているサイズ
      */
-    val actualWidth:Float
+    val scaledWidth:Float
         get() = contentWidth*scale
-    val actualHeight:Float
+    val scaledHeight:Float
         get() = contentHeight*scale
 
 
@@ -125,9 +123,9 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
      * コンテントはセンタリングされている前提だから、絶対値で、はみ出している量/2だけ上下左右に移動可能。
      */
     val movableX:Float
-        get() = max(0f,(actualWidth - parentWidth)/2f)
+        get() = max(0f,(scaledWidth - parentWidth)/2f)
     val movableY:Float
-        get() = max(0f,(actualHeight - parentHeight)/2f)
+        get() = max(0f,(scaledHeight - parentHeight)/2f)
 
     val overScrollX:Float
         get() = targetViewInfo.overScrollX*parentWidth
@@ -164,19 +162,19 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
      * スクロール処理
      */
     fun onScroll(p:UtGestureInterpreter.IScrollEvent) {
-//        if(changingPageNow) {
-//            // ページ切り替えアニメーション中は次の操作を止める
-//            return
-//        }
-//        translationX = calcTranslation(translationX-p.dx, movableX, overScrollX)
-//        translationY = calcTranslation(translationY-p.dy, movableY, overScrollY)
-//        if(pageChangeAction()) {
-//            return
-//        }
-//        if(p.end) {
-//            logger.debug("$movableX, $overScrollX")
-//            onManipulationComplete()
-//        }
+        if(changingPageNow) {
+            // ページ切り替えアニメーション中は次の操作を止める
+            return
+        }
+        translationX = calcTranslation(translationX-p.dx, movableX, overScrollX)
+        translationY = calcTranslation(translationY-p.dy, movableY, overScrollY)
+        if(pageChangeAction()) {
+            return
+        }
+        if(p.end) {
+            logger.debug("$movableX, $overScrollX")
+            onManipulationComplete()
+        }
     }
 
     /**
@@ -401,12 +399,12 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
             c = translationX
             movable = movableX
             overScroll = overScrollX
-            contentSize = actualWidth
+            contentSize = scaledWidth
         } else {
             c = translationY
             movable = movableY
             overScroll = overScrollY
-            contentSize = actualHeight
+            contentSize = scaledHeight
         }
         if(abs(c)==movable+overScroll) {
             val direction = if(c>0) Direction.Start else Direction.End
