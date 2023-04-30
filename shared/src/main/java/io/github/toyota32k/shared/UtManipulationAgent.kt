@@ -250,19 +250,40 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
         when(p.timing) {
             Timing.Start -> {
                 val m1 = Matrix()
-//                m1.postTranslate(translationX,translationY)
+                val o1 = PointF(0f,0f)
+                val t1x = translationX
+                val t1y = translationY
                 m1.postScale(scale, scale, contentView.pivotX, contentView.pivotY)
+                m1.postTranslate(t1x, t1y)
+                m1.mapPoint(o1)
 
                 val m2 = Matrix()
                 m1.invert(m2)
-                val p = PointF(pivot.x, pivot.y)
-                m2.mapPoint(p)
 
-                contentView.pivotX = pivot.x
-                contentView.pivotY = pivot.y
-                translationX -= (p.x - pivot.x)*scale
-                translationY -= (p.y - pivot.y)*scale
+                val p1 = PointF(pivot.x-t1x, pivot.y-t1y)
+                m2.mapPoint(p1)
 
+
+
+
+//                val m2 = Matrix()
+                val o2 = PointF(0f,0f)
+                m2.postScale(scale, scale, p1.x, p1.y)
+                m2.mapPoint(o2)
+                val t2x = o2.x - o1.x
+                val t2y = o2.y - o1.y
+//                val m3 = Matrix()
+//                m2.invert(m3)
+//
+//                val p1 = PointF(pivot.x, pivot.y)
+//                m3.mapPoint(p1)
+
+
+
+                translationX = t2x
+                translationY = t2y
+                contentView.pivotX = p1.x
+                contentView.pivotY = p1.y
 
 
                 logger.info("start : scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY}")
