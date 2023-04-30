@@ -255,45 +255,69 @@ class UtManipulationAgent   (val targetViewInfo:IUtManipulationTarget) {
 
                 contentView.pivotX = 0f
                 contentView.pivotY = 0f
+
+
                 logger.info("start : scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY}")
             }
 
             Timing.Repeat ->{
-                val m0 = Matrix().apply {
-                    postTranslate(translationX, translationY)
-                    postScale(scale, scale, 0f, 0f)
-                }
-                val rect = RectF(0f,0f,contentWidth.toFloat(),contentHeight.toFloat())
-                m0.mapRect(rect)
-
-                val m1 = Matrix()
-                m0.invert(m1)
-
-
-                val tx1 = translationX
-                val ty1 = translationY
-                val px1 = pivot.x // - translationX*scale
-                val py1 = pivot.y // - translationY*scale
-                val (rx,ry) = m1.mapPoint(px1,py1)
-
-                val m2 = Matrix().apply {
-                    postTranslate(translationX, translationY)
-                    postScale(s1, s1, 0f, 0f)
-                }
-                val (px2,py2) = m2.mapPoint(rx,ry)
-
+                val px1 = -translationX + pivot.x
+                val py1 = -translationY + pivot.y
+                val px2 = px1/scale * s1
+                val py2 = py1/scale * s1
+                val dx = px2 - px1
+                val dy = py2 - py1
+                translationX -= dx
+                translationY -= dy
                 scale = s1
-                translationX -= (px2 - px1) // calcTranslation(translationX-(px2 - px1), movableX, 0f)
-                translationY -= (py2 - py1) //calcTranslation(translationY - (py2 - py1), movableY, 0f)
+//                translationX -= (s1-scale)*(-translationX+pivot.x)
+//                translationY -= (s1-scale)*(-translationY+pivot.y)
+//                scale = s1
 
-                logger.info("after :$rect, scale=$s1->$scale, tx:$tx1->$translationX, ty:$ty1->$translationY, pivot=$pivot, rx:$rx, ry=$ry, px:$px1->$px2, py:$py1->$py2")
+//                val m = Matrix().apply {
+//                    postScale(s1, s1, 0f, 0f)
+//                    postTranslate(translationX,translationY)
+//                }
+//                val (px,py) = m.mapPoint(pivot.x, pivot.y)
+//                scale = s1
+//                translationX -= (px - pivot.x)
+//                translationY -= (py - pivot.y)
+//
+//                logger.info("after : scale=$s1->$scale, x:$translationX - ${translationX+actualWidth}, y:$translationY - ${translationY+actualHeight}, pivot=$pivot, px:$px, py:$py")
 
             }
             Timing.End->{
 
 //                CoroutineScope(Dispatchers.Main).launch {
 //                    delay(1000)
-//                    logger.info("end   : scale=$scale, tx=${translationX}, ty={$translationY} px=${contentView.pivotX}, py=${contentView.pivotY}")
+////                    logger.info("end   : scale=$scale, tx=${translationX}, ty={$translationY} px=${contentView.pivotX}, py=${contentView.pivotY}")
+//                    scale = 1f
+//                    translationX = -500f
+//
+//                    delay(1000)
+//
+//                    scale = 1.2f
+//                    translationX = -500*1.2f
+//
+//
+//                    delay(1000)
+//
+//                    scale = 1.5f
+//                    translationX = -500*1.5f
+//
+//                    delay(1000)
+//
+//                    scale = 1.8f
+//                    translationX = -500*1.8f
+//
+//                    delay(1000)
+//
+//                    scale = 2f
+//                    translationX = -1000f
+//
+//                    delay(1000)
+//
+////                    translationX = -500f
 //
 //                }
             }
