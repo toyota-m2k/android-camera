@@ -5,7 +5,6 @@ import android.animation.ValueAnimator
 import android.graphics.Matrix
 import android.graphics.PointF
 import android.view.View
-import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -136,8 +135,8 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
     private var prevParentHeight:Int  = 0
 
     init {
-        contentView.pivotX = 0f
-        contentView.pivotY = 0f
+//        contentView.pivotX = 0f
+//        contentView.pivotY = 0f
 
         // 親ビューのサイズが変わったら、可動範囲も変わるので、スクロール位置が不正になる。
         // 選択肢としては、１）リセットする、２）クリップする、が考えられるが、２）に意味があるかどうか微妙なので、潔くリセットする。
@@ -155,10 +154,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
     /**
      * スクロール時の移動量を計算する。
      */
-    private fun calcTranslation(newTranslation:Float, movable:Float, overScroll:Float):Float {
-        // pivot=0としているから、translation は View左上の座標と一致し、-movable*2 ～ 0 の値をとる。
-        // そこで、+movable して、中央に配置されたときの translationを基準に移動量を計算する。
-        val d = newTranslation + movable
+    private fun calcTranslation(d:Float, movable:Float, overScroll:Float):Float {
         val ad = abs(d)
         val d2 = if(ad>movable) {
             // 可動範囲を超えている
@@ -178,16 +174,16 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
             // 可動範囲内 --> 自由に移動
             ad
         }
-        return d2 * sign(d) - movable   // 最初にはかせた下駄をぬがせる。
+        return d2 * sign(d)
     }
 
     /**
      * 移動量を可動範囲（＋オーバースクロール範囲）でクリップする
      */
     private fun clipTranslation(translation:Float, movable:Float, overScroll: Float):Float {
-        val d = translation+movable
+        val d = translation
         val ad = abs(d)
-        return min(movable+overScroll, ad) * sign(d) - movable
+        return min(movable+overScroll, ad) * sign(d)
     }
 
 
@@ -201,8 +197,6 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
         }
-        contentView.pivotX = 0f
-        contentView.pivotY = 0f
         translationX = calcTranslation(translationX-p.dx, movableX, overScrollX)
         translationY = calcTranslation(translationY-p.dy, movableY, overScrollY)
         if(pageChangeAction()) {
@@ -238,27 +232,30 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
 
         when(p.timing) {
             Timing.Start -> {
-
-                contentView.pivotX = 0f
-                contentView.pivotY = 0f
                 scaling = true
-
                 logger.info("start : scale=$scale, tx=$translationX, ty=$translationY px=${contentView.pivotX}, py=${contentView.pivotY}")
             }
 
             Timing.Repeat ->{
-                val px1 = -translationX + pivot.x
-                val py1 = -translationY + pivot.y
-                val px2 = px1/scale * s1
-                val py2 = py1/scale * s1
+                val px1 = -translationX + (pivot.x-0.5f*contentWidth)
+                val py1 = -translationY + (pivot.y-0.5f*contentHeight)
+                val px2 = px1*s1/scale
+                val py2 = py1*s1/scale
                 val dx = px2 - px1
                 val dy = py2 - py1
+
+//                val px1 = -translationX + pivot.x
+//                val py1 = -translationY + pivot.y
+//                val px2 = px1/scale * s1
+//                val py2 = py1/scale * s1
+//                val dx = px2 - px1
+//                val dy = py2 - py1
                 translationX -= dx
                 translationY -= dy
                 scale = s1
             }
             Timing.End->{
-                onManipulationComplete()
+//                onManipulationComplete()
                 scaling = false
             }
         }
@@ -336,12 +333,12 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         val overScroll:Float
         val contentSize:Float
         if(orientation==Orientation.Horizontal) {
-            c = translationX + movableX
+            c = translationX
             movable = movableX
             overScroll = overScrollX
             contentSize = scaledWidth
         } else {
-            c = translationY + movableY
+            c = translationY
             movable = movableY
             overScroll = overScrollY
             contentSize = scaledHeight
@@ -349,7 +346,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         if(abs(c)==movable+overScroll) {
             val direction = if(c>0) Direction.Start else Direction.End
             if(targetViewInfo.hasNextPage(orientation, direction)) {
-                if(orientation==Orientation.Horizontal) translationY = -movableX else translationX = -movableY
+                if(orientation==Orientation.Horizontal) translationY = 0f else translationX = 0f
                 changingPageNow = true
                 CoroutineScope(Dispatchers.Main).launch {
                     try {
