@@ -475,7 +475,7 @@ class PlayerActivity : UtMortalActivity() {
             } else false
         }
     }
-    val manipulator = ViewerManipulator()
+    val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
     
     private fun onDeletingItem(item:String):RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
