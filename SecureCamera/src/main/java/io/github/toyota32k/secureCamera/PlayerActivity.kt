@@ -351,6 +351,12 @@ class PlayerActivity : UtMortalActivity() {
             .headlessBinding(viewModel.playlist.currentSelection) {
                 manipulator.agent.resetScrollAndScale()
             }
+            .headlessBinding(viewModel.playerControllerModel.playerModel.rotation) {
+                manipulator.agent.resetScroll()
+            }
+            .headlessBinding(viewModel.playlist.photoRotation) {
+                manipulator.agent.resetScroll()
+            }
 //            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)

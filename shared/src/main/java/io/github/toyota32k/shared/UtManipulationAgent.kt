@@ -138,15 +138,14 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
 //        contentView.pivotX = 0f
 //        contentView.pivotY = 0f
 
-        // 親ビューのサイズが変わったら、可動範囲も変わるので、スクロール位置が不正になる。
-        // 選択肢としては、１）リセットする、２）クリップする、が考えられるが、２）に意味があるかどうか微妙なので、潔くリセットする。
+        // 親ビューのサイズが変わったら、可動範囲も変わるので、スクロール位置が不正になるので、スクロール位置はリセットする
         parentView.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             val w = right - left
             val h = bottom - top
             if(prevParentWidth!=w||prevParentHeight!=h) {
                 prevParentWidth = w
                 prevParentHeight = h
-                resetScrollAndScale()
+                resetScroll()
             }
         }
     }
@@ -410,6 +409,14 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
             translationY = 0f
             translationX = 0f
             scale = 1f
+            true
+        } else false
+    }
+
+    fun resetScroll() : Boolean {
+        return if(!changingPageNow) {
+            translationY = 0f
+            translationX = 0f
             true
         } else false
     }
