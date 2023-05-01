@@ -8,7 +8,10 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -26,6 +29,7 @@ import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
@@ -46,7 +50,7 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
-class PlayerActivity : AppCompatActivity() {
+class PlayerActivity : UtMortalActivity() {
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -320,6 +324,17 @@ class PlayerActivity : AppCompatActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .headlessBinding(viewModel.playerControllerModel.showControlPanel) {
+//                val params = controls.videoViewer.controls.player.layoutParams as FrameLayout.LayoutParams
+//                if(it==true) {
+//                    controls.photoButtonPanel.visibility = View.VISIBLE
+//                    params.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+//                } else {
+//                    controls.photoButtonPanel.visibility = View.GONE
+//                    params.gravity = Gravity.CENTER
+//                }
+//                controls.videoViewer.controls.player.layoutParams = params
+//            }
             .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
 //            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
@@ -382,7 +397,7 @@ class PlayerActivity : AppCompatActivity() {
             setOnMenuItemClickListener {
                 viewModel.playlist.select(null)
                 viewModel.playerControllerModel.playerModel.killPlayer()
-                controls.videoViewer.associatePlayer(false)
+                controls.videoViewer.dissociatePlayer()
                 val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, name) }
                 startActivity(intent)
                 true
@@ -426,7 +441,10 @@ class PlayerActivity : AppCompatActivity() {
 //        }
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
-            viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
+            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+                viewModel.playerControllerModel.showControlPanel.value =
+                    eventIFlickEvent.direction == Direction.Start
+            }
         }
 
         override val parentView: View
@@ -457,7 +475,7 @@ class PlayerActivity : AppCompatActivity() {
             } else false
         }
     }
-    val manipulator = ViewerManipulator()
+    val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
     
     private fun onDeletingItem(item:String):RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
@@ -531,7 +549,16 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
-            controls.videoViewer.associatePlayer(true)
+            controls.videoViewer.associatePlayer()
         }
+    }
+
+    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+        // return super.handleKeyEvent(keyCode, event)
+        if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+            viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
+            return true
+        }
+        return false
     }
 }

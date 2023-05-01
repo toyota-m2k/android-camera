@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
+import android.graphics.PointF
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -16,6 +17,12 @@ enum class Orientation {
 }
 enum class Direction {
     Start,
+    End
+}
+
+enum class Timing {
+    Start,
+    Repeat,
     End
 }
 
@@ -62,7 +69,8 @@ class UtGestureInterpreter(
 
     interface IScaleEvent {
         val scale: Float
-        val end: Boolean
+        val pivot: PointF?
+        val timing: Timing
     }
 
     val scaleListener: Listeners<IScaleEvent>
@@ -71,14 +79,15 @@ class UtGestureInterpreter(
     private val scaleListenerRef =
         UtLazyResetableValue<Listeners<IScaleEvent>> { Listeners<IScaleEvent>() }
 
-    private class ScaleEvent(override var scale: Float, override var end: Boolean) : IScaleEvent
+    private class ScaleEvent(override var scale: Float, override var pivot: PointF?, override var timing: Timing) : IScaleEvent
 
-    private val scaleEvent = ScaleEvent(1f, false)
-    private fun fireScaleEvent(scale: Float, end: Boolean): Boolean {
+    private val scaleEvent = ScaleEvent(1f, null, Timing.Start)
+    private fun fireScaleEvent(scale: Float, pivot:PointF?, timing: Timing): Boolean {
         return if (scaleListenerRef.hasValue && scaleListener.count > 0) {
             scaleListener.invoke(scaleEvent.apply {
                 this.scale = scale
-                this.end = end
+                this.timing = timing
+                this.pivot = pivot
             })
             true
         } else false
@@ -394,19 +403,34 @@ class UtGestureInterpreter(
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        private val pivot = PointF()
+
+        private fun getPivot(detector: ScaleGestureDetector):PointF {
+            return pivot.apply {
+                x = detector.focusX
+                y = detector.focusY
+            }
+
+//            return if(detector.isInProgress) {
+//                pivot.apply {
+//                    x = detector.focusX
+//                    y = detector.focusY
+//                }
+//            } else null
+        }
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             logger.debug(GI_LOG) {"${detector.scaleFactor}"}
-            return fireScaleEvent(detector.scaleFactor, false)
+            return fireScaleEvent(detector.scaleFactor, getPivot(detector), Timing.Repeat)
         }
 
-//        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
-//            logger.debug("$detector}")
-//            return super.onScaleBegin(detector)
-//        }
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            logger.debug(GI_LOG) {"${detector.scaleFactor}"}
+            return fireScaleEvent(detector.scaleFactor, getPivot(detector),Timing.Start)
+        }
 
         override fun onScaleEnd(detector: ScaleGestureDetector) {
             logger.debug(GI_LOG) { "$detector}" }
-            fireScaleEvent(detector.scaleFactor, true)
+            fireScaleEvent(detector.scaleFactor, getPivot(detector),Timing.End)
         }
     }
     companion object {

@@ -75,12 +75,11 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
         }
     }
 
-    fun associatePlayer(flag:Boolean) {
-        if(flag) {
-            model.playerModel.associatePlayerView(playerView)
-        } else {
-            playerView.player = null
-        }
+    fun associatePlayer() {
+        model.playerModel.associatePlayerView(playerView)
+    }
+    fun dissociatePlayer() {
+        model.playerModel.dissociatePlayerView(playerView)
     }
 
     fun bindViewModel(playerControllerModel: PlayerControllerModel, binder:Binder) {
@@ -119,7 +118,9 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
 
     private fun updateLayout(videoSize:Size) {
         logger.debug("layoutSize = ${videoSize.width} x ${videoSize.height}")
-        playerView.setLayoutSize(videoSize.width, videoSize.height)
+        handler?.post {
+            playerView.setLayoutSize(videoSize.width, videoSize.height)
+        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

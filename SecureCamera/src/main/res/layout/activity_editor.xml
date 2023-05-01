@@ -28,18 +28,18 @@
             android:background="?attr/selectableItemBackground"
             />
         <ImageButton
-            android:id="@+id/remove_next_chapter"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_expand_right"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
             android:id="@+id/make_region_skip"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_forbidden"
+            app:tint="?attr/iconColor"
+            android:background="?attr/selectableItemBackground"
+            />
+        <ImageButton
+            android:id="@+id/remove_next_chapter"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_expand_right"
             app:tint="?attr/iconColor"
             android:background="?attr/selectableItemBackground"
             />

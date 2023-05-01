@@ -72,18 +72,18 @@ open class BasicPlayerModel(
     private val isDisposed:Boolean get() = !resetablePlayer.hasValue      // close済みフラグ
     protected val player: ExoPlayer? get() = if(resetablePlayer.hasValue) resetablePlayer.value else null
 
-    fun requirePlayer():ExoPlayer {
-        return player ?: throw IllegalStateException("ExoPlayer has been killed.")
-    }
-
-    protected inline fun <T> withPlayer(def:T, fn:(ExoPlayer)->T):T {
-        return player?.run {
-            fn(this)
-        } ?: def
-    }
+//    fun requirePlayer():ExoPlayer {
+//        return player ?: throw IllegalStateException("ExoPlayer has been killed.")
+//    }
+//
+//    protected inline fun <T> withPlayer(def:T, fn:(ExoPlayer)->T):T {
+//        return player?.run {
+//            fn(this)
+//        } ?: def
+//    }
 
     protected inline fun withPlayer(fn:(ExoPlayer)->Unit) {
-        player?.apply{ fn(this) }
+        player?.apply{ fn(this) } ?: logger.error("no exoPlayer now")
     }
     protected inline fun <T> runOnPlayer(def:T, fn:ExoPlayer.()->T):T {
         return player?.run {
@@ -436,6 +436,10 @@ open class BasicPlayerModel(
         withPlayer { player ->
             playerView.player = player
         }
+    }
+
+    override fun dissociatePlayerView(playerView: StyledPlayerView) {
+        playerView.player = null
     }
 
     /**
