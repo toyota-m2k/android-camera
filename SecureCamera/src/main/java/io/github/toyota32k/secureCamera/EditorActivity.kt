@@ -9,8 +9,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
+import io.github.toyota32k.bindit.enableBinding
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
@@ -38,21 +40,28 @@ class EditorActivity : UtMortalActivity() {
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         val playerModel get() = playerControllerModel.playerModel
-        val chapterList get() = (playerModel.currentSource.value as? IMediaSourceWithChapter)?.chapterList as? IMutableChapterList
+        val chapterList by lazy { ChapterEditor((playerModel.currentSource.value as IMediaSourceWithChapter).chapterList as IMutableChapterList) }
         val commandAddChapter = LiteUnitCommand {
-            chapterList?.addChapter(playerModel.currentPosition, "", null)
+            chapterList.addChapter(playerModel.currentPosition, "", null)
         }
         val commandRemoveChapter = LiteUnitCommand {
-            val neighbor = chapterList?.getNeighborChapters(playerModel.currentPosition) ?: return@LiteUnitCommand
-            chapterList?.removeChapterAt(neighbor.next)
+            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
+            chapterList.removeChapterAt(neighbor.next)
         }
         val commandToggleSkip = LiteUnitCommand {
-            val chapter = chapterList?.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
-            chapterList?.skipChapter(chapter, !chapter.skip)
+            val chapter = chapterList.getChapterAround(playerModel.currentPosition)
+            chapterList.skipChapter(chapter, !chapter.skip)
         }
         val commandSave = LiteUnitCommand()
         fun setSource(name: String) {
             playerModel.setSource(VideoSource(name), false)
+        }
+
+        val commandUndo = LiteUnitCommand {
+            chapterList.undo()
+        }
+        val commandRedo = LiteUnitCommand {
+            chapterList.redo()
         }
 
 //        fun reset() {
@@ -91,6 +100,11 @@ class EditorActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         hideActionBar()
         //setContentView(R.layout.activity_editor)
+        if(savedInstanceState==null) {
+            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
+            viewModel.setSource(name)
+        }
+
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
         binder
@@ -99,11 +113,11 @@ class EditorActivity : UtMortalActivity() {
             .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
             .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
             .bindCommand(viewModel.commandSave, controls.saveVideo, callback = ::trimmingAndSave)
+            .enableBinding(controls.redo, viewModel.chapterList.canRedo)
+            .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+            .bindCommand(viewModel.commandUndo, controls.undo)
+            .bindCommand(viewModel.commandRedo, controls.redo)
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
-        if(savedInstanceState==null) {
-            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-            viewModel.setSource(name)
-        }
     }
 
     private fun formatTime(time:Long, duration:Long) : String {
@@ -144,7 +158,7 @@ class EditorActivity : UtMortalActivity() {
     private fun trimmingAndSave() {
         val srcFile = File(application.filesDir ?: return, (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.name ?: return)
         val dstFile = File(application.cacheDir ?: return, "trimming")
-        val ranges = viewModel.chapterList?.enabledRanges(Range.empty) ?: return
+        val ranges = viewModel.chapterList.enabledRanges(Range.empty) ?: return
 
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
@@ -212,7 +226,7 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList?.isNotEmpty==true) {
+            if(viewModel.chapterList.isNotEmpty==true) {
                 UtImmortalSimpleTask.run {
                     if(showYesNoMessageBox(null, "Chapters are editing. Are you sure to abort them?")) {
                         getActivity()?.finish()

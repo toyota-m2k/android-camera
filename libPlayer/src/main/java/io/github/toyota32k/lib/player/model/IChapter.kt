@@ -20,10 +20,23 @@ interface IChapterList {
 
     fun getNeighborChapters(pivot:Long): NeighborChapter
 
+    fun indexOf(position:Long):Int
     val isEmpty:Boolean
         get() = chapters.isEmpty() || (chapters.size==1 && chapters[0].position==0L && !chapters[0].skip)
 
     val isNotEmpty:Boolean get() = !isEmpty
+}
+
+fun IChapterList.indexOf(chapter: IChapter):Int
+        = indexOf(chapter.position)
+fun IChapterList.chapterAt(index:Int): IChapter? {
+    if(index<0 || chapters.size<=index) return null
+    return chapters[index]
+}
+fun IChapterList.chapterOn(position:Long):IChapter? {
+    val i = indexOf(position)
+    if(i<0) return null
+    return chapterAt(i)
 }
 
 interface IMutableChapterList : IChapterList {
@@ -46,25 +59,33 @@ interface IMutableChapterList : IChapterList {
      * @return true: 変更した / false: 変更しなかった（チャプターが存在しない、or 属性が変化しない）
      */
     fun updateChapter(position: Long, label:String?=null, skip:Boolean?=null):Boolean
-    fun updateChapter(chapter:IChapter, label:String?=null, skip:Boolean?=null):Boolean
-        = updateChapter(chapter.position, label, skip)
-    fun updateChapter(chapter:IChapter):Boolean
-            = updateChapter(chapter.position, chapter.label, chapter.skip)
 
-    fun skipChapter(position:Long, skip: Boolean):Boolean {
-        return updateChapter(position, null, skip)
-    }
-    fun skipChapter(chapter: IChapter, skip: Boolean):Boolean
-        = skipChapter(chapter.position, skip)
     /**
      * チャプターを削除する
      * @param position 削除するチャプターのposition
      * @return true: 変更した / false: 変更しなかった（チャプターが存在しない　or 削除禁止の先頭チャプター）
      */
-    fun removeChapter(position:Long):Boolean
-    fun removeChapter(chapter: IChapter):Boolean
-        = removeChapter(chapter.position)
     fun removeChapterAt(index:Int):Boolean
 
     val modifiedListener: Listeners<Unit>
 }
+
+fun IMutableChapterList.addChapter(chapter:IChapter):Boolean
+        = addChapter(chapter.position, chapter.label, chapter.skip)
+fun IMutableChapterList.updateChapter(chapter:IChapter, label:String?=null, skip:Boolean?=null):Boolean
+        = updateChapter(chapter.position, label, skip)
+fun IMutableChapterList.updateChapter(chapter:IChapter):Boolean
+        = updateChapter(chapter.position, chapter.label, chapter.skip)
+
+fun IMutableChapterList.skipChapter(position:Long, skip: Boolean):Boolean {
+    return updateChapter(position, null, skip)
+}
+fun IMutableChapterList.skipChapter(chapter: IChapter, skip: Boolean):Boolean
+        = skipChapter(chapter.position, skip)
+
+fun IMutableChapterList.removeChapter(position:Long):Boolean {
+    val index = indexOf(position)
+    if(index<=0) return false       // index 0 は削除禁止
+    return removeChapterAt(index)
+}
+

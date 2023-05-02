@@ -107,6 +107,9 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         }
         return NeighborChapter(count-1,-1,-1)
     }
+    override fun indexOf(position: Long): Int {
+        return sortedList.sorter.find(workChapter.at(position))
+    }
 
     override fun getChapterAround(position:Long):IChapter {
         val neighbor = getNeighborChapters(position)
@@ -282,7 +285,7 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
      * @return true: 変更した / false: 変更しなかった（チャプターが存在しない、or 属性が変化しない）
      */
     override fun updateChapter(position:Long, label:String?, skip:Boolean?):Boolean {
-        val index = sortedList.sorter.find(workChapter.at(position))
+        val index = indexOf(position)
         if(index<0) return false
         if(label==null && skip==null) return false
         val chapter = sortedList[index]
@@ -295,14 +298,14 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
      * @param position 削除するチャプターのposition
      * @return true: 変更した / false: 変更しなかった（チャプターが存在しない　or 削除禁止の先頭チャプター）
      */
-    override fun removeChapter(position: Long): Boolean {
-        if(position == 0L) return false  // 先頭のChapterは必ず存在し、削除は禁止
-        val i = sortedList.sorter.find(workChapter.at(position))
-        if(i<0) return false    // 存在しない
-        sortedList.removeAt(i)
-        invalidate()
-        return true
-    }
+//    override fun removeChapter(position: Long): Boolean {
+//        if(position == 0L) return false  // 先頭のChapterは必ず存在し、削除は禁止
+//        val i = indexOf(position)
+//        if(i<0) return false    // 存在しない
+//        sortedList.removeAt(i)
+//        invalidate()
+//        return true
+//    }
 
     override fun removeChapterAt(index: Int): Boolean {
         if(index<=0||sortedList.size<=index) return false
