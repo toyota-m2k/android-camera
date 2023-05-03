@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.viewModels
@@ -35,8 +36,8 @@ import java.util.concurrent.atomic.AtomicLong
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application) {
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
-            .supportFullscreen()
             .supportChapter()
+            .supportSnapshot(this::onSnapshot)
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         val playerModel get() = playerControllerModel.playerModel
@@ -64,9 +65,10 @@ class EditorActivity : UtMortalActivity() {
             chapterList.redo()
         }
 
-//        fun reset() {
-//            playerModel.reset()
-//        }
+        private fun onSnapshot(pos:Long, bitmap: Bitmap) {
+            val sourceName = playerModel.currentSource.value?.name?: return
+            PlayerActivity.PlayerViewModel.takeSnapshot(sourceName, pos, bitmap) ?: return
+        }
 
         override fun onCleared() {
             super.onCleared()

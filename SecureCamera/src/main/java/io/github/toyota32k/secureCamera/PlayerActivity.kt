@@ -29,6 +29,7 @@ import io.github.toyota32k.bindit.command.LongClickUnitCommand
 import io.github.toyota32k.bindit.list.ObservableList
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
@@ -82,6 +83,27 @@ class PlayerActivity : UtMortalActivity() {
                 }
                 return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
             }
+
+            fun takeSnapshot(sourceName:String, pos:Long, bitmap: Bitmap):String? {
+                return try {
+//                    val current = playlist.currentSelection.value ?: return
+                    val orgDate = filename2date(sourceName) ?: return null
+                    val date = Date(orgDate.time + pos)
+                    val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
+                    val file = File(UtImmortalTaskManager.application.filesDir, filename)
+                    file.outputStream().use {
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                        it.flush()
+                    }
+                    filename
+                } catch(e:Throwable) {
+                    TpLib.logger.error(e)
+                    null
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+
         }
 
         private val context: Application
@@ -191,6 +213,10 @@ class PlayerActivity : UtMortalActivity() {
                 hasNext.mutable.value = index<collection.size-1
             }
 
+            fun refreshList() {
+                setListMode(listMode.value)
+            }
+
             private fun setListMode(mode:ListMode) {
                 val newList = when(mode) {
                     ListMode.VIDEO->context.fileList().filter {it.endsWith(VIDEO_EXTENSION) }
@@ -259,23 +285,10 @@ class PlayerActivity : UtMortalActivity() {
         }
         
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
-            try {
-                val current = playlist.currentSelection.value ?: return
-                val orgDate = filename2date(current) ?: return
-                val date = Date(orgDate.time + pos)
-                val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
-                val file = File(context.filesDir, filename)
-                file.outputStream().use {
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
-                    it.flush()
-                }
-                if(playlist.listMode.value!=ListMode.VIDEO) {
-                    playlist.sorter.add(filename)
-                }
-            } catch(e:Throwable) {
-                TpLib.logger.error(e)
-            } finally {
-                bitmap.recycle()
+            val sourceName = playlist.currentSelection.value ?: return
+            val filename = takeSnapshot(sourceName,pos,bitmap) ?: return
+            if(playlist.listMode.value!=ListMode.VIDEO) {
+                playlist.sorter.add(filename)
             }
         }
 
@@ -367,7 +380,7 @@ class PlayerActivity : UtMortalActivity() {
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val isVideo = name.endsWith(VIDEO_EXTENSION)
                 textView.text = name
-                sizeView.text = "${formatSize(File(filesDir, name).length())}"
+                sizeView.text = formatSize(File(filesDir, name).length())
                 itemBinder
                     .owner(this)
                     .bindCommand(LiteUnitCommand { viewModel.playlist.select(name)}, views)
@@ -556,6 +569,7 @@ class PlayerActivity : UtMortalActivity() {
         super.onResume()
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()
+            viewModel.playlist.refreshList()
         }
     }
 
