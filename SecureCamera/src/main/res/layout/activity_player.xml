@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:orientation="horizontal"
     tools:context=".PlayerActivity"
-    android:background="@color/gray20"
+    android:background="?attr/splitterColor"
     >
 
     <LinearLayout
@@ -15,6 +15,7 @@
         android:layout_width="300dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
+        android:layout_marginEnd="1dp"
         android:background="?attr/colorSurface"
         >
         <com.google.android.material.button.MaterialButtonToggleGroup
@@ -61,7 +62,6 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginStart="1dp"
         android:background="?attr/playerBackground"
         >
         <FrameLayout
@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_gravity="bottom|center_horizontal"
-                android:background="@color/translucent_white"
+                android:background="?attr/controlPanelColor"
                 >
 <!--                <ImageButton-->
 <!--                    android:id="@+id/image_prev_button"-->

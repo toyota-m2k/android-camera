@@ -27,7 +27,7 @@ enum class Timing {
 }
 
 class UtGestureInterpreter(
-    applicationContext: Context,
+    val applicationContext: Context,
     enableScaleEvent:Boolean,
     val rapidTap:Boolean = false        // true にすると、onSingleTapUp で tapEvent を発行。ただし、doubleTapEventは無効になる。
 ) : OnTouchListener {
@@ -398,8 +398,8 @@ class UtGestureInterpreter(
             }
         }
 
-        private val SWIPE_THRESHOLD = 100
-        private val SWIPE_VELOCITY_THRESHOLD = 100
+        private val SWIPE_THRESHOLD:Int by lazy { applicationContext.dp2px(100) }
+        private val SWIPE_VELOCITY_THRESHOLD by lazy { SWIPE_THRESHOLD*20 }
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {

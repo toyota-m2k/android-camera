@@ -30,6 +30,7 @@
         <item name="panelBackgroundColor">#40FFFFFF</item>
         <!-- libPlayer theme -->
         <item name="playerBackground">@color/white</item>
+        <item name="splitterColor">@color/gray20</item>
 
         <item name="colorDialogSurface">?attr/colorSurface</item>
         <item name="colorOnDialogSurface">?android:textColorPrimary</item>
