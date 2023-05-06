@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -99,6 +100,9 @@ class PasswordDialog : UtDialogEx() {
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogPasswordBinding.inflate(inflater.layoutInflater)
+        if(viewModel.mode==PasswordViewModel.Mode.CHECK_PASSWORD) {
+            controls.password.imeOptions = EditorInfo.IME_ACTION_DONE
+        }
         return controls.root.also { _ ->
             if(viewModel.mode== PasswordViewModel.Mode.NEW_PASSWORD) {
                 controls.passwordInputLayout.hint = getString(R.string.password_hint_new)
@@ -173,13 +177,17 @@ class PasswordDialog : UtDialogEx() {
         suspend fun checkPassword():Boolean {
             if(!Settings.Security.enablePassword) return true
             return UtImmortalSimpleTask.runAsync("checkPassword") {
-                val vm =
-                    PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
-                showDialog(taskName) { PasswordDialog() }.status.ok.onTrue {
-                    if(vm.checkResult== PasswordViewModel.CheckPasswordResult.BLOCKED) {
-                        showConfirmMessageBox(getString(R.string.password), getString(R.string.password_error))
+                val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
+                if(showDialog(taskName) { PasswordDialog() }.status.ok) {
+                    when (vm.checkResult) {
+                        PasswordViewModel.CheckPasswordResult.NG -> false
+                        PasswordViewModel.CheckPasswordResult.OK -> true
+                        PasswordViewModel.CheckPasswordResult.BLOCKED -> {
+                            showConfirmMessageBox(getString(R.string.password),getString(R.string.password_error))
+                            true
+                        }
                     }
-                }
+                } else false
             }
         }
 
