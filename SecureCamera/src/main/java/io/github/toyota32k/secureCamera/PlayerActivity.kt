@@ -461,8 +461,7 @@ class PlayerActivity : UtMortalActivity() {
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
             if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-                viewModel.playerControllerModel.showControlPanel.value =
-                    eventIFlickEvent.direction == Direction.Start
+                viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
             }
         }
 
@@ -535,10 +534,12 @@ class PlayerActivity : UtMortalActivity() {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
+                hideStatusBar()
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
+                showStatusBar()
             }
         }
     }

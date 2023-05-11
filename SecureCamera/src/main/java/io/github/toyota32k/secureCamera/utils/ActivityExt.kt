@@ -21,9 +21,9 @@ fun FragmentActivity.hideStatusBar() {
 }
 
 fun FragmentActivity.showStatusBar() {
-    WindowCompat.setDecorFitsSystemWindows(window, false)
+    WindowCompat.setDecorFitsSystemWindows(window, true)
     WindowInsetsControllerCompat(window, window.decorView.rootView).let { controller ->
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_TOUCH
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         controller.show(WindowInsetsCompat.Type.systemBars())
     }
 }

@@ -24,6 +24,7 @@ import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.TimeSpan
 import io.github.toyota32k.secureCamera.utils.hideActionBar
+import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
@@ -101,6 +102,7 @@ class EditorActivity : UtMortalActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         hideActionBar()
+        hideStatusBar()
         //setContentView(R.layout.activity_editor)
         if(savedInstanceState==null) {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")

@@ -38,6 +38,8 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.Direction
+import io.github.toyota32k.secureCamera.utils.hideActionBar
+import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.UtObservableFlag
 import io.github.toyota32k.utils.bindCommand
@@ -208,32 +210,16 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
     }
 
-    private fun hideActionBar() {
-        supportActionBar?.hide()
-    }
-    private fun hideStatusBar() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, controls.root).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-//
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-//            window?.insetsController?.hide(
-//                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
-//            )
-//        } else {
-//            @Suppress("DEPRECATION")
-//            window?.decorView?.systemUiVisibility =
-//                (
-//                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-//                        or View.SYSTEM_UI_FLAG_FULLSCREEN
-//                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-//                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-//                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-//                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+//    private fun hideActionBar() {
+//        supportActionBar?.hide()
+//    }
+//    private fun hideStatusBar() {
+//        WindowCompat.setDecorFitsSystemWindows(window, false)
+//        WindowInsetsControllerCompat(window, controls.root).let { controller ->
+//            controller.hide(WindowInsetsCompat.Type.systemBars())
+//            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 //        }
-    }
+//    }
 
     private fun toggleCamera() {
         val current = currentCamera?.frontCamera ?: return
