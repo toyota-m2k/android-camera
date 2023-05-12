@@ -125,9 +125,12 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         }
     }
 
+    var onFinalized: (()->Unit)? = null
+
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    override fun takeVideo(options:OutputOptions) {
+    override fun takeVideo(options:OutputOptions, onFinalized:(()->Unit)?) {
         stop()
+        this.onFinalized = onFinalized
         videoCapture
             .output
             .prepareRecording(options)
@@ -135,8 +138,9 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
             .start(ContextCompat.getMainExecutor(context), this)
             .apply { recording = this }
     }
-    override fun takeVideoWithoutAudio(options:OutputOptions) {
+    override fun takeVideoWithoutAudio(options:OutputOptions, onFinalized:(()->Unit)?) {
         stop()
+        this.onFinalized = onFinalized
         videoCapture
             .output
             .prepareRecording(options)
@@ -165,15 +169,15 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
      * 動画を撮影してメディアストア内に保存する
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    override fun takeVideoInMediaStore(fileName:String) {
-        takeVideo(createMediaStoreOutputOptions(fileName))
+    override fun takeVideoInMediaStore(fileName:String, onFinalized:(()->Unit)?) {
+        takeVideo(createMediaStoreOutputOptions(fileName), onFinalized)
     }
 
     /**
      * 動画を撮影してメディアストア内に保存する
      */
-    override fun takeVideoWithoutAudioInMediaStore(fileName:String) {
-        takeVideoWithoutAudio(createMediaStoreOutputOptions(fileName))
+    override fun takeVideoWithoutAudioInMediaStore(fileName:String, onFinalized:(()->Unit)?) {
+        takeVideoWithoutAudio(createMediaStoreOutputOptions(fileName), onFinalized)
     }
 
     private fun createFileOutputOptions(file:File, fileSizeLimit:Long=FILE_SIZE_UNLIMITED.toLong()):FileOutputOptions {
@@ -186,14 +190,14 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
      * 動画を撮影してFileに保存する。
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    override fun takeVideoInFile(file: File) {
-        takeVideo(createFileOutputOptions(file))
+    override fun takeVideoInFile(file: File, onFinalized:(()->Unit)?) {
+        takeVideo(createFileOutputOptions(file), onFinalized)
     }
     /**
      * 動画を撮影してFileに保存する。
      */
-    override fun takeVideoWithoutAudioInFile(file:File) {
-        takeVideoWithoutAudio(createFileOutputOptions(file))
+    override fun takeVideoWithoutAudioInFile(file:File, onFinalized:(()->Unit)?) {
+        takeVideoWithoutAudio(createFileOutputOptions(file), onFinalized)
     }
 
     private fun crateFileDescriptionOutputOptions(uri:Uri, fileSizeLimit:Long=FILE_SIZE_UNLIMITED.toLong()):FileDescriptorOutputOptions {
@@ -206,14 +210,14 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
      * 動画を撮影してUriに保存する。
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    override fun takeVideoInFile(uri: Uri) {
-        takeVideo(crateFileDescriptionOutputOptions(uri))
+    override fun takeVideoInFile(uri: Uri, onFinalized:(()->Unit)?) {
+        takeVideo(crateFileDescriptionOutputOptions(uri),onFinalized)
     }
     /**
      * 動画を撮影してUriに保存する。
      */
-    override fun takeVideoWithoutAudioInFile(uri:Uri) {
-        takeVideoWithoutAudio(crateFileDescriptionOutputOptions(uri))
+    override fun takeVideoWithoutAudioInFile(uri:Uri, onFinalized:(()->Unit)?) {
+        takeVideoWithoutAudio(crateFileDescriptionOutputOptions(uri),onFinalized)
     }
 
     // endregion
@@ -231,6 +235,8 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
     override fun stop() {
         recording?.stop() // ?: throw java.lang.IllegalStateException("not recording")
         recording = null
+        onFinalized?.invoke()
+        onFinalized = null
     }
 
 //    override fun close() {

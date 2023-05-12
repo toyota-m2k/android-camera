@@ -7,6 +7,7 @@ import android.view.KeyEvent
 import androidx.activity.viewModels
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.bindit.LiteUnitCommand
@@ -20,6 +21,8 @@ import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
+import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.TimeSpan
@@ -55,8 +58,8 @@ class EditorActivity : UtMortalActivity() {
             chapterList.skipChapter(chapter, !chapter.skip)
         }
         val commandSave = LiteUnitCommand()
-        fun setSource(name: String) {
-            playerModel.setSource(VideoSource(name), false)
+        fun setSource(item: MetaData) {
+            playerModel.setSource(VideoSource(item), false)
         }
 
         val commandUndo = LiteUnitCommand {
@@ -67,8 +70,10 @@ class EditorActivity : UtMortalActivity() {
         }
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
-            val sourceName = playerModel.currentSource.value?.name?: return
-            PlayerActivity.PlayerViewModel.takeSnapshot(sourceName, pos, bitmap) ?: return
+            val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
+            CoroutineScope(Dispatchers.IO).launch {
+                PlayerActivity.PlayerViewModel.takeSnapshot(source, pos, bitmap)
+            }
         }
 
         override fun onCleared() {
@@ -77,8 +82,10 @@ class EditorActivity : UtMortalActivity() {
             playerControllerModel.close()
         }
 
-        inner class VideoSource(override val name:String) : IMediaSourceWithChapter {
-            private val file: File = File(getApplication<Application>().filesDir, name)
+        inner class VideoSource(val item: MetaData) : IMediaSourceWithChapter {
+            override val name:String
+                get() = item.name
+            private val file: File = item.file(getApplication())
             override val id: String
                 get() = name
             override val uri: String
@@ -105,8 +112,11 @@ class EditorActivity : UtMortalActivity() {
         hideStatusBar()
         //setContentView(R.layout.activity_editor)
         if(savedInstanceState==null) {
-            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-            viewModel.setSource(name)
+            lifecycleScope.launch {
+                val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
+                val item = MetaDB.itemOf(name) ?: throw IllegalStateException("no item")
+                viewModel.setSource(item)
+            }
         }
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
@@ -162,7 +172,7 @@ class EditorActivity : UtMortalActivity() {
     private fun trimmingAndSave() {
         val srcFile = File(application.filesDir ?: return, (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.name ?: return)
         val dstFile = File(application.cacheDir ?: return, "trimming")
-        val ranges = viewModel.chapterList.enabledRanges(Range.empty) ?: return
+        val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
@@ -230,7 +240,7 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList.isNotEmpty==true) {
+            if(viewModel.chapterList.isNotEmpty) {
                 UtImmortalSimpleTask.run {
                     if(showYesNoMessageBox(null, "Chapters are editing. Are you sure to abort them?")) {
                         getActivity()?.finish()

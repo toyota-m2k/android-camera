@@ -15,6 +15,7 @@ import io.github.toyota32k.bindit.LiteUnitCommand
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
+import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -34,6 +35,7 @@ class MainActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MetaDB.initialize(this)
         Settings.initialize(this)
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)

@@ -12,7 +12,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapterList {
-    protected val sortedList = UtSortedList(mutableList, allowDuplication = false, comparator = ::chapterComparator)
+    protected val sortedList = UtSortedList(mutableList, actionOnDuplicate = UtSorter.ActionOnDuplicate.REJECT, comparator = ::chapterComparator)
     private val workPosition = UtSorter.Position()
     protected val workChapter = DmyChapter()  // 検索用のダミー
     protected class DmyChapter:IChapter {
