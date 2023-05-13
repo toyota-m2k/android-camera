@@ -13,6 +13,7 @@ import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.lib.player.model.option.ChapterHandlerImpl
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.combine
@@ -89,6 +90,8 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     val rect = RectF()
     val paint = Paint()
 
+    private val hideChapterViewIfEmpty by lazy { (model as? IChapterHandler)?.hideChapterViewIfEmpty == true }
+
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
 
@@ -96,6 +99,7 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         if(mWidth==0||mHeight==0) return
         if(!this::model.isInitialized) return
         if(duration<=0L) return
+        if(hideChapterViewIfEmpty && chapterList?.isNotEmpty!=true) return
         val list = chapterList?.chapters ?: return
 
         val width = mWidth.toFloat()

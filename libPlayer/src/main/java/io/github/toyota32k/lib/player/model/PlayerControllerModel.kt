@@ -51,10 +51,12 @@ open class PlayerControllerModel(
         private var mShowNextPreviousButton:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
+        private var mHideChapterViewIfEmpty = false
 //        private var mScope:CoroutineScope? = null
 
-        fun supportChapter():Builder {
+        fun supportChapter(hideChapterViewIfEmpty:Boolean=false):Builder {
             mSupportChapter = true
+            mHideChapterViewIfEmpty = hideChapterViewIfEmpty
             return this
         }
         fun supportPlaylist(playlist:IMediaFeed, autoPlay:Boolean, continuousPlay:Boolean):Builder {
@@ -100,8 +102,8 @@ open class PlayerControllerModel(
 
         fun build():PlayerControllerModel {
             val playerModel = when {
-                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                mSupportChapter -> ChapterPlayerModel(context, coroutineScope)
+                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay, mHideChapterViewIfEmpty)
+                mSupportChapter -> ChapterPlayerModel(context, coroutineScope, mHideChapterViewIfEmpty)
                 mPlaylist!=null -> PlaylistPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, coroutineScope)
             }

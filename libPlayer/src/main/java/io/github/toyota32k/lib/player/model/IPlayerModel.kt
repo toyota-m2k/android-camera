@@ -62,6 +62,7 @@ interface IPlaylistHandler {
 }
 
 interface  IChapterHandler {
+    val hideChapterViewIfEmpty:Boolean
     val commandNextChapter: IUnitCommand
     val commandPrevChapter: IUnitCommand
 

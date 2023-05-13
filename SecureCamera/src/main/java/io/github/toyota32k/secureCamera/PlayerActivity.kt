@@ -114,6 +114,7 @@ class PlayerActivity : UtMortalActivity() {
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
             .supportSnapshot(::onSnapshot)
+            .supportChapter(hideChapterViewIfEmpty = true)
             .enableRotateRight()
             .enableRotateLeft()
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
