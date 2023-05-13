@@ -170,7 +170,8 @@ class EditorActivity : UtMortalActivity() {
         }
     }
     private fun trimmingAndSave() {
-        val srcFile = File(application.filesDir ?: return, (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.name ?: return)
+        val targetItem = (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.item ?: return
+        val srcFile = targetItem.file(application)
         val dstFile = File(application.cacheDir ?: return, "trimming")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 
@@ -200,6 +201,7 @@ class EditorActivity : UtMortalActivity() {
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         safeDelete(srcFile)
                         dstFile.renameTo(srcFile)
+                        MetaDB.updateFile(targetItem)
 //                        val testFile = File(filesDir, "mov-2030.01.01-00:00:00.mp4")
 //                        safeDelete(testFile)
 //                        dstFile.renameTo(testFile)

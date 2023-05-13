@@ -387,7 +387,7 @@ class PlayerActivity : UtMortalActivity() {
                 val isVideo = item.isVideo
                 textView.text = item.name
                 sizeView.text = formatSize(item.size)
-                if(isVideo) {
+                if(!isVideo) {
                     durationView.visibility = View.GONE
                 } else {
                     durationView.text = formatTime(item.duration,item.duration)
