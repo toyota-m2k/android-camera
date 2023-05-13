@@ -6,6 +6,8 @@ import android.media.MediaMetadataRetriever
 import android.os.ParcelFileDescriptor
 import androidx.room.Room
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
+import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
@@ -27,12 +29,13 @@ object MetaDB {
     fun initialize(context: Context) {
         if(!this::db.isInitialized) {
             application = context.applicationContext as Application
+
             db = Room.databaseBuilder(this.application, Database::class.java, "meta.db").build()
             CoroutineScope(Dispatchers.IO).launch {
                 val s = db.kvTable().getAt("INIT")
-                if (s == null||s.value=="3") {
+                if (s == null) {
                     makeAll()
-                    db.kvTable().insert(KeyValueEntry("INIT", "4"))
+                    db.kvTable().insert(KeyValueEntry("INIT", "1"))
                 }
             }
         }
@@ -196,6 +199,20 @@ object MetaDB {
             } catch (_: Throwable) {
             }
             db.metaDataTable().delete(data)
+        }
+    }
+
+    suspend fun getChaptersFor(data:MetaData):List<IChapter> {
+        return withContext(Dispatchers.IO) {
+            db.chapterDataTable().getByOwner(data.id).map {
+                Chapter(it.position, it.label, it.disabled)
+            }
+        }
+    }
+
+    suspend fun setChaptersFor(data: MetaData, chapters:List<IChapter>) {
+        return withContext(Dispatchers.IO) {
+            db.chapterDataTable().setForOwner(data.id, chapters.map {ChapterData(0,data.id, it.position, it.label, it.skip)})
         }
     }
 

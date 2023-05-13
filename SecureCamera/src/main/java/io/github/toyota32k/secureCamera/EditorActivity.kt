@@ -45,7 +45,10 @@ class EditorActivity : UtMortalActivity() {
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         val playerModel get() = playerControllerModel.playerModel
-        val chapterList by lazy { ChapterEditor((playerModel.currentSource.value as IMediaSourceWithChapter).chapterList as IMutableChapterList) }
+        val videoSource get() = playerModel.currentSource.value as VideoSource
+        val chapterList by lazy {
+            ChapterEditor(videoSource.chapterList as IMutableChapterList)
+        }
         val commandAddChapter = LiteUnitCommand {
             chapterList.addChapter(playerModel.currentPosition, "", null)
         }
@@ -58,8 +61,9 @@ class EditorActivity : UtMortalActivity() {
             chapterList.skipChapter(chapter, !chapter.skip)
         }
         val commandSave = LiteUnitCommand()
-        fun setSource(item: MetaData) {
+        fun setSource(item: MetaData, chapters:List<IChapter>) {
             playerModel.setSource(VideoSource(item), false)
+            chapterList.initChapters(chapters)
         }
 
         val commandUndo = LiteUnitCommand {
@@ -110,27 +114,35 @@ class EditorActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         hideActionBar()
         hideStatusBar()
-        //setContentView(R.layout.activity_editor)
-        if(savedInstanceState==null) {
-            lifecycleScope.launch {
-                val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-                val item = MetaDB.itemOf(name) ?: throw IllegalStateException("no item")
-                viewModel.setSource(item)
-            }
-        }
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
+
         binder
             .owner(this)
             .bindCommand(viewModel.commandAddChapter, controls.makeChapter)
             .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
             .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
             .bindCommand(viewModel.commandSave, controls.saveVideo, callback = ::trimmingAndSave)
-            .enableBinding(controls.redo, viewModel.chapterList.canRedo)
-            .enableBinding(controls.undo, viewModel.chapterList.canUndo)
             .bindCommand(viewModel.commandUndo, controls.undo)
             .bindCommand(viewModel.commandRedo, controls.redo)
+
+        if(savedInstanceState==null) {
+            lifecycleScope.launch {
+                val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
+                val item = MetaDB.itemOf(name) ?: throw IllegalStateException("no item")
+                val chapters = MetaDB.getChaptersFor(item)
+                viewModel.setSource(item, chapters)
+                binder
+                    .enableBinding(controls.redo, viewModel.chapterList.canRedo)
+                    .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+            }
+        } else {
+            binder
+                .enableBinding(controls.redo, viewModel.chapterList.canRedo)
+                .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+        }
+
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
     }
 
@@ -242,11 +254,12 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList.isNotEmpty) {
+            if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
-                    if(showYesNoMessageBox(null, "Chapters are editing. Are you sure to abort them?")) {
-                        getActivity()?.finish()
+                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
                     }
+                    getActivity()?.finish()
                     true
                 }
                 return true

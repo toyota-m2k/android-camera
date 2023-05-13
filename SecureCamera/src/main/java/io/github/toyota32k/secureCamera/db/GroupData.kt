@@ -15,6 +15,7 @@ data class GroupData(
     @PrimaryKey(autoGenerate = true)
     val id:Int,
     val name:String,
+    val flag:Int,
 )
 
 @Dao

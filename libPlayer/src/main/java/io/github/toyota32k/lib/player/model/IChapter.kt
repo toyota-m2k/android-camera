@@ -40,6 +40,8 @@ fun IChapterList.chapterOn(position:Long):IChapter? {
 }
 
 interface IMutableChapterList : IChapterList {
+    fun initChapters(chapters:List<IChapter>)
+
     /**
      * チャプターを挿入
      *

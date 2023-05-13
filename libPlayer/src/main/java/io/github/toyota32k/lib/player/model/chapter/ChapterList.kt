@@ -254,6 +254,13 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
 
 class MutableChapterList : ChapterList(), IMutableChapterList {
     override val modifiedListener = Listeners<Unit>()
+
+    override fun initChapters(chapters: List<IChapter>) {
+        chapters.forEach {
+            addChapter(it.position, it.label, it.skip)
+        }
+    }
+
     /**
      * チャプターを挿入
      *

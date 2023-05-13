@@ -5,12 +5,14 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Entity(
     tableName="t_chapters",
-    indices = [Index(value = ["ownerId"])],
+    indices = [Index(value = ["ownerId"]), Index(value = ["ownerId", "position"],unique = true)],
     foreignKeys = [ForeignKey(entity=MetaData::class, parentColumns = ["id"], childColumns = ["ownerId"], onDelete = ForeignKey.CASCADE)]
 )
 data class ChapterData(
@@ -18,6 +20,7 @@ data class ChapterData(
     val id:Int,
     val ownerId: Int,
     val position:Long,
+    val label: String,
     val disabled: Boolean
 )
 
@@ -29,6 +32,13 @@ interface ChapterDataTable {
     @Query("DELETE from t_chapters WHERE ownerId = :ownerId")
     fun deleteByOwner(ownerId: Int):Int
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(vararg chapter:ChapterData)
+
+    @Transaction
+    fun setForOwner(ownerId:Int, chapters:List<ChapterData>) {
+        deleteByOwner(ownerId)
+        insert(*chapters.toTypedArray())
+    }
+
 }

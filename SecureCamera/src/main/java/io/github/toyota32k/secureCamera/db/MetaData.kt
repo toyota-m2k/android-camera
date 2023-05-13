@@ -27,6 +27,8 @@ data class MetaData(
     val date:Long,
     val size:Long,
     val duration:Long,
+    val flag: Int = 0,
+    val ext: String? = null,
 ) {
     val isVideo:Boolean
         get() = type == 1
