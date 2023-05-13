@@ -9,6 +9,7 @@ open class UtSortedList<T>(
     )
     : MutableList<T> by innerList {
     constructor(actionOnDuplicate: UtSorter.ActionOnDuplicate, comparator: Comparator<T>):this(mutableListOf(),actionOnDuplicate,comparator)
+//    constructor(list:List<T>, actionOnDuplicate: UtSorter.ActionOnDuplicate, comparator: Comparator<T>):this(list.toMutableList(),actionOnDuplicate,comparator)
 
     val sorter = UtSorter<T>(innerList, actionOnDuplicate, comparator)
     override fun add(element: T): Boolean {

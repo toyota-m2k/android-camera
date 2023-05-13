@@ -8,15 +8,19 @@ interface IChapter {
     val skip:Boolean
 }
 
-data class NeighborChapter(val prev:Int, val hit:Int, val next:Int)
+data class NeighborChapter(val prev:Int, val hit:Int, val next:Int) {
+    companion object {
+        val empty = NeighborChapter(-1,-1,-1)
+    }
+}
 
 interface IChapterList {
     val chapters:List<IChapter>
     fun prev(current:Long) : IChapter?
     fun next(current:Long) : IChapter?
-    fun getChapterAround(position:Long):IChapter
-    fun enabledRanges(trimming: Range) : List<Range>
-    fun disabledRanges(trimming: Range) : List<Range>
+    fun getChapterAround(position:Long):IChapter?
+    fun enabledRanges(trimming: Range=Range.empty) : List<Range>
+    fun disabledRanges(trimming: Range=Range.empty) : List<Range>
 
     fun getNeighborChapters(pivot:Long): NeighborChapter
 
@@ -25,7 +29,48 @@ interface IChapterList {
         get() = chapters.isEmpty() || (chapters.size==1 && chapters[0].position==0L && !chapters[0].skip)
 
     val isNotEmpty:Boolean get() = !isEmpty
+
+    fun defrag(trimming: Range=Range.empty):List<IChapter>
+
+    object Empty : IChapterList {
+        override val chapters: List<IChapter>
+            get() = emptyList()
+
+        override fun prev(current: Long): IChapter? {
+            return null
+        }
+
+        override fun next(current: Long): IChapter? {
+            return null
+        }
+
+
+        override fun getChapterAround(position: Long): IChapter? {
+            return null
+        }
+
+        override fun enabledRanges(trimming: Range): List<Range> {
+            return emptyList()
+        }
+
+        override fun disabledRanges(trimming: Range): List<Range> {
+            return emptyList()
+        }
+
+        override fun getNeighborChapters(pivot: Long): NeighborChapter {
+            return NeighborChapter.empty
+        }
+
+        override fun indexOf(position: Long): Int {
+            return -1
+        }
+
+        override fun defrag(trimming: Range): List<IChapter> {
+            return emptyList()
+        }
+    }
 }
+
 
 fun IChapterList.indexOf(chapter: IChapter):Int
         = indexOf(chapter.position)

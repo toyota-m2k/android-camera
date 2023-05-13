@@ -2,24 +2,42 @@ package io.github.toyota32k.secureCamera.db
 
 import android.app.Application
 import android.content.Context
-import android.media.MediaMetadataRetriever
-import android.os.ParcelFileDescriptor
 import androidx.room.Room
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.chapter.Chapter
-import io.github.toyota32k.media.lib.converter.AndroidFile
+import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
+
+data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
+    fun file(context: Context):File {
+        return data.file(context)
+    }
+    val name:String
+        get() = data.name
+    val date:Long
+        get() = data.date
+    val type:Int
+        get() = data.type
+    val isVideo:Boolean
+        get() = data.isVideo
+    val isPhoto:Boolean
+        get() = data.isPhoto
+    val size:Long
+        get() = data.size
+    val duration:Long
+        get() = data.duration
+}
 
 object MetaDB {
     private lateinit var db:Database
@@ -144,7 +162,7 @@ object MetaDB {
         }
     }
 
-    suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
+    private suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
         return withContext(Dispatchers.IO) {
             when (listMode) {
                 PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()
@@ -168,7 +186,7 @@ object MetaDB {
         }
     }
 
-    suspend fun updateGroup(data:MetaData, group:Int):MetaData {
+    private suspend fun updateGroup(data:MetaData, group:Int):MetaData {
         return withContext(Dispatchers.IO) {
             MetaData(data.id, data.name, group, data.mark, data.type, data.date, data.size, data.duration).apply {
                 db.metaDataTable().update(this)
@@ -176,7 +194,7 @@ object MetaDB {
         }
     }
 
-    suspend fun updateMark(data:MetaData, mark:Int):MetaData {
+    private suspend fun updateMark(data:MetaData, mark:Int):MetaData {
         return withContext(Dispatchers.IO) {
             MetaData(data.id, data.name, data.group, mark, data.type, data.date, data.size, data.duration).apply {
                 db.metaDataTable().update(this)
@@ -184,7 +202,7 @@ object MetaDB {
         }
     }
 
-    suspend fun updateFile(data:MetaData, group:Int?=null, mark:Int?=null):MetaData {
+    private suspend fun updateFile(data:MetaData, group:Int?=null, mark:Int?=null):MetaData {
         return withContext(Dispatchers.IO) {
             metaDataFromName(data.id, data.name, group ?: data.group, mark ?: data.mark, allowRetry = 10)?.apply {
                 db.metaDataTable().update(this)
@@ -192,7 +210,7 @@ object MetaDB {
         }
     }
 
-    suspend fun deleteFile(data:MetaData) {
+    private suspend fun deleteFile(data:MetaData) {
         withContext(Dispatchers.IO) {
             try {
                 data.file(application).delete()
@@ -210,10 +228,44 @@ object MetaDB {
         }
     }
 
-    suspend fun setChaptersFor(data: MetaData, chapters:List<IChapter>) {
+    suspend fun setChaptersFor(data: MetaData, chapters:List<IChapter>?) {
         return withContext(Dispatchers.IO) {
-            db.chapterDataTable().setForOwner(data.id, chapters.map {ChapterData(0,data.id, it.position, it.label, it.skip)})
+            db.chapterDataTable().setForOwner(data.id, chapters?.map {ChapterData(0,data.id, it.position, it.label, it.skip)})
         }
+    }
+
+    suspend fun MetaData.toItemEx():ItemEx {
+        val chapters = if(isVideo) getChaptersFor(this) else null
+        return ItemEx(this, chapters)
+    }
+
+    suspend fun listEx(mode:PlayerActivity.ListMode):List<ItemEx> {
+        return withContext(Dispatchers.IO) {
+            list(mode).map {it.toItemEx() }
+        }
+    }
+
+    suspend fun itemExOf(name:String):ItemEx? {
+        return withContext(Dispatchers.IO) {
+            itemOf(name)?.run {toItemEx() }
+        }
+    }
+
+    suspend fun updateFile(item:ItemEx, group:Int?=null, mark:Int?=null):ItemEx {
+        setChaptersFor(item.data, item.chapterList)
+        val newData = updateFile(item.data, group, mark)
+        return ItemEx(newData, item.chapterList)
+    }
+
+    suspend fun registerEx(name:String, group:Int?=null, mark:Int?=null):ItemEx? {
+        val newData = register(name, group, mark) ?: return null
+        return ItemEx(newData, null)
+    }
+
+
+    suspend fun deleteFile(item:ItemEx) {
+        setChaptersFor(item.data, emptyList())
+        deleteFile(item.data)
     }
 
 }

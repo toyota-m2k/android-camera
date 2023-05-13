@@ -33,9 +33,11 @@ import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
+import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -124,7 +126,7 @@ class PlayerActivity : UtMortalActivity() {
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
 
-        inner class VideoSource(val item:MetaData) : IMediaSource {
+        inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
             private val file: File = item.file(context)
             override val name:String
                 get() = item.name
@@ -137,9 +139,11 @@ class PlayerActivity : UtMortalActivity() {
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
 //            override val disabledRanges: List<Range> = emptyList()
+            override val chapterList: IChapterList
+                = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
-            val collection = ObservableList<MetaData>()
+            val collection = ObservableList<ItemEx>()
             val sorter = UtSorter(
                 collection,
                 actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE
@@ -157,11 +161,11 @@ class PlayerActivity : UtMortalActivity() {
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
-            val currentSelection:StateFlow<MetaData?> = MutableStateFlow<MetaData?>(null)
-            var photoSelection:MetaData? = null
-            var videoSelection:MetaData? = null
-            val isVideo: StateFlow<Boolean> = currentSelection.map { it?.type == 1 }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
-            val isPhoto: StateFlow<Boolean> = currentSelection.map { it?.type == 0 }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+            val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
+            var photoSelection:ItemEx? = null
+            var videoSelection:ItemEx? = null
+            val isVideo: StateFlow<Boolean> = currentSelection.map { it?.isVideo==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+            val isPhoto: StateFlow<Boolean> = currentSelection.map { it?.isPhoto==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
             val listMode = MutableStateFlow(ListMode.ALL)
 
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
@@ -175,7 +179,7 @@ class PlayerActivity : UtMortalActivity() {
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
-            fun select(item_:MetaData?) {
+            fun select(item_:ItemEx?) {
                 if(collection.isEmpty()) {
                     hasNext.value = false
                     hasPrevious.value = false
@@ -219,11 +223,11 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private suspend fun setListMode(mode:ListMode) {
-                val newList = MetaDB.list(mode)
+                val newList = MetaDB.listEx(mode)
                 setFileList(newList, mode)
             }
 
-            private fun setFileList(list:Collection<MetaData>, newMode:ListMode) {
+            private fun setFileList(list:Collection<ItemEx>, newMode:ListMode) {
                 val current = currentSource.value as VideoSource?
                 sorter.replace(list)
                 listMode.value = newMode
@@ -289,10 +293,10 @@ class PlayerActivity : UtMortalActivity() {
         
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             CoroutineScope(Dispatchers.IO).launch {
-                val sourceName = playlist.currentSelection.value ?: return@launch
-                val newItem = takeSnapshot(sourceName, pos, bitmap) ?: return@launch
+                val source = playlist.currentSelection.value ?: return@launch
+                val newItem = takeSnapshot(source.data, pos, bitmap) ?: return@launch
                 if (playlist.listMode.value != ListMode.VIDEO) {
-                    withContext(Dispatchers.Main) { playlist.sorter.add(newItem) }
+                    withContext(Dispatchers.Main) { playlist.sorter.add(ItemEx(newItem,null)) }
                 }
             }
         }
@@ -422,7 +426,7 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    private fun startEditing(anchor:View, item:MetaData) {
+    private fun startEditing(anchor:View, item:ItemEx) {
         PopupMenu(this, anchor).apply {
             menu.add(R.string.start_editing)
             setOnMenuItemClickListener {
@@ -507,7 +511,7 @@ class PlayerActivity : UtMortalActivity() {
     }
     val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
     
-    private fun onDeletingItem(item:MetaData):RecyclerViewBinding.IPendingDeletion {
+    private fun onDeletingItem(item:ItemEx):RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
             viewModel.playlist.select(null)
         }

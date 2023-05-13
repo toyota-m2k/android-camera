@@ -21,6 +21,7 @@ import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
+import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
@@ -57,7 +58,7 @@ class EditorActivity : UtMortalActivity() {
             chapterList.removeChapterAt(neighbor.next)
         }
         val commandToggleSkip = LiteUnitCommand {
-            val chapter = chapterList.getChapterAround(playerModel.currentPosition)
+            val chapter = chapterList.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
             chapterList.skipChapter(chapter, !chapter.skip)
         }
         val commandSave = LiteUnitCommand()
@@ -213,7 +214,7 @@ class EditorActivity : UtMortalActivity() {
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         safeDelete(srcFile)
                         dstFile.renameTo(srcFile)
-                        MetaDB.updateFile(targetItem)
+                        MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
 //                        val testFile = File(filesDir, "mov-2030.01.01-00:00:00.mp4")
 //                        safeDelete(testFile)
 //                        dstFile.renameTo(testFile)

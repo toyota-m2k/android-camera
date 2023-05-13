@@ -36,9 +36,11 @@ interface ChapterDataTable {
     fun insert(vararg chapter:ChapterData)
 
     @Transaction
-    fun setForOwner(ownerId:Int, chapters:List<ChapterData>) {
+    fun setForOwner(ownerId:Int, chapters:List<ChapterData>?) {
         deleteByOwner(ownerId)
-        insert(*chapters.toTypedArray())
+        if(!chapters.isNullOrEmpty()) {
+            insert(*chapters.toTypedArray())
+        }
     }
 
 }
