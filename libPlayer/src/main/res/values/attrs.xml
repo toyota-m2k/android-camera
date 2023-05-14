@@ -13,6 +13,10 @@
         <attr name="enabledColor" format="color"/>
         <attr name="disabledColor" format="color"/>
         <attr name="tickColor" format="color"/>
+        <attr name="markerColor" format="color"/>
+        <attr name="bar_height" format="dimension"/>
+        <attr name="bar_marker_margin" format="dimension"/>
+        <attr name="marker_drawable" format="integer"/>
     </declare-styleable>
     <declare-styleable name="ControlPanel">
         <attr name="panelBackgroundColor" format="color"/>

@@ -5,9 +5,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.ColorInt
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.bindit.Binder
 import io.github.toyota32k.boodroid.common.getAttrColor
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlin.math.roundToInt
 
 class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSet?=null, defStyleAttr:Int=0) : View(context, attrs, defStyleAttr) {
     companion object {
@@ -38,6 +41,17 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     @ColorInt private val tickColor:Int
     @ColorInt private val enabledColor:Int
     @ColorInt private val disabledColor:Int
+    @ColorInt private val markerColor:Int
+
+    private val barHeight:Float
+    private val barMarkerMargin:Float
+    private val markerDrawable:Drawable
+
+    private val markerY:Float
+        get() = barHeight + barMarkerMargin
+    private val markerHeight:Float
+        get() = mHeight.toFloat() - markerY
+
 
     init {
         val sa = context.theme.obtainStyledAttributes(attrs, R.styleable.ChapterView, defStyleAttr,0)
@@ -45,6 +59,11 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         tickColor = sa.getColor(R.styleable.ChapterView_tickColor, context.theme.getAttrColor(com.google.android.material.R.attr.colorOnPrimary, Color.WHITE))
         enabledColor = sa.getColor(R.styleable.ChapterView_enabledColor,context.theme.getAttrColor(com.google.android.material.R.attr.colorSecondary, Color.GREEN))
         disabledColor = sa.getColor(R.styleable.ChapterView_disabledColor, Color.argb(0xa0,0,0,0))
+        markerColor = sa.getColor(R.styleable.ChapterView_markerColor, context.theme.getAttrColor(com.google.android.material.R.attr.colorSecondary, Color.BLUE))
+        barHeight = sa.getDimensionPixelOffset(R.styleable.ChapterView_bar_height, context.dp2px(8)).toFloat()
+        barMarkerMargin = sa.getDimensionPixelOffset(R.styleable.ChapterView_bar_marker_margin, context.dp2px(8)).toFloat()
+        markerDrawable = sa.getDrawable(R.styleable.ChapterView_marker_drawable) ?: ContextCompat.getDrawable(context, R.drawable.ic_marker)!!
+        markerDrawable.setTint(markerColor)
         sa.recycle()
     }
 
@@ -103,7 +122,7 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val list = chapterList?.chapters ?: return
 
         val width = mWidth.toFloat()
-        val height = mHeight.toFloat()
+        val height = barHeight
 
         // background
         rect.set(0f,0f, width, height)
@@ -137,6 +156,20 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             val x = time2x(c.position)
             rect.set(x-mTickWidth/2,0f,x+mTickWidth/2, height)
             canvas.drawRect(rect,paint)
+        }
+
+        val markerY = this.markerY.roundToInt()
+        val markerSize = markerHeight
+        for(c in list) {
+            if(c.position == 0L) continue
+            val x = time2x(c.position)
+            rect.set(x-mTickWidth/2,0f,x+mTickWidth/2, height)
+            canvas.drawRect(rect,paint)
+
+            if(markerSize>1) {
+                markerDrawable.setBounds((x-markerSize/2).roundToInt(), markerY, (x+markerSize/2).roundToInt(), (markerY+markerSize).roundToInt())
+                markerDrawable.draw(canvas)
+            }
         }
 
     }

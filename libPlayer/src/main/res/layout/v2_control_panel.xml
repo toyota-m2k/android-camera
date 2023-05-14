@@ -168,34 +168,38 @@
             android:layout_marginStart="5dp"
             tools:text="00:00"
             />
-        <LinearLayout
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_weight="1"
-            android:layout_marginTop="10dp"
             android:layout_marginHorizontal="5dp"
             >
             <io.github.toyota32k.video.view.ChapterView
                 android:id="@+id/chapter_view"
                 android:layout_width="match_parent"
-                android:layout_height="5dp"
-                android:layout_marginTop="4dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="18dp"
                 android:layout_marginHorizontal="14dp"
                 app:enabledColor="?attr/colorSecondary"
                 app:tickColor="?attr/colorOnSecondary"
+                app:markerColor="?attr/colorSecondary"
+                app:bar_height="4dp"
+                app:bar_marker_margin="4dp"
+
                 />
             <com.google.android.material.slider.Slider
                 android:id="@+id/slider"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="0dp"
-                android:layout_marginTop="-21dp"
                 app:labelBehavior="gone"
-                app:thumbColor="?attr/colorPrimaryVariant"
+                app:thumbRadius="8dp"
+                app:thumbColor="#4000"
+                app:thumbStrokeColor="#222"
+                app:thumbStrokeWidth="1dp"
                 />
 
-        </LinearLayout>
+        </FrameLayout>
         <TextView
             android:id="@+id/duration_label"
             android:layout_height="wrap_content"
