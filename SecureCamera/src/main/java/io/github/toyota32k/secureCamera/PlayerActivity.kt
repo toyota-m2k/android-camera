@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.KeyEvent
@@ -38,6 +39,7 @@ import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
+import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -429,13 +431,44 @@ class PlayerActivity : UtMortalActivity() {
 
     private fun startEditing(anchor:View, item:ItemEx) {
         PopupMenu(this, anchor).apply {
-            menu.add(R.string.start_editing)
+            menu.apply {
+                add(R.string.start_editing)
+                addSubMenu("Mark").apply {
+                    add(1, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
+                        icon = Mark.None.icon(this@PlayerActivity)
+                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
+                    }
+                    add(1, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+                        icon = Mark.Star.icon(this@PlayerActivity)
+                        iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
+                    }
+                    add(1, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
+                        icon = Mark.Flag.icon(this@PlayerActivity)
+                        iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
+                    }
+                    add(1, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
+                        icon = Mark.Check.icon(this@PlayerActivity)
+                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
+                        check(true)
+                    }
+                }
+            }
             setOnMenuItemClickListener {
-                viewModel.playlist.select(null)
-                viewModel.playerControllerModel.playerModel.killPlayer()
-                controls.videoViewer.dissociatePlayer()
-                val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
-                startActivity(intent)
+                when(it.groupId) {
+                     0 -> {
+                        viewModel.playlist.select(null)
+                        viewModel.playerControllerModel.playerModel.killPlayer()
+                        controls.videoViewer.dissociatePlayer()
+                        val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
+                        startActivity(intent)
+                    }
+                    1 -> {
+                        val mark = Mark.fromMarkValue(it.itemId)
+                        // set item mark
+                        logger.debug("set mark $mark")
+                    }
+
+                }
                 true
             }
             show()
