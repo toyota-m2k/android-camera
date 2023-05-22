@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
@@ -145,6 +146,7 @@ class EditorActivity : UtMortalActivity() {
         }
 
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun formatTime(time:Long, duration:Long) : String {

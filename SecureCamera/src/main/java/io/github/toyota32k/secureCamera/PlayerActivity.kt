@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -427,42 +428,48 @@ class PlayerActivity : UtMortalActivity() {
             onDoubleTap(manipulator::onDoubleTap)
             onFlickVertical(manipulator::onFlick)
         }
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun startEditing(anchor:View, item:ItemEx) {
         PopupMenu(this, anchor).apply {
             menu.apply {
-                add(R.string.start_editing)
-                addSubMenu("Mark").apply {
-                    add(1, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
-                        icon = Mark.None.icon(this@PlayerActivity)
-                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
-                    }
-                    add(1, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-                        icon = Mark.Star.icon(this@PlayerActivity)
-                        iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
-                    }
-                    add(1, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
-                        icon = Mark.Flag.icon(this@PlayerActivity)
-                        iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
-                    }
-                    add(1, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
-                        icon = Mark.Check.icon(this@PlayerActivity)
-                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-                        check(true)
-                    }
+                add(1, 1, 0, R.string.start_editing)
+                add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+                    icon = Mark.Star.icon(this@PlayerActivity)
+                    iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
                 }
+//                addSubMenu("Mark").apply {
+//                    add(2, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
+//                        icon = Mark.None.icon(this@PlayerActivity)
+//                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
+//                    }
+//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+//                        icon = Mark.Star.icon(this@PlayerActivity)
+//                        iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
+//                    }
+//                    add(2, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
+//                        icon = Mark.Flag.icon(this@PlayerActivity)
+//                        iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
+//                    }
+//                    add(2, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
+//                        icon = Mark.Check.icon(this@PlayerActivity)
+//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
+//                        check(true)
+//                    }
+//                }
             }
             setOnMenuItemClickListener {
                 when(it.groupId) {
-                     0 -> {
+                     1 -> {
                         viewModel.playlist.select(null)
                         viewModel.playerControllerModel.playerModel.killPlayer()
                         controls.videoViewer.dissociatePlayer()
                         val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
                         startActivity(intent)
                     }
-                    1 -> {
+                    2 -> {
                         val mark = Mark.fromMarkValue(it.itemId)
                         // set item mark
                         logger.debug("set mark $mark")
