@@ -9,7 +9,11 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.lifecycle.lifecycleScope
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
-import io.github.toyota32k.bindit.*
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.BoolConvert
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
@@ -82,7 +86,7 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
         model.playerModel.dissociatePlayerView(playerView)
     }
 
-    fun bindViewModel(playerControllerModel: PlayerControllerModel, binder:Binder) {
+    fun bindViewModel(playerControllerModel: PlayerControllerModel, binder: Binder) {
         val owner = lifecycleOwner()!!
         val scope = owner.lifecycleScope
 

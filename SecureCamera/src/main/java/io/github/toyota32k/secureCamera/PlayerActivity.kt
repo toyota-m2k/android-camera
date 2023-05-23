@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Matrix
-import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.KeyEvent
@@ -23,9 +22,22 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
-import io.github.toyota32k.bindit.*
-import io.github.toyota32k.bindit.command.LongClickUnitCommand
-import io.github.toyota32k.bindit.list.ObservableList
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.IIDValueResolver
+import io.github.toyota32k.binder.RecyclerViewBinding
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.combinatorialVisibilityBinding
+import io.github.toyota32k.binder.command.LiteCommand
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.LongClickUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.genericBinding
+import io.github.toyota32k.binder.headlessBinding
+import io.github.toyota32k.binder.headlessNonnullBinding
+import io.github.toyota32k.binder.list.ObservableList
+import io.github.toyota32k.binder.materialRadioButtonGroupBinding
+import io.github.toyota32k.binder.recyclerViewGestureBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -43,11 +55,12 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.server.NetworkUtils
+import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.bindCommand
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +71,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+
 
 class PlayerActivity : UtMortalActivity() {
     enum class ListMode(val resId:Int) {
@@ -315,6 +329,9 @@ class PlayerActivity : UtMortalActivity() {
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
     val gestureInterpreter:UtGestureInterpreter by lazy { UtGestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
+
+    val server = TcServer(5001)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
@@ -430,6 +447,20 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+//        val wm = getSystemService(WIFI_SERVICE) as WifiManager
+//        val ip = wm.connectionInfo
+
+//        lifecycleScope.launch {
+//            val ip = NetworkUtils.getIpAddress(applicationContext)
+//            logger.info(ip)
+//            server.start()
+//        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+//        server.close()
     }
 
     private fun startEditing(anchor:View, item:ItemEx) {
@@ -552,7 +583,7 @@ class PlayerActivity : UtMortalActivity() {
     }
     val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
     
-    private fun onDeletingItem(item:ItemEx):RecyclerViewBinding.IPendingDeletion {
+    private fun onDeletingItem(item:ItemEx): RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
             viewModel.playlist.select(null)
         }

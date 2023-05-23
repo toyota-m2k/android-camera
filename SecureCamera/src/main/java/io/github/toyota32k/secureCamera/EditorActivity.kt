@@ -10,9 +10,10 @@ import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.bindit.enableBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
@@ -31,7 +32,6 @@ import io.github.toyota32k.secureCamera.utils.TimeSpan
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

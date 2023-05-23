@@ -6,10 +6,10 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import com.google.android.material.slider.Slider
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.enableBinding
-import io.github.toyota32k.bindit.sliderBinding
-import io.github.toyota32k.bindit.textBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.enableBinding
+import io.github.toyota32k.binder.sliderBinding
+import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.common.formatTime

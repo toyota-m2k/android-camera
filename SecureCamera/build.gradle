@@ -84,10 +84,12 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
     implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-    implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
+    implementation "com.github.toyota-m2k:android-utilities:$m2k_utilities_version"
+    implementation "com.github.toyota-m2k:android-binding:$m2k_binding_version"
     implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
     implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
+    implementation "com.github.toyota-m2k:android-server:LOCAL"
 
     implementation project(path: ':shared')
     implementation project(path: ':libCamera')

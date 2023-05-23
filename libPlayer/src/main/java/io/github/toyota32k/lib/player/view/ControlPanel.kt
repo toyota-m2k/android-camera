@@ -10,7 +10,16 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.core.view.children
 import com.google.android.material.slider.Slider
-import io.github.toyota32k.bindit.*
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.BoolConvert
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
+import io.github.toyota32k.binder.multiEnableBinding
+import io.github.toyota32k.binder.multiVisibilityBinding
+import io.github.toyota32k.binder.sliderBinding
+import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.boodroid.common.getColorAwareOfTheme
 import io.github.toyota32k.lib.player.TpLib
@@ -21,7 +30,6 @@ import io.github.toyota32k.player.lib.databinding.V2ControlPanelBinding
 import io.github.toyota32k.shared.UtClickRepeater
 import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlin.math.max

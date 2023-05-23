@@ -52,6 +52,9 @@ interface MetaDataTable {
     @Query("SELECT * from t_meta WHERE name = :name")
     fun getDataOf(name:String):MetaData?
 
+    @Query("SELECT * from t_meta WHERE id = :id")
+    fun getDataAt(id:Long):MetaData?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(vararg metaData:MetaData)
 

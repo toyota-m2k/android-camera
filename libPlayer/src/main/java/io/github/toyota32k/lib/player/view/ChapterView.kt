@@ -11,11 +11,10 @@ import android.view.View
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.bindit.Binder
+import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.*
-import io.github.toyota32k.lib.player.model.option.ChapterHandlerImpl
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.utils.*
 import kotlinx.coroutines.flow.combine

@@ -6,10 +6,11 @@ import android.view.inputmethod.EditorInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.bindit.editTextBinding
-import io.github.toyota32k.bindit.textBinding
-import io.github.toyota32k.bindit.visibilityBinding
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.editTextBinding
+import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.MainActivity
@@ -18,8 +19,6 @@ import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
-import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.flow.*
 
 class PasswordDialog : UtDialogEx() {

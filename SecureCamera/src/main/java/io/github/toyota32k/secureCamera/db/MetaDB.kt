@@ -146,6 +146,12 @@ object MetaDB {
         }
     }
 
+    suspend fun itemAt(id:Long):MetaData? {
+        return withContext(Dispatchers.IO) {
+            db.metaDataTable().getDataAt(id)
+        }
+    }
+
     private suspend fun makeAll() {
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
@@ -162,7 +168,7 @@ object MetaDB {
         }
     }
 
-    private suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
+    suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
         return withContext(Dispatchers.IO) {
             when (listMode) {
                 PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()

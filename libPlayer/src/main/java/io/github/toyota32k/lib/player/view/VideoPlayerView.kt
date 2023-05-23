@@ -4,11 +4,9 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.VisibilityBinding
-import io.github.toyota32k.bindit.headlessBinding
-import io.github.toyota32k.bindit.headlessNonnullBinding
-import io.github.toyota32k.bindit.visibilityBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.databinding.V2PlayerViewBinding
