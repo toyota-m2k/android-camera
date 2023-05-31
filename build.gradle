@@ -11,11 +11,11 @@ buildscript {
     ext.room_version = "2.5.1"
     ext.m2k_utilities_version = "1.0.3"
     ext.m2k_binding_version = "1.0.2"
-    ext.m2k_media_processor_version = "2.4.1"
-//    ext.m2k_media_processor_version = "LOCALv2"
-    ext.m2k_android_dialog_version = "3.6.0"
+//    ext.m2k_media_processor_version = "2.4.1"
+    ext.m2k_media_processor_version = "LOCALv2"
+    ext.m2k_android_dialog_version = "3.6.1"
 //    ext.m2k_android_dialog_version = "LOCAL"
-    ext.m2k_viewex_version = "1.0.0"
+    ext.m2k_viewex_version = "1.0.1"
 
     dependencies {
 //        classpath 'com.google.android.gms:oss-licenses-plugin:0.10.6'
