@@ -168,9 +168,13 @@ class EditorActivity : UtMortalActivity() {
                 else -> "${remainingTime/1000}\""
             }
         } else null
+
+        fun formatPercent(permillage:Int):String {
+            return "${permillage/10}.${permillage%10} %"
+        }
         return if(remaining!=null) {
-            "$percentage % (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
-        } else "$percentage % (${formatTime(current, total)}/${formatTime(total,total)})"
+            "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
+        } else "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)})"
     }
 
     private fun stringInKb(size: Long): String {
@@ -215,7 +219,7 @@ class EditorActivity : UtMortalActivity() {
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-                        val testOnly = true     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
+                        val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
                         if(testOnly) {
                             MetaDB.withTestFile { testFile ->
                                 dstFile.renameTo(testFile)
