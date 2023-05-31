@@ -294,7 +294,10 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
      */
     override fun addChapter(position:Long, label:String, skip:Boolean?):Boolean {
         val neighbor = getNeighborChapters(position)
-        if(neighbor.hit>=0) {
+        if(neighbor.hit==0 && position == 0L) {
+            sortedList[0] = Chapter(0, label, skip?:false)
+        }
+        if(neighbor.hit>0) {
             return false
         }
         if(neighbor.prevChapter()?.let{ position - it.position < ChapterList.MIN_CHAPTER_INTERVAL } == true) {

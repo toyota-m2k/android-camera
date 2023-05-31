@@ -39,10 +39,10 @@ class TcServer(val port:Int) : AutoCloseable {
                 val list = runBlocking {
                     MetaDB.list(PlayerActivity.ListMode.VIDEO).fold(JSONArray()) { array, item ->
                         array.put(JSONObject().apply {
-                            put("id", item.id)
+                            put("id", "${item.id}")
                             put("name", item.name)
                             put("size", item.size)
-                            put("date", item.date)
+                            put("date", "${item.date}")
                             put("duration", item.duration)
                             put("type", "mp4")
                         })
@@ -53,7 +53,7 @@ class TcServer(val port:Int) : AutoCloseable {
                     JSONObject()
                         .put("cmd", "list")
                         .put("list", list)
-                        .put("date", Date().time)
+                        .put("date", "${Date().time}")
                 )
             },
             Route("Video", HttpMethod.GET,"/ytplayer/video\\?.+") { _, request ->

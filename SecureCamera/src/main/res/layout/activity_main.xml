@@ -29,6 +29,16 @@
         android:layout_width="0dp"
         />
     <Button
+        android:id="@+id/server_button"
+        android:layout_width="@dimen/menu_button_width"
+        android:layout_height="wrap_content"
+        android:text="@string/server"
+        />
+    <Space
+        android:layout_height="@dimen/menu_button_spacing"
+        android:layout_width="0dp"
+        />
+    <Button
         android:id="@+id/settings_button"
         android:layout_width="@dimen/menu_button_width"
         android:layout_height="wrap_content"

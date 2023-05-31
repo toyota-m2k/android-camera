@@ -52,9 +52,10 @@ object MetaDB {
             CoroutineScope(Dispatchers.IO).launch {
                 val s = db.kvTable().getAt("INIT")
                 if (s == null) {
-                    makeAll()
                     db.kvTable().insert(KeyValueEntry("INIT", "1"))
                 }
+                makeAll()
+                deleteTestFile()
             }
         }
     }
@@ -274,4 +275,25 @@ object MetaDB {
         deleteFile(item.data)
     }
 
+    private const val testItemName = "mov-2030.01.01-00:00:00.mp4"
+
+    private suspend fun prepareTestFile():File {
+        deleteTestFile()
+        return File(application.filesDir, testItemName)
+    }
+
+    private suspend fun deleteTestFile() {
+        val item = itemOf(testItemName)
+        if (item != null) {
+            deleteFile(item)
+        }
+    }
+
+    suspend fun withTestFile(fn:(File)->Unit) {
+        val file = prepareTestFile()
+        fn(file)
+        if (file.exists()) {
+            register(testItemName, 0, 0)
+        }
+    }
 }

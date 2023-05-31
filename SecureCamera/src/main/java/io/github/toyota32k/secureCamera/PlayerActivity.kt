@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
@@ -8,14 +9,16 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
-import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
@@ -143,6 +146,8 @@ class PlayerActivity : UtMortalActivity() {
         }
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
+
+        var editingItem: String? = null
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
             private val file: File = item.file(context)
@@ -319,6 +324,13 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
+        fun updateItem(itemNew:ItemEx) {
+            val index = playlist.sorter.find(itemNew)
+            if(index>=0) {
+                playlist.collection[index] = itemNew
+            }
+        }
+
         override fun onCleared() {
             super.onCleared()
             playerControllerModel.close()
@@ -448,6 +460,17 @@ class PlayerActivity : UtMortalActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        val itemName = viewModel.editingItem
+        if(itemName!=null) {
+            viewModel.editingItem = null
+            lifecycleScope.launch {
+                val item = MetaDB.itemExOf(itemName)
+                if(item!=null) {
+                    viewModel.playlist.select(item)
+                }
+            }
+        }
+
 //        val wm = getSystemService(WIFI_SERVICE) as WifiManager
 //        val ip = wm.connectionInfo
 
@@ -463,16 +486,40 @@ class PlayerActivity : UtMortalActivity() {
 //        server.close()
     }
 
+    @SuppressLint("RestrictedApi")
     private fun startEditing(anchor:View, item:ItemEx) {
-        PopupMenu(this, anchor).apply {
+        androidx.appcompat.widget.PopupMenu(this, anchor).apply {
             menu.apply {
                 add(1, 1, 0, R.string.start_editing)
-                add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+                add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
+                    icon = Mark.None.icon(this@PlayerActivity)
+                    iconTintList = Mark.None.colorStateList(this@PlayerActivity)
+                }
+                add(4, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
                     icon = Mark.Star.icon(this@PlayerActivity)
                     iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
                 }
+                add(4, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
+                    icon = Mark.Flag.icon(this@PlayerActivity)
+                    iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
+                }
+                add(4, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
+                    icon = Mark.Check.icon(this@PlayerActivity)
+                    iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
+                    check(true)
+                }
+
+//                if(item.data.mark == 0) {
+//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+//                        icon = Mark.Check.icon(this@PlayerActivity)
+//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
+//                        check(true)
+//                    }
+//                } else {
+//                    add(3, Mark.None.markValue, Mark.None.markValue+1, "Remove Mark")
+//                }
 //                addSubMenu("Mark").apply {
-//                    add(2, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
+//                    add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
 //                        icon = Mark.None.icon(this@PlayerActivity)
 //                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
 //                    }
@@ -496,20 +543,32 @@ class PlayerActivity : UtMortalActivity() {
                      1 -> {
                         viewModel.playlist.select(null)
                         viewModel.playerControllerModel.playerModel.killPlayer()
+                        viewModel.editingItem = item.name
                         controls.videoViewer.dissociatePlayer()
                         val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
                         startActivity(intent)
                     }
                     2 -> {
-                        val mark = Mark.fromMarkValue(it.itemId)
-                        // set item mark
-                        logger.debug("set mark $mark")
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val itemNew = MetaDB.updateFile(item, null, it.itemId)
+                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
+                        }
+                    }
+                    3 -> {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val itemNew = MetaDB.updateFile(item, null, 0)
+                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
+                        }
                     }
 
                 }
                 true
             }
-            show()
+            MenuPopupHelper(this@PlayerActivity, this.menu as MenuBuilder, anchor).apply {
+                gravity = Gravity.END
+                setForceShowIcon(true)
+                show()
+            }
         }
 
     }

@@ -184,6 +184,7 @@ class EditorActivity : UtMortalActivity() {
             logger.error(e)
         }
     }
+
     private fun trimmingAndSave() {
         val targetItem = (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.item ?: return
         val srcFile = targetItem.file(application)
@@ -214,12 +215,16 @@ class EditorActivity : UtMortalActivity() {
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-                        safeDelete(srcFile)
-                        dstFile.renameTo(srcFile)
-                        MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
-//                        val testFile = File(filesDir, "mov-2030.01.01-00:00:00.mp4")
-//                        safeDelete(testFile)
-//                        dstFile.renameTo(testFile)
+                        val testOnly = true     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
+                        if(testOnly) {
+                            MetaDB.withTestFile { testFile ->
+                                dstFile.renameTo(testFile)
+                            }
+                        } else {
+                            safeDelete(srcFile)
+                            dstFile.renameTo(srcFile)
+                            MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
+                        }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             getActivity()?.finish()

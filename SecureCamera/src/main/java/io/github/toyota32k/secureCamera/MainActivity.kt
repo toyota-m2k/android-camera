@@ -40,6 +40,7 @@ class MainActivity : UtMortalActivity() {
         binder.owner(this)
             .bindCommand(LiteUnitCommand(::startCamera), controls.cameraButton )
             .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )
+            .bindCommand(LiteUnitCommand(::startServer), controls.serverButton )
             .bindCommand(LiteUnitCommand(::clearAllData), controls.clearAllButton)
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
     }
@@ -52,6 +53,14 @@ class MainActivity : UtMortalActivity() {
         lifecycleScope.launch {
             if(PasswordDialog.checkPassword()) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
+            }
+        }
+    }
+
+    private fun startServer() {
+        lifecycleScope.launch {
+            if(PasswordDialog.checkPassword()) {
+                startActivity(Intent(this@MainActivity, ServerActivity::class.java))
             }
         }
     }

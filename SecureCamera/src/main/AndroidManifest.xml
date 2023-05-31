@@ -13,6 +13,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TryCamera">
         <activity
+            android:name=".ServerActivity"
+            android:exported="false" />
+        <activity
             android:name=".EditorActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
