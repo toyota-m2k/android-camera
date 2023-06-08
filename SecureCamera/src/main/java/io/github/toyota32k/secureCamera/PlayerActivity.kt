@@ -460,17 +460,6 @@ class PlayerActivity : UtMortalActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val itemName = viewModel.editingItem
-        if(itemName!=null) {
-            viewModel.editingItem = null
-            lifecycleScope.launch {
-                val item = MetaDB.itemExOf(itemName)
-                if(item!=null) {
-                    viewModel.playlist.select(item)
-                }
-            }
-        }
-
 //        val wm = getSystemService(WIFI_SERVICE) as WifiManager
 //        val ip = wm.connectionInfo
 
@@ -718,6 +707,16 @@ class PlayerActivity : UtMortalActivity() {
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()
             lifecycleScope.launch { viewModel.playlist.refreshList() }
+        }
+        val itemName = viewModel.editingItem
+        if(itemName!=null) {
+            viewModel.editingItem = null
+            lifecycleScope.launch {
+                val item = MetaDB.itemExOf(itemName)
+                if(item!=null) {
+                    viewModel.playlist.select(item)
+                }
+            }
         }
     }
 

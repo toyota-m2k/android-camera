@@ -43,6 +43,7 @@ class ProgressDialog : UtDialogEx() {
         noHeader = true
         setLimitWidth(400)
         heightOption = HeightOption.COMPACT
+        cancellable = false
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
