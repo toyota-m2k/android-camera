@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
 //    id 'com.google.android.gms.oss-licenses-plugin'
 }
 
@@ -26,11 +27,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
     viewBinding {
         enabled = true
@@ -67,11 +68,15 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_ktx_version"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_ktx_version"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_ktx_version"
+    implementation("com.squareup.okhttp3:okhttp:$okhttp_version")
     implementation 'androidx.preference:preference:1.2.0'
+
+    implementation "androidx.room:room-runtime:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
 
 //    implementation 'com.google.android.gms:play-services-oss-licenses:17.0.0'
 
-    def camerax_version = "1.2.2"
+    def camerax_version = "1.2.3"
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"
@@ -80,10 +85,12 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
     implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-    implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
+    implementation "com.github.toyota-m2k:android-utilities:$m2k_utilities_version"
+    implementation "com.github.toyota-m2k:android-binding:$m2k_binding_version"
     implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
     implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
+    implementation "com.github.toyota-m2k:android-server:LOCAL"
 
     implementation project(path: ':shared')
     implementation project(path: ':libCamera')

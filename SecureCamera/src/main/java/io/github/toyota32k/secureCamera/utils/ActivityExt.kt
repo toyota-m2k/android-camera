@@ -8,8 +8,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.headlessNonnullBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.headlessNonnullBinding
 import kotlinx.coroutines.flow.Flow
 
 fun FragmentActivity.hideStatusBar() {

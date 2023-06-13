@@ -13,37 +13,40 @@ import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.view.PreviewView
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import io.github.toyota32k.bindit.*
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.BoolConvert
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.headlessNonnullBinding
+import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
+import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
 import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
-import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
-import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
-import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
+import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.Direction
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.UtObservableFlag
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -100,6 +103,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
+                    MetaDB.register(file.name, 0,0)
                 } catch(e:Throwable) {
                     logger.error(e)
                 } finally {
@@ -119,7 +123,14 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         @SuppressLint("MissingPermission")
         val takeVideoCommand = LiteUnitCommand {
             when (recordingState.value) {
-                TcVideoCapture.RecordingState.NONE -> videoCapture.takeVideoInFile(newVideoFile())
+                TcVideoCapture.RecordingState.NONE -> {
+                    val file = newVideoFile()
+                    videoCapture.takeVideoInFile(file) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            MetaDB.register(file.name, 0, 0)
+                        }
+                    }
+                }
                 TcVideoCapture.RecordingState.STARTED -> videoCapture.pause()
                 TcVideoCapture.RecordingState.PAUSING -> videoCapture.resume()
             }

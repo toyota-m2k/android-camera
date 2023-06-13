@@ -1,6 +1,6 @@
 package io.github.toyota32k.lib.player.model.option
 
-import io.github.toyota32k.bindit.LiteUnitCommand
+import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IPlayerModel

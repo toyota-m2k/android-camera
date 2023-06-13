@@ -4,13 +4,16 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.bindit.enableBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
@@ -20,13 +23,15 @@ import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
+import io.github.toyota32k.secureCamera.db.ItemEx
+import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.TimeSpan
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,7 +47,10 @@ class EditorActivity : UtMortalActivity() {
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         val playerModel get() = playerControllerModel.playerModel
-        val chapterList by lazy { ChapterEditor((playerModel.currentSource.value as IMediaSourceWithChapter).chapterList as IMutableChapterList) }
+        val videoSource get() = playerModel.currentSource.value as VideoSource
+        val chapterList by lazy {
+            ChapterEditor(videoSource.chapterList as IMutableChapterList)
+        }
         val commandAddChapter = LiteUnitCommand {
             chapterList.addChapter(playerModel.currentPosition, "", null)
         }
@@ -51,12 +59,13 @@ class EditorActivity : UtMortalActivity() {
             chapterList.removeChapterAt(neighbor.next)
         }
         val commandToggleSkip = LiteUnitCommand {
-            val chapter = chapterList.getChapterAround(playerModel.currentPosition)
+            val chapter = chapterList.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
             chapterList.skipChapter(chapter, !chapter.skip)
         }
         val commandSave = LiteUnitCommand()
-        fun setSource(name: String) {
-            playerModel.setSource(VideoSource(name), false)
+        fun setSource(item: MetaData, chapters:List<IChapter>) {
+            playerModel.setSource(VideoSource(item), false)
+            chapterList.initChapters(chapters)
         }
 
         val commandUndo = LiteUnitCommand {
@@ -67,8 +76,10 @@ class EditorActivity : UtMortalActivity() {
         }
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
-            val sourceName = playerModel.currentSource.value?.name?: return
-            PlayerActivity.PlayerViewModel.takeSnapshot(sourceName, pos, bitmap) ?: return
+            val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
+            CoroutineScope(Dispatchers.IO).launch {
+                PlayerActivity.PlayerViewModel.takeSnapshot(source, pos, bitmap)
+            }
         }
 
         override fun onCleared() {
@@ -77,8 +88,10 @@ class EditorActivity : UtMortalActivity() {
             playerControllerModel.close()
         }
 
-        inner class VideoSource(override val name:String) : IMediaSourceWithChapter {
-            private val file: File = File(getApplication<Application>().filesDir, name)
+        inner class VideoSource(val item: MetaData) : IMediaSourceWithChapter {
+            override val name:String
+                get() = item.name
+            private val file: File = item.file(getApplication())
             override val id: String
                 get() = name
             override val uri: String
@@ -103,25 +116,37 @@ class EditorActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         hideActionBar()
         hideStatusBar()
-        //setContentView(R.layout.activity_editor)
-        if(savedInstanceState==null) {
-            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-            viewModel.setSource(name)
-        }
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
+
         binder
             .owner(this)
             .bindCommand(viewModel.commandAddChapter, controls.makeChapter)
             .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
             .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
             .bindCommand(viewModel.commandSave, controls.saveVideo, callback = ::trimmingAndSave)
-            .enableBinding(controls.redo, viewModel.chapterList.canRedo)
-            .enableBinding(controls.undo, viewModel.chapterList.canUndo)
             .bindCommand(viewModel.commandUndo, controls.undo)
             .bindCommand(viewModel.commandRedo, controls.redo)
+
+        if(savedInstanceState==null) {
+            lifecycleScope.launch {
+                val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
+                val item = MetaDB.itemOf(name) ?: throw IllegalStateException("no item")
+                val chapters = MetaDB.getChaptersFor(item)
+                viewModel.setSource(item, chapters)
+                binder
+                    .enableBinding(controls.redo, viewModel.chapterList.canRedo)
+                    .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+            }
+        } else {
+            binder
+                .enableBinding(controls.redo, viewModel.chapterList.canRedo)
+                .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+        }
+
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun formatTime(time:Long, duration:Long) : String {
@@ -143,9 +168,13 @@ class EditorActivity : UtMortalActivity() {
                 else -> "${remainingTime/1000}\""
             }
         } else null
+
+        fun formatPercent(permillage:Int):String {
+            return "${permillage/10}.${permillage%10} %"
+        }
         return if(remaining!=null) {
-            "$percentage % (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
-        } else "$percentage % (${formatTime(current, total)}/${formatTime(total,total)})"
+            "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
+        } else "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)})"
     }
 
     private fun stringInKb(size: Long): String {
@@ -159,10 +188,12 @@ class EditorActivity : UtMortalActivity() {
             logger.error(e)
         }
     }
+
     private fun trimmingAndSave() {
-        val srcFile = File(application.filesDir ?: return, (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.name ?: return)
+        val targetItem = (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.item ?: return
+        val srcFile = targetItem.file(application)
         val dstFile = File(application.cacheDir ?: return, "trimming")
-        val ranges = viewModel.chapterList.enabledRanges(Range.empty) ?: return
+        val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
@@ -188,11 +219,16 @@ class EditorActivity : UtMortalActivity() {
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-                        safeDelete(srcFile)
-                        dstFile.renameTo(srcFile)
-//                        val testFile = File(filesDir, "mov-2030.01.01-00:00:00.mp4")
-//                        safeDelete(testFile)
-//                        dstFile.renameTo(testFile)
+                        val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
+                        if(testOnly) {
+                            MetaDB.withTestFile { testFile ->
+                                dstFile.renameTo(testFile)
+                            }
+                        } else {
+                            safeDelete(srcFile)
+                            dstFile.renameTo(srcFile)
+                            MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
+                        }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             getActivity()?.finish()
@@ -230,11 +266,12 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList.isNotEmpty==true) {
+            if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
-                    if(showYesNoMessageBox(null, "Chapters are editing. Are you sure to abort them?")) {
-                        getActivity()?.finish()
+                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
                     }
+                    getActivity()?.finish()
                     true
                 }
                 return true

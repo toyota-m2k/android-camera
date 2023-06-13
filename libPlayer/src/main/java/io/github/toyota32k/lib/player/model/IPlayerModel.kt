@@ -3,7 +3,7 @@ package io.github.toyota32k.lib.player.model
 import android.app.Application
 import android.util.Size
 import com.google.android.exoplayer2.ui.StyledPlayerView
-import io.github.toyota32k.utils.IUnitCommand
+import io.github.toyota32k.binder.command.IUnitCommand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
@@ -62,6 +62,7 @@ interface IPlaylistHandler {
 }
 
 interface  IChapterHandler {
+    val hideChapterViewIfEmpty:Boolean
     val commandNextChapter: IUnitCommand
     val commandPrevChapter: IUnitCommand
 

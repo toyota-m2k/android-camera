@@ -4,6 +4,8 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
+import io.github.toyota32k.lib.player.model.removeChapter
+import io.github.toyota32k.lib.player.model.skipChapter
 import org.junit.Test
 import org.junit.Assert.*
 
@@ -21,12 +23,14 @@ class ChapterTest {
         assertEquals(10000L, chapterList.chapters[10].position)
         assertEquals(5000L, chapterList.chapters[5].position)
         var chapter = chapterList.getChapterAround(5500)
-        assertEquals(5000L, chapter.position)
+        assertNotNull(chapter)
+        assertEquals(5000L, chapter!!.position)
         assertTrue(chapterList.removeChapter(chapter.position))
         assertEquals(10, chapterList.chapters.size)
         assertFalse(chapterList.removeChapter(chapter.position))
         chapter = chapterList.getChapterAround(5500)
-        assertEquals(4000L, chapter.position)
+        assertNotNull(chapter)
+        assertEquals(4000L, chapter!!.position)
         chapterList.addChapter(8500, "850", false)
         assertEquals(11, chapterList.chapters.size)
         assertArrayEquals(longArrayOf(0,1000,2000,3000,4000,6000,7000,8000,8500,9000,10000), chapterList.chapters.map{it.position}.toLongArray())
@@ -40,19 +44,19 @@ class ChapterTest {
         for(i in 1..10) {
             chapterList.addChapter(i*1000L, "$i", false)
         }
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, "xxx", null))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500)!!.position, "xxx", null))
         assertEquals("xxx", chapterList.chapters[5].label)
         assertFalse(chapterList.chapters[5].skip)
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, null, true))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500)!!.position, null, true))
         assertEquals("xxx", chapterList.chapters[5].label)
         assertTrue(chapterList.chapters[5].skip)
-        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500).position, "yyy", false))
+        assertTrue(chapterList.updateChapter(chapterList.getChapterAround(5500)!!.position, "yyy", false))
         assertEquals("yyy", chapterList.chapters[5].label)
         assertFalse(chapterList.chapters[5].skip)
-        assertTrue(chapterList.updateChapter(Chapter(8000, "zzz", true)))
+        assertTrue(chapterList.updateChapter(8000L, "zzz", true))
         assertEquals("zzz", chapterList.chapters[8].label)
         assertTrue(chapterList.chapters[8].skip)
-        assertTrue(chapterList.updateChapter(chapterList.chapters[0], null, true))
+        assertTrue(chapterList.updateChapter(chapterList.chapters[0].position, null, true))
         assertTrue(chapterList.chapters[0].skip)
 
         chapterList.reset()
@@ -146,7 +150,7 @@ class ChapterTest {
             //                --   --      --
             // xxxxxxxxxxxxxxx  xxx  xxxxxxx
         }
-        chapterList.updateChapter(Chapter(0,"x", true))
+        chapterList.updateChapter(0L,"x", true)
         ranges = chapterList.enabledRangesNoTrimming().toList()
         assertEquals(3, ranges.size)
         assertEquals(5000, ranges[0].start)
@@ -173,7 +177,7 @@ class ChapterTest {
             //                --   --
             // xxxxxxxxxxxxxxx  xxx  xxxxxxxx
         }
-        chapterList.updateChapter(Chapter(0,"x", true))
+        chapterList.updateChapter(0L,"x", true)
         ranges = chapterList.enabledRangesNoTrimming().toList()
         assertEquals(2, ranges.size)
         assertEquals(5000, ranges[0].start)

@@ -22,7 +22,7 @@
             android:id="@+id/make_chapter"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_navigation"
+            app:srcCompat="@drawable/ic_marker"
             android:rotationX="180"
             app:tint="?attr/iconColor"
             android:background="?attr/selectableItemBackground"

@@ -1,6 +1,6 @@
 package io.github.toyota32k.lib.player.model
 
-import io.github.toyota32k.bindit.list.ObservableList
+import io.github.toyota32k.binder.list.ObservableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlin.math.max

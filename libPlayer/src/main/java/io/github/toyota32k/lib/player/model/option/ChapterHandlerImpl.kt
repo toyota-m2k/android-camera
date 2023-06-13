@@ -1,10 +1,14 @@
 package io.github.toyota32k.lib.player.model.option
 
-import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.lib.player.model.*
-import kotlinx.coroutines.flow.*
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.lib.player.model.IChapterHandler
+import io.github.toyota32k.lib.player.model.IChapterList
+import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
+import io.github.toyota32k.lib.player.model.IPlayerModel
 
-class ChapterHandlerImpl(val playerModel: IPlayerModel) : IChapterHandler {
+class ChapterHandlerImpl(
+    val playerModel: IPlayerModel,
+    override val hideChapterViewIfEmpty: Boolean) : IChapterHandler {
 //    init {
 //        playerModel.currentSource.onEach(::onSourceChanged).launchIn(playerModel.scope)
 //    }

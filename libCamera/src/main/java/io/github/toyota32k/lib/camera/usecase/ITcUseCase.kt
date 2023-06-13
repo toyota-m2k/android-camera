@@ -25,14 +25,14 @@ interface ITcStillCamera : ITcUseCase {
 }
 
 interface ITcVideoCamera : ITcUseCase {
-    fun takeVideo(options: OutputOptions)
-    fun takeVideoWithoutAudio(options:OutputOptions)
-    fun takeVideoInMediaStore(fileName:String)
-    fun takeVideoWithoutAudioInMediaStore(fileName:String)
-    fun takeVideoInFile(file: File)
-    fun takeVideoWithoutAudioInFile(file:File)
-    fun takeVideoInFile(uri: Uri)
-    fun takeVideoWithoutAudioInFile(uri:Uri)
+    fun takeVideo(options: OutputOptions, onFinalized:(()->Unit)?=null)
+    fun takeVideoWithoutAudio(options:OutputOptions, onFinalized:(()->Unit)?=null)
+    fun takeVideoInMediaStore(fileName:String, onFinalized:(()->Unit)?=null)
+    fun takeVideoWithoutAudioInMediaStore(fileName:String, onFinalized:(()->Unit)?=null)
+    fun takeVideoInFile(file: File, onFinalized:(()->Unit)?=null)
+    fun takeVideoWithoutAudioInFile(file:File, onFinalized:(()->Unit)?=null)
+    fun takeVideoInFile(uri: Uri, onFinalized:(()->Unit)?=null)
+    fun takeVideoWithoutAudioInFile(uri:Uri, onFinalized:(()->Unit)?=null)
     fun pause()
     fun resume()
     fun stop()

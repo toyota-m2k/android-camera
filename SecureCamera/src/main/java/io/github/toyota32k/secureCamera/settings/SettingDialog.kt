@@ -6,17 +6,27 @@ import android.view.View
 import androidx.annotation.IdRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
-import io.github.toyota32k.bindit.*
+import io.github.toyota32k.binder.IIDValueResolver
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.checkBinding
+import io.github.toyota32k.binder.command.LiteCommand
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.materialRadioButtonGroupBinding
+import io.github.toyota32k.binder.multiVisibilityBinding
+import io.github.toyota32k.binder.observe
+import io.github.toyota32k.binder.sliderBinding
+import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
+import io.github.toyota32k.secureCamera.dialog.AddressDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.shared.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
-import io.github.toyota32k.utils.observe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -76,9 +86,13 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
+        val secureArchiveAddress = MutableStateFlow("")
+        val secureArchiveAddressForDisplay = secureArchiveAddress.map { if(it.isNotEmpty()) it else "(u/a)" }
+
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
         val commandSkipBackward = LiteCommand(this::updateSkipBackwardSpan)
+        val commandEditAddress = LiteUnitCommand(this::editAddress)
 
         private fun updateNip(diff:Int) {
             val before = securityNumberOfIncorrectPassword.value
@@ -96,6 +110,15 @@ class SettingDialog : UtDialogEx() {
         private fun updateSkipBackwardSpan(d:Float) {
             val v = playerSpanOfSkipBackward.value + d
             playerSpanOfSkipBackward.value = max(0.1f, min(30f, v))
+        }
+
+        private fun editAddress() {
+            UtImmortalSimpleTask.run("editAddress") {
+                if(showDialog(taskName) { AddressDialog() }.status.ok) {
+                    secureArchiveAddress.value = Settings.SecureArchive.address
+                }
+                true
+            }
         }
 
         fun save() {
@@ -147,12 +170,14 @@ class SettingDialog : UtDialogEx() {
                     .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                     .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
+                    .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +0.1f)
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardMinus, -0.1f)
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +0.1f)
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
+                    .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton)
                     .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {

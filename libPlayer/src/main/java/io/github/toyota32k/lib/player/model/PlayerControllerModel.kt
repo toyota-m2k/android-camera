@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
-import io.github.toyota32k.bindit.LiteCommand
-import io.github.toyota32k.bindit.LiteUnitCommand
+import io.github.toyota32k.binder.command.LiteCommand
+import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.TpFrameExtractor
 import io.github.toyota32k.lib.player.common.formatTime
@@ -51,10 +51,12 @@ open class PlayerControllerModel(
         private var mShowNextPreviousButton:Boolean = false
         private var mSeekForward:Long = 1000L
         private var mSeekBackword:Long = 500L
+        private var mHideChapterViewIfEmpty = false
 //        private var mScope:CoroutineScope? = null
 
-        fun supportChapter():Builder {
+        fun supportChapter(hideChapterViewIfEmpty:Boolean=false):Builder {
             mSupportChapter = true
+            mHideChapterViewIfEmpty = hideChapterViewIfEmpty
             return this
         }
         fun supportPlaylist(playlist:IMediaFeed, autoPlay:Boolean, continuousPlay:Boolean):Builder {
@@ -100,8 +102,8 @@ open class PlayerControllerModel(
 
         fun build():PlayerControllerModel {
             val playerModel = when {
-                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
-                mSupportChapter -> ChapterPlayerModel(context, coroutineScope)
+                mSupportChapter && mPlaylist!=null -> PlaylistChapterPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay, mHideChapterViewIfEmpty)
+                mSupportChapter -> ChapterPlayerModel(context, coroutineScope, mHideChapterViewIfEmpty)
                 mPlaylist!=null -> PlaylistPlayerModel(context, coroutineScope, mPlaylist!!, mAutoPlay, mContinuousPlay)
                 else -> BasicPlayerModel(context, coroutineScope)
             }

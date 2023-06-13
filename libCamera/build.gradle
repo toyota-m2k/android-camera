@@ -23,11 +23,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     packagingOptions {
@@ -61,7 +61,8 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
     implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-    implementation "com.github.toyota-m2k:bind-it:$m2k_bind_it_version"
+    implementation "com.github.toyota-m2k:android-utilities:$m2k_utilities_version"
+
     implementation project(path: ':shared')
 
     testImplementation 'junit:junit:4.13.2'

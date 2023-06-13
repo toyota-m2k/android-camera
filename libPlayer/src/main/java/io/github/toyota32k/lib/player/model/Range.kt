@@ -23,6 +23,11 @@ data class Range (val start:Long, val end:Long=0) {
         }
     }
 
+    val isEmpty:Boolean
+        get() = start == 0L && end==0L
+    val span:Long
+        get() = end - start
+
     companion object {
         val empty = Range(0,0)
 

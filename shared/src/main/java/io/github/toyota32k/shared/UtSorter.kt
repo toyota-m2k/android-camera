@@ -3,7 +3,12 @@ package io.github.toyota32k.shared
 /**
  * MutableList（主に ObservableListを想定）を内包し、ソート状態を維持しながら、要素の追加ができるようにする。
  */
-class UtSorter<T>(val list:MutableList<T>, val allowDuplication:Boolean, val comparator:Comparator<T>) {
+class UtSorter<T>(val list:MutableList<T>, val actionOnDuplicate: ActionOnDuplicate, val comparator:Comparator<T>) {
+    enum class ActionOnDuplicate {
+        ALLOW,
+        REJECT,
+        REPLACE,
+    }
     init {
         if(list.size>1) {
             list.sortWith(comparator)
@@ -37,8 +42,15 @@ class UtSorter<T>(val list:MutableList<T>, val allowDuplication:Boolean, val com
 
     fun add(element:T):Int {
         synchronized(this) {
-            if (find(list, comparator, element, pos) >= 0 && !allowDuplication) {
-                return -1
+            if (find(list, comparator, element, pos) >= 0) {
+                when(actionOnDuplicate) {
+                    ActionOnDuplicate.REJECT -> return -1
+                    ActionOnDuplicate.REPLACE -> {
+                        list[pos.hit] = element
+                        return pos.hit
+                    }
+                    else -> {}
+                }
             }
 
             return if (pos.next < 0) {

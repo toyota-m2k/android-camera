@@ -4,13 +4,14 @@ import io.github.toyota32k.utils.UtLog
 
 open class UtSortedList<T>(
     private val innerList:MutableList<T>,
-    allowDuplication:Boolean,
+    actionOnDuplicate: UtSorter.ActionOnDuplicate,
     comparator:Comparator<T>,
     )
     : MutableList<T> by innerList {
-    constructor(allowDuplication: Boolean, comparator: Comparator<T>):this(mutableListOf(),allowDuplication,comparator)
+    constructor(actionOnDuplicate: UtSorter.ActionOnDuplicate, comparator: Comparator<T>):this(mutableListOf(),actionOnDuplicate,comparator)
+//    constructor(list:List<T>, actionOnDuplicate: UtSorter.ActionOnDuplicate, comparator: Comparator<T>):this(list.toMutableList(),actionOnDuplicate,comparator)
 
-    val sorter = UtSorter<T>(innerList, allowDuplication, comparator)
+    val sorter = UtSorter<T>(innerList, actionOnDuplicate, comparator)
     override fun add(element: T): Boolean {
         return sorter.add(element)>=0
     }

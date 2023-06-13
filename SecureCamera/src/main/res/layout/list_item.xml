@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -19,7 +20,7 @@
         android:layout_width="5dp"
         />
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:layout_margin="5dp">
@@ -27,13 +28,29 @@
             android:id="@+id/text_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            tools:text="mov-2023.05.01-19:20:30.mp4"
             />
-        <TextView
-            android:id="@+id/size_view"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            />
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/size_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="1.234 MB"
+                />
+            <TextView
+                android:id="@+id/duration_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                tools:text="1.234 sec"
+                />
+
+        </LinearLayout>
 
     </LinearLayout>
 </LinearLayout>

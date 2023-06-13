@@ -5,14 +5,14 @@ import android.view.View
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import io.github.toyota32k.bindit.LiteUnitCommand
-import io.github.toyota32k.bindit.ReliableCommand
-import io.github.toyota32k.bindit.progressBarBinding
-import io.github.toyota32k.bindit.textBinding
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.ReliableCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.progressBarBinding
+import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.databinding.DialogProgressBinding
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class ProgressDialog : UtDialogEx() {
@@ -43,6 +43,7 @@ class ProgressDialog : UtDialogEx() {
         noHeader = true
         setLimitWidth(400)
         heightOption = HeightOption.COMPACT
+        cancellable = false
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {

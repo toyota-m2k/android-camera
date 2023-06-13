@@ -1,25 +1,22 @@
 package io.github.toyota32k.secureCamera
 
 import android.content.Intent
-import android.graphics.Matrix
-import android.graphics.PointF
-import android.graphics.RectF
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.viewModels
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.LiteUnitCommand
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
+import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.bindCommand
 import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
@@ -34,6 +31,8 @@ class MainActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
+        MetaDB.initialize(this)
         Settings.initialize(this)
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -43,6 +42,7 @@ class MainActivity : UtMortalActivity() {
         binder.owner(this)
             .bindCommand(LiteUnitCommand(::startCamera), controls.cameraButton )
             .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )
+            .bindCommand(LiteUnitCommand(::startServer), controls.serverButton )
             .bindCommand(LiteUnitCommand(::clearAllData), controls.clearAllButton)
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
     }
@@ -55,6 +55,14 @@ class MainActivity : UtMortalActivity() {
         lifecycleScope.launch {
             if(PasswordDialog.checkPassword()) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
+            }
+        }
+    }
+
+    private fun startServer() {
+        lifecycleScope.launch {
+            if(PasswordDialog.checkPassword()) {
+                startActivity(Intent(this@MainActivity, ServerActivity::class.java))
             }
         }
     }

@@ -12,7 +12,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IChapterList {
-    protected val sortedList = UtSortedList(mutableList, allowDuplication = false, comparator = ::chapterComparator)
+    protected val sortedList = UtSortedList(mutableList, actionOnDuplicate = UtSorter.ActionOnDuplicate.REJECT, comparator = ::chapterComparator)
     private val workPosition = UtSorter.Position()
     protected val workChapter = DmyChapter()  // 検索用のダミー
     protected class DmyChapter:IChapter {
@@ -35,7 +35,10 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
     }
 
     init {
-        reset()
+        // 先頭チャプターは必ず存在し削除できないこととする。
+        if(sortedList.isEmpty() || sortedList[0].position>0L) {
+            sortedList.add(Chapter(0))
+        }
     }
 
 
@@ -111,7 +114,7 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         return sortedList.sorter.find(workChapter.at(position))
     }
 
-    override fun getChapterAround(position:Long):IChapter {
+    override fun getChapterAround(position:Long):IChapter? {
         val neighbor = getNeighborChapters(position)
         neighbor.hitChapter()?.apply {
             return this
@@ -119,7 +122,8 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         neighbor.prevChapter()?.apply {
             return this
         }
-        throw java.lang.IllegalStateException("no chapters around $position")
+        //throw java.lang.IllegalStateException("no chapters around $position")
+        return null
     }
 
     fun enabledRangesNoTrimming() = sequence<Range> {
@@ -146,7 +150,7 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
         }
     }
 
-    fun enabledRangesWithTrimming(trimming: Range) = sequence<Range> {
+    private fun enabledRangesWithTrimming(trimming: Range) = sequence<Range> {
         for(r in enabledRangesNoTrimming()) {
             if(r.end>0 && r.end < trimming.start) {
                 // 有効領域 r が、trimming.start によって無効化されるのでスキップ
@@ -195,7 +199,7 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
     }
 
     private fun enabledRangesSub(trimming: Range): Sequence<Range> {
-        return if(trimming.start==0L && trimming.end==0L) {
+        return if(trimming.isEmpty) {
             enabledRangesNoTrimming()
         } else {
             enabledRangesWithTrimming(trimming)
@@ -250,10 +254,36 @@ open class ChapterList(mutableList:MutableList<IChapter> = mutableListOf()) : IC
     override fun disabledRanges(trimming: Range): List<Range> {
         return rangeCache.disabledRange(trimming)
     }
+
+    /**
+     * 動画ファイルのトリミングによって無効範囲がカットされた状態に合わせてチャプターリストを再構成する。
+     */
+    override fun defrag(trimming: Range): List<IChapter> {
+        val ranges = enabledRanges()
+        val list = mutableListOf<IChapter>()
+        var start = 0L
+        for(r in ranges) {
+            val c = chapterOn(r.start)
+            list.add(Chapter(start, c?.label?:""))
+            val span = r.span
+            if(span<=0) {
+                break
+            }
+            start += span
+        }
+        return list
+    }
 }
 
 class MutableChapterList : ChapterList(), IMutableChapterList {
     override val modifiedListener = Listeners<Unit>()
+
+    override fun initChapters(chapters: List<IChapter>) {
+        chapters.forEach {
+            addChapter(it.position, it.label, it.skip)
+        }
+    }
+
     /**
      * チャプターを挿入
      *
@@ -264,7 +294,10 @@ class MutableChapterList : ChapterList(), IMutableChapterList {
      */
     override fun addChapter(position:Long, label:String, skip:Boolean?):Boolean {
         val neighbor = getNeighborChapters(position)
-        if(neighbor.hit>=0) {
+        if(neighbor.hit==0 && position == 0L) {
+            sortedList[0] = Chapter(0, label, skip?:false)
+        }
+        if(neighbor.hit>0) {
             return false
         }
         if(neighbor.prevChapter()?.let{ position - it.position < ChapterList.MIN_CHAPTER_INTERVAL } == true) {

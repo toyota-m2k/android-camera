@@ -10,15 +10,14 @@ import io.github.toyota32k.lib.player.model.removeChapter
 import io.github.toyota32k.utils.Listeners
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
-import java.lang.IllegalArgumentException
 
 interface IChapterEditor : IMutableChapterList {
     fun undo()
     fun redo()
     val canUndo: Flow<Boolean>
     val canRedo: Flow<Boolean>
+    val isDirty:Boolean
 }
 
 /**
@@ -30,7 +29,7 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
         fun undo()
     }
 
-    private val buffer = mutableListOf<IOperation>()
+    private val history = mutableListOf<IOperation>()
     private val current = MutableStateFlow<Int>(0)     // 次回挿入位置を指している（undoされていなければ buffer.size と等しい）
 
     inner class AddOperation(private val position:Long, private val label:String, private val skip:Boolean?):IOperation {
@@ -62,12 +61,16 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
         }
     }
 
-    private fun addBuffer(op:IOperation) {
-        if(current.value<buffer.size) {
-            buffer.subList(current.value,  buffer.size).clear()
+    override fun initChapters(chapters: List<IChapter>) {
+        target.initChapters(chapters)
+    }
+
+    private fun addHistory(op:IOperation) {
+        if(current.value<history.size) {
+            history.subList(current.value,  history.size).clear()
         }
-        buffer.add(op)
-        current.value=buffer.size
+        history.add(op)
+        current.value=history.size
     }
 
 
@@ -75,7 +78,7 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
         if(!target.addChapter(position, label, skip)) {
             return false
         }
-        addBuffer(AddOperation(position,label,skip))
+        addHistory(AddOperation(position,label,skip))
         return true
     }
 
@@ -84,7 +87,7 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
         if(!target.updateChapter(position, label, skip)) {
             return false
         }
-        addBuffer(UpdateOperation(position,label,skip,chapter))
+        addHistory(UpdateOperation(position,label,skip,chapter))
         return true
     }
 
@@ -93,7 +96,7 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
         if(!target.removeChapterAt(index)) {
             return false
         }
-        addBuffer(RemoveOperation(index, chapter))
+        addHistory(RemoveOperation(index, chapter))
         return true
     }
 
@@ -102,16 +105,19 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
     override fun undo() {
         if(current.value<=0) return
         current.value--
-        buffer[current.value].undo()
+        history[current.value].undo()
     }
 
-    override val canRedo = current.map { it<buffer.size }
+    override val canRedo = current.map { it<history.size }
 
     override fun redo() {
-        if(buffer.size<=current.value) return
-        buffer[current.value].redo()
+        if(history.size<=current.value) return
+        history[current.value].redo()
         current.value++
     }
+
+    override val isDirty: Boolean
+        get() = current.value > 0
 
     override val modifiedListener: Listeners<Unit>
         get() = target.modifiedListener
