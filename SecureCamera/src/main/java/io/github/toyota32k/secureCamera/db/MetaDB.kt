@@ -23,6 +23,8 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     fun file(context: Context):File {
         return data.file(context)
     }
+    val id:Int
+        get() = data.id
     val name:String
         get() = data.name
     val date:Long

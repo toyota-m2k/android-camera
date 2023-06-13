@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.settings
 
 import android.content.Context
 import io.github.toyota32k.shared.SharedPreferenceDelegate
+import java.util.UUID
 
 object Settings {
     private lateinit var spd :SharedPreferenceDelegate
@@ -9,7 +10,11 @@ object Settings {
     fun initialize(application: Context) {
         if(this::spd.isInitialized) return
         spd = SharedPreferenceDelegate(application)
+        if(SecureArchive.clientId.isEmpty()) {
+            SecureArchive.clientId = UUID.randomUUID().toString()
+        }
     }
+
 
     object Camera {
         const val TAP_NONE = 0
@@ -44,6 +49,12 @@ object Settings {
         var incorrectCount:Int by spd.pref(0)
     }
 
+    object SecureArchive {
+        var clientId:String by spd.pref("")
+        var address:String by spd.pref("")
+        val isConfigured:Boolean get() = address.isNotEmpty()
+    }
+
     fun reset() {
         Camera.tapAction = Camera.DEF_TAP_ACTION
         Camera.hidePanelOnStart = Camera.DEF_HIDE_PANEL_ON_START
@@ -54,5 +65,6 @@ object Settings {
         Security.clearAllOnPasswordError = Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
         Security.numberOfIncorrectPassword = Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         Security.incorrectCount = 0
+        SecureArchive.address = ""
     }
 }

@@ -43,6 +43,7 @@ import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
@@ -53,11 +54,14 @@ import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.client.Canceller
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -475,11 +479,16 @@ class PlayerActivity : UtMortalActivity() {
 //        server.close()
     }
 
+    private fun sizeInKb(size: Long): String {
+        return String.format("%,d KB", size / 1000L)
+    }
+
     @SuppressLint("RestrictedApi")
     private fun startEditing(anchor:View, item:ItemEx) {
         androidx.appcompat.widget.PopupMenu(this, anchor).apply {
             menu.apply {
                 add(1, 1, 0, R.string.start_editing)
+                add(5,0,0,"Upload Video")
                 add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
                     icon = Mark.None.icon(this@PlayerActivity)
                     iconTintList = Mark.None.colorStateList(this@PlayerActivity)
@@ -536,6 +545,24 @@ class PlayerActivity : UtMortalActivity() {
                         controls.videoViewer.dissociatePlayer()
                         val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
                         startActivity(intent)
+                    }
+                    5 -> {
+                        UtImmortalSimpleTask.run("upload item") {
+                            val canceller = Canceller()
+                            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+                            viewModel.message.value = "Uploading..."
+                            viewModel.cancelCommand.bindForever(canceller::cancel)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                TcClient.uploadToSecureArchive(this@PlayerActivity,item,canceller) { current, total ->
+                                    val percent = (current * 100L / total).toInt()
+                                    viewModel.progress.value = percent
+                                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+                                }
+                                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(true) }
+                            }
+                            showDialog(taskName) { ProgressDialog() }
+                            true
+                        }
                     }
                     2 -> {
                         CoroutineScope(Dispatchers.IO).launch {
