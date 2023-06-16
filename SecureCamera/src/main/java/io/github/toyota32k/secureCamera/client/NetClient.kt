@@ -39,7 +39,7 @@ object NetClient {
      * Coroutineを利用し、スレッドをブロックしないで同期的な通信を可能にする拡張メソッド
      * OkHttpのnewCall().execute()を置き換えるだけで使える。
      */
-    private suspend fun Call.executeAsync(canceller: Canceller?) : Response {
+    suspend fun Call.executeAsync(canceller: Canceller?) : Response {
         return suspendCoroutine {cont ->
             try {
                 enqueue(object : Callback {
