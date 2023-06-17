@@ -346,7 +346,7 @@ class PlayerActivity : UtMortalActivity() {
     val binder = Binder()
     val gestureInterpreter:UtGestureInterpreter by lazy { UtGestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
 
-    val server = TcServer(5001)
+//    val server = TcServer(5001)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -47,4 +47,6 @@
     <string name="server">Server</string>
     <string name="close">Close</string>
     <string name="secure_archive_address">Host Address</string>
+    <string name="sa_title">Secure Archive</string>
+    <string name="backup">backup</string>
 </resources>

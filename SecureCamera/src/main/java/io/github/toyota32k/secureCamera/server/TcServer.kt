@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera.server
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.utils.HashUtils.encodeHex
 import io.github.toyota32k.server.HttpErrorResponse
 import io.github.toyota32k.server.HttpMethod
 import io.github.toyota32k.server.HttpServer
@@ -11,31 +12,53 @@ import io.github.toyota32k.server.Route
 import io.github.toyota32k.server.response.StatusCode
 import io.github.toyota32k.server.response.StreamingHttpResponse
 import io.github.toyota32k.server.response.TextHttpResponse
+import io.github.toyota32k.server.response.TextHttpResponse.Companion.CT_TEXT_PLAIN
+import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Date
+import kotlin.random.Random
 
 class TcServer(val port:Int) : AutoCloseable {
     companion object {
+        val logger = UtLog("Server",null, this::class.java)
+        private fun generateToken():String {
+            return Random.nextBytes(8).encodeHex()
+        }
+        fun updateAuthToken():String {
+            authToken = generateToken()
+            return authToken
+        }
+
+        var authToken: String = generateToken()
         val regRange = Regex("bytes=(?<start>\\d+)(?:-(?<end>\\d+))?");
         val routes = arrayOf<Route>(
-            Route("Capability", HttpMethod.GET, "/ytplayer/capability") { _, _ ->
+            Route("Capability", HttpMethod.GET, "/capability") { _, _ ->
                 TextHttpResponse(
                     StatusCode.Ok,
                     JSONObject()
                         .put("cmd", "capability")
                         .put("serverName", "SecCamera")
                         .put("version", 1)
+                        .put("root", "/")
                         .put("category", false)
                         .put("rating", false)
                         .put("mark", false)
+                        .put("chapter", true)
+                        .put("sync", false)
                         .put("acceptRequest", false)
+                        .put("backup", false)
                         .put("hasView", false)
+                        .put("authentication", true)
+                        // .put("challenge", ) todo
                 )
             },
-            Route("list", HttpMethod.GET, Regex("/ytplayer/list(\\?.+)*")) { _, request ->
+            Route("list", HttpMethod.GET, Regex("/list(\\?.+)*")) { _, request ->
                 val p = QueryParams.parse(request.url)
+                if(p["auth"]!= authToken) {
+                    return@Route HttpErrorResponse.unauthorized();
+                }
                 val list = runBlocking {
                     MetaDB.list(PlayerActivity.ListMode.VIDEO).fold(JSONArray()) { array, item ->
                         array.put(JSONObject().apply {
@@ -56,8 +79,11 @@ class TcServer(val port:Int) : AutoCloseable {
                         .put("date", "${Date().time}")
                 )
             },
-            Route("Video", HttpMethod.GET,"/ytplayer/video\\?.+") { _, request ->
+            Route("Video", HttpMethod.GET,"/video\\?.+") { _, request ->
                 val p = QueryParams.parse(request.url)
+                if(p["auth"]!= authToken) {
+                    return@Route HttpErrorResponse.unauthorized();
+                }
                 val id = p["id"]?.toLongOrNull() ?: return@Route HttpErrorResponse.badRequest("id is not specified")
                 val item = runBlocking {
                     MetaDB.itemAt(id)
@@ -72,6 +98,13 @@ class TcServer(val port:Int) : AutoCloseable {
                     StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file(UtImmortalTaskManager.application), start, end)
                 }
             },
+            Route("Backup Completed", HttpMethod.PUT, "/backup/completed") {_, request->
+                val content = request.contentAsString()
+                val json = JSONObject(content)
+                val id = json.optString("id")
+                logger.debug("Backup completed: ${id}")
+                TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
+            }
         )
     }
 

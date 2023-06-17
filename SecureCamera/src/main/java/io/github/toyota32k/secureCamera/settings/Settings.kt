@@ -52,6 +52,7 @@ object Settings {
     object SecureArchive {
         var clientId:String by spd.pref("")
         var address:String by spd.pref("")
+        var myPort by spd.pref(5001)
         val isConfigured:Boolean get() = address.isNotEmpty()
     }
 
