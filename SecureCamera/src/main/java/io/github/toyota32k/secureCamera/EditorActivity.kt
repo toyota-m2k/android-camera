@@ -1,12 +1,16 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
 import androidx.core.net.toUri
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -14,6 +18,7 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
+import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
@@ -227,7 +232,7 @@ class EditorActivity : UtMortalActivity() {
                         } else {
                             safeDelete(srcFile)
                             dstFile.renameTo(srcFile)
-                            MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
+                            MetaDB.updateFile(targetItem, viewModel.chapterList.defrag())
                         }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
@@ -279,6 +284,25 @@ class EditorActivity : UtMortalActivity() {
         }
         return super.handleKeyEvent(keyCode, event)
     }
+
+    class Broker(activity:FragmentActivity) : UtActivityBroker<String,String>() {
+        init{
+            register(activity)
+        }
+        class Contract:ActivityResultContract<String,String>() {
+            override fun createIntent(context: Context, input: String): Intent {
+                return Intent(context.applicationContext, EditorActivity::class.java).apply { putExtra(KEY_FILE_NAME, input) }
+            }
+
+            override fun parseResult(resultCode: Int, intent: Intent?): String {
+                return intent?.getStringExtra(KEY_FILE_NAME) ?: ""
+            }
+        }
+
+        override val contract: ActivityResultContract<String, String>
+            get() = Contract()
+    }
+
     companion object {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)

@@ -49,4 +49,7 @@
     <string name="secure_archive_address">Host Address</string>
     <string name="sa_title">Secure Archive</string>
     <string name="backup">backup</string>
+    <string name="rating_label">Rating</string>
+    <string name="mark_label">Mark</string>
+    <string name="edit_video_title">Edit Video</string>
 </resources>

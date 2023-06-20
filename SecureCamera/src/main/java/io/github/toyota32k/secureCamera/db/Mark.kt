@@ -2,20 +2,20 @@ package io.github.toyota32k.secureCamera.db
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.view.View
 import androidx.annotation.ColorInt
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
+import androidx.annotation.IdRes
 import androidx.core.content.ContextCompat
+import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
-enum class Mark(val markValue:Int, @DrawableRes val iconId:Int, @ColorRes val colorId:Int) {
-    None(0, R.drawable.ic_video_stop, R.color.color_mark_none),
-    Star(1, R.drawable.ic_mark_star, R.color.color_mark_star),
-    Flag(2, R.drawable.ic_mark_flag, R.color.color_mark_flag),
-    Check(3, R.drawable.ic_mark_check, R.color.color_mark_check),
+enum class Mark(val v:Int, @IdRes val id:Int, @DrawableRes val iconId:Int, @ColorRes val colorId:Int) {
+    None(0, R.drawable.ic_video_stop,0, R.color.color_mark_none),
+    Star(1, R.drawable.ic_mark_star, R.id.tg_mark_star, R.color.color_mark_star),
+    Flag(2, R.drawable.ic_mark_flag, R.id.tg_mark_flag, R.color.color_mark_flag),
+    Check(3, R.drawable.ic_mark_check, R.id.tg_mark_check, R.color.color_mark_check),
     ;
 
     fun colorStateList(context:Context):ColorStateList {
@@ -36,9 +36,21 @@ enum class Mark(val markValue:Int, @DrawableRes val iconId:Int, @ColorRes val co
         return ContextCompat.getDrawable(context, iconId) ?: throw IllegalStateException("no icon resource.")
     }
 
+    private class IDResolver : IIDValueResolver<Mark> {
+        override fun id2value(@IdRes id: Int): Mark = Mark.id2value(id)
+        override fun value2id(v: Mark): Int = v.id
+    }
+
     companion object {
         fun fromMarkValue(value:Int):Mark {
-            return values().firstOrNull { it.markValue == value } ?: None
+            return values().firstOrNull { it.v == value } ?: None
         }
+        fun id2value(@IdRes id: Int, def: Mark = None): Mark {
+            return values().find { it.id == id } ?: def
+        }
+        fun valueOf(v: Int, def: Mark = None): Mark {
+            return values().find { it.v == v } ?: def
+        }
+        val idResolver:IIDValueResolver<Mark> by lazy { IDResolver() }
     }
 }

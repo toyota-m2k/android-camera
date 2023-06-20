@@ -6,6 +6,7 @@ import android.view.View
 import androidx.annotation.IdRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.checkBinding
@@ -86,7 +87,7 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
-        val secureArchiveAddress = MutableStateFlow("")
+        val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.address)
         val secureArchiveAddressForDisplay = secureArchiveAddress.map { if(it.isNotEmpty()) it else "(u/a)" }
 
         val commandNip = LiteCommand(this::updateNip)
@@ -113,11 +114,10 @@ class SettingDialog : UtDialogEx() {
         }
 
         private fun editAddress() {
-            UtImmortalSimpleTask.run("editAddress") {
-                if(showDialog(taskName) { AddressDialog() }.status.ok) {
+            viewModelScope.launch {
+                if(AddressDialog.show()) {
                     secureArchiveAddress.value = Settings.SecureArchive.address
                 }
-                true
             }
         }
 

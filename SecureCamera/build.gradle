@@ -90,7 +90,7 @@ dependencies {
     implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
     implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
-    implementation "com.github.toyota-m2k:android-server:LOCAL"
+    implementation "com.github.toyota-m2k:android-server:$m2k_android_server_version"
 
     implementation project(path: ':shared')
     implementation project(path: ':libCamera')

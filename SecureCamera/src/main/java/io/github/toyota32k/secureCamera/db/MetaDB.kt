@@ -39,6 +39,10 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         get() = data.size
     val duration:Long
         get() = data.duration
+    val mark:Mark
+        get() = Mark.valueOf(data.mark)
+    val rating:Rating
+        get() = Rating.valueOf(data.flag)
 }
 
 object MetaDB {
@@ -130,7 +134,7 @@ object MetaDB {
 
 //    }
 
-    private suspend fun metaDataFromName(id:Int, name:String, group: Int=0, mark:Int=0, allowRetry:Int=0):MetaData? {
+    private suspend fun metaDataFromName(id:Int, name:String, group: Int=0, mark:Int=0, rating:Int=0, allowRetry:Int=0):MetaData? {
         return withContext(Dispatchers.IO) {
             val type = filename2type(name) ?: return@withContext null
             val file = File(application.filesDir, name)
@@ -139,7 +143,7 @@ object MetaDB {
             val duration = if (type == 1) {
                 VideoUtil.getDuration(file, allowRetry)
             } else 0L
-            MetaData(id, name, group, mark, type, date, size, duration)
+            MetaData(id, name, group, mark, type, date, size, duration, rating)
         }
     }
 
@@ -181,43 +185,44 @@ object MetaDB {
         }
     }
 
-    suspend fun register(name:String, group:Int?=null, mark:Int?=null):MetaData? {
+    suspend fun register(name:String, mark:Mark?=null, rating: Rating?=null):MetaData? {
         return withContext(Dispatchers.IO) {
             val exist = db.metaDataTable().getDataOf(name)
             if (exist != null) {
-                updateFile(exist, group, mark)
+                updateFile(exist, null, mark, rating)
                 exist
             } else {
-                metaDataFromName(0, name, group ?: 0, mark ?: 0, allowRetry = 10)?.apply {
+                metaDataFromName(0, name, 0, mark?.v ?: 0, allowRetry = 10)?.apply {
                     db.metaDataTable().insert(this)
                 }
             }
         }
     }
 
-    private suspend fun updateGroup(data:MetaData, group:Int):MetaData {
+//    private suspend fun updateGroup(data:MetaData, group:Int):MetaData {
+//        return withContext(Dispatchers.IO) {
+//            MetaData(data.id, data.name, group, data.mark, data.type, data.date, data.size, data.duration).apply {
+//                db.metaDataTable().update(this)
+//            }
+//        }
+//    }
+
+    private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
+        if(mark==null && rating==null) return data;
         return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, group, data.mark, data.type, data.date, data.size, data.duration).apply {
+            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.flag).apply {
                 db.metaDataTable().update(this)
             }
         }
     }
 
-    private suspend fun updateMark(data:MetaData, mark:Int):MetaData {
-        return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, mark, data.type, data.date, data.size, data.duration).apply {
-                db.metaDataTable().update(this)
-            }
-        }
-    }
-
-    private suspend fun updateFile(data:MetaData, group:Int?=null, mark:Int?=null):MetaData {
-        return withContext(Dispatchers.IO) {
-            metaDataFromName(data.id, data.name, group ?: data.group, mark ?: data.mark, allowRetry = 10)?.apply {
-                db.metaDataTable().update(this)
-            } ?: throw IllegalStateException("no data to update")
-        }
-    }
+//    private suspend fun updateFile(data:MetaData, group:Int?=null, mark:Int?=null):MetaData {
+//        return withContext(Dispatchers.IO) {
+//            metaDataFromName(data.id, data.name, group ?: data.group, mark ?: data.mark, allowRetry = 10)?.apply {
+//                db.metaDataTable().update(this)
+//            } ?: throw IllegalStateException("no data to update")
+//        }
+//    }
 
     private suspend fun deleteFile(data:MetaData) {
         withContext(Dispatchers.IO) {
@@ -260,14 +265,27 @@ object MetaDB {
         }
     }
 
-    suspend fun updateFile(item:ItemEx, group:Int?=null, mark:Int?=null):ItemEx {
-        setChaptersFor(item.data, item.chapterList)
-        val newData = updateFile(item.data, group, mark)
+    suspend fun updateMarkRating(item:ItemEx, mark:Mark?=null, rating: Rating?):ItemEx {
+        val newData = updateMarkRating(item.data, mark, rating)
         return ItemEx(newData, item.chapterList)
     }
 
-    suspend fun registerEx(name:String, group:Int?=null, mark:Int?=null):ItemEx? {
-        val newData = register(name, group, mark) ?: return null
+    suspend fun updateFile(item:ItemEx, chapterList: List<IChapter>?, mark:Mark?=null, rating: Rating?=null):ItemEx {
+        if(chapterList!=null) {
+            setChaptersFor(item.data, chapterList)
+        }
+        val newData = updateMarkRating(item.data, mark, rating)
+        return ItemEx(newData, chapterList?:item.chapterList)
+    }
+    suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?, mark:Mark?=null, rating: Rating?=null):MetaData {
+        if(chapterList!=null) {
+            setChaptersFor(data, chapterList)
+        }
+        return updateMarkRating(data, mark, rating)
+    }
+
+    suspend fun registerEx(name:String, mark:Mark?=null, rating: Rating?=null):ItemEx? {
+        val newData = register(name, mark, rating) ?: return null
         return ItemEx(newData, null)
     }
 
@@ -295,7 +313,7 @@ object MetaDB {
         val file = prepareTestFile()
         fn(file)
         if (file.exists()) {
-            register(testItemName, 0, 0)
+            register(testItemName, null, null)
         }
     }
 }

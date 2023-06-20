@@ -16,6 +16,7 @@ buildscript {
     ext.m2k_media_processor_version = "LOCALv2"
     ext.m2k_android_dialog_version = "3.6.1"
 //    ext.m2k_android_dialog_version = "LOCAL"
+    ext.m2k_android_server_version = "0.0.4"
     ext.m2k_viewex_version = "1.0.1"
 
     dependencies {

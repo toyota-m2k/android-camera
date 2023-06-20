@@ -3,32 +3,45 @@ package io.github.toyota32k.secureCamera.dialog
 import android.os.Bundle
 import android.view.View
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.editTextBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
 import io.github.toyota32k.dialog.task.IUtImmortalTaskMutableContextSource
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogAddressBinding
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.utils.UtImmortalViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class AddressDialog : UtDialogEx() {
-    class AddressDialogViewModel : ViewModel() {
-//        override lateinit var immortalTaskContext: IUtImmortalTaskContext
+    class AddressDialogViewModel : UtImmortalViewModel() {
         val address = MutableStateFlow(Settings.SecureArchive.address)
         fun save() {
             Settings.SecureArchive.address = address.value
         }
+        companion object {
+            fun createBy(task:IUtImmortalTask):AddressDialogViewModel {
+                return UtImmortalViewModelHelper.createBy(AddressDialogViewModel::class.java, task)
+            }
+            fun instanceFor(dialog: AddressDialog):AddressDialogViewModel {
+                return UtImmortalViewModelHelper.instanceFor(AddressDialogViewModel::class.java, dialog)
+            }
+        }
     }
 
-    val viewModel = AddressDialogViewModel()
+    val viewModel = AddressDialogViewModel.instanceFor(this)
     lateinit var controls: DialogAddressBinding
 
     override fun preCreateBodyView() {
@@ -43,6 +56,7 @@ class AddressDialog : UtDialogEx() {
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
+//        viewModel = ViewModelProvider(requireActivity())[AddressDialogViewModel::class.java]
         controls = DialogAddressBinding.inflate(inflater.layoutInflater)
         return controls.root.also { _ ->
             binder.editTextBinding(controls.address, viewModel.address, BindingMode.TwoWay)
@@ -52,5 +66,14 @@ class AddressDialog : UtDialogEx() {
     override fun onPositive() {
         viewModel.save()
         super.onPositive()
+    }
+
+    companion object {
+        suspend fun show(): Boolean {
+            return UtImmortalSimpleTask.runAsync("editAddress") {
+                AddressDialogViewModel.createBy(this)
+                showDialog(taskName) { AddressDialog() }.status.positive
+            }
+        }
     }
 }

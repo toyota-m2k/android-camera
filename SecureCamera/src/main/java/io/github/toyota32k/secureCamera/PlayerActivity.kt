@@ -62,8 +62,6 @@ import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
-import io.github.toyota32k.secureCamera.server.NetworkUtils
-import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.shared.UtSorter
@@ -310,10 +308,10 @@ class PlayerActivity : UtMortalActivity() {
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
-                    val newItem = MetaDB.updateFile(item)
-                    if (playlist.listMode.value != ListMode.VIDEO) {
-                        withContext(Dispatchers.Main) { playlist.sorter.add(newItem) }
-                    }
+//                    val newItem = MetaDB.updateFile(item)
+//                    if (playlist.listMode.value != ListMode.VIDEO) {
+//                        withContext(Dispatchers.Main) { playlist.sorter.add(newItem) }
+//                    }
                 }
             }
         }
@@ -341,6 +339,7 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
+    private val editorActivityBroker = EditorActivity.Broker(this)
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
@@ -489,19 +488,19 @@ class PlayerActivity : UtMortalActivity() {
             menu.apply {
                 add(1, 1, 0, R.string.start_editing)
                 add(5,0,0,"Upload Video")
-                add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
+                add(4, Mark.None.v, Mark.None.v+1, Mark.None.toString()).apply {
                     icon = Mark.None.icon(this@PlayerActivity)
                     iconTintList = Mark.None.colorStateList(this@PlayerActivity)
                 }
-                add(4, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
+                add(4, Mark.Star.v, Mark.Star.v+1, Mark.Star.toString()).apply {
                     icon = Mark.Star.icon(this@PlayerActivity)
                     iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
                 }
-                add(4, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
+                add(4, Mark.Flag.v, Mark.Flag.v+1, Mark.Flag.toString()).apply {
                     icon = Mark.Flag.icon(this@PlayerActivity)
                     iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
                 }
-                add(4, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
+                add(4, Mark.Check.v, Mark.Check.v+1, Mark.Check.toString()).apply {
                     icon = Mark.Check.icon(this@PlayerActivity)
                     iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
                     check(true)
@@ -564,18 +563,18 @@ class PlayerActivity : UtMortalActivity() {
                             true
                         }
                     }
-                    2 -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val itemNew = MetaDB.updateFile(item, null, it.itemId)
-                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-                        }
-                    }
-                    3 -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val itemNew = MetaDB.updateFile(item, null, 0)
-                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-                        }
-                    }
+//                    2 -> {
+//                        CoroutineScope(Dispatchers.IO).launch {
+//                            val itemNew = MetaDB.updateFile(item, null, it.itemId)
+//                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
+//                        }
+//                    }
+//                    3 -> {
+//                        CoroutineScope(Dispatchers.IO).launch {
+//                            val itemNew = MetaDB.updateFile(item, null, 0)
+//                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
+//                        }
+//                    }
 
                 }
                 true

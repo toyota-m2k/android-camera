@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.dialog.UtDialog
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.*
@@ -32,6 +33,7 @@ class MainActivity : UtMortalActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
+        UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.SEE_THROUGH.color
         MetaDB.initialize(this)
         Settings.initialize(this)
         controls = ActivityMainBinding.inflate(layoutInflater)
