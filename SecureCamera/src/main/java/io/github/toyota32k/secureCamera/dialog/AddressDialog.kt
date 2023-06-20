@@ -41,7 +41,7 @@ class AddressDialog : UtDialogEx() {
         }
     }
 
-    val viewModel = AddressDialogViewModel.instanceFor(this)
+    val viewModel by lazy { AddressDialogViewModel.instanceFor(this) }
     lateinit var controls: DialogAddressBinding
 
     override fun preCreateBodyView() {

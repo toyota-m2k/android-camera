@@ -64,7 +64,7 @@ class ItemDialog : UtDialogEx() {
         }
     }
 
-    private val viewModel = ItemViewModel.instanceFor(this)
+    private lateinit var viewModel: ItemViewModel
     private lateinit var controls: DialogItemBinding
 
     override fun preCreateBodyView() {
@@ -77,6 +77,7 @@ class ItemDialog : UtDialogEx() {
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
+        viewModel = ItemViewModel.instanceFor(this)
         controls = DialogItemBinding.inflate(inflater.layoutInflater)
         binder
             .textBinding(controls.itemName, ConstantLiveData(viewModel.item.name))

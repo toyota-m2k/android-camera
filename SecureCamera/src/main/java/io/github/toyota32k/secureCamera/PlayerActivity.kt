@@ -61,6 +61,7 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
@@ -96,12 +97,22 @@ class PlayerActivity : UtMortalActivity() {
             fun valueOf(resId: Int, def: ListMode = PHOTO): ListMode {
                 return values().find { it.resId == resId } ?: def
             }
+            fun valueOf(name:String?):ListMode? {
+                if(name==null) return null
+                return try {
+                    java.lang.Enum.valueOf(ListMode::class.java, name)
+                } catch (e:Throwable) {
+                    null
+                }
+            }
         }
 
     }
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
         companion object {
+            const val KEY_CURRENT_LIST_MODE = "ListMode"
+            const val KEY_CURRENT_ITEM = "CurrentItem"
             suspend fun takeSnapshot(item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
@@ -148,6 +159,7 @@ class PlayerActivity : UtMortalActivity() {
         }
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
+        val ensureVisibleCommand = LiteUnitCommand()
 
         var editingItem: String? = null
 
@@ -241,6 +253,12 @@ class PlayerActivity : UtMortalActivity() {
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
+                ensureVisibleCommand.invoke()
+            }
+
+            fun currentIndex():Int {
+                val item = currentSelection.value ?: return -1
+                return collection.indexOf(item)
             }
 
             suspend fun refreshList() {
@@ -255,7 +273,7 @@ class PlayerActivity : UtMortalActivity() {
             private fun setFileList(list:Collection<ItemEx>, newMode:ListMode) {
                 val current = currentSource.value as VideoSource?
                 sorter.replace(list)
-                listMode.value = newMode
+//                listMode.value = newMode
                 when(newMode) {
                     ListMode.ALL->  select(current?.item)
                     ListMode.VIDEO -> select(videoSelection)
@@ -315,7 +333,22 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
-        
+
+        init {
+            viewModelScope.launch {
+                val mode = ListMode.valueOf(MetaDB.KV.get(KEY_CURRENT_LIST_MODE))
+                if(mode!=null) {
+                    playlist.listMode.value = mode
+                }
+                val name = MetaDB.KV.get(KEY_CURRENT_ITEM) ?: return@launch
+                val item = MetaDB.itemExOf(name) ?: return@launch
+                playlist.select(item)
+            }
+        }
+
+        val currentIndex:Int
+            get() = playlist.currentIndex()
+
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
@@ -334,6 +367,14 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         override fun onCleared() {
+            val listMode = playlist.listMode.value.toString()
+            val currentItem = playlist.currentSelection.value?.name
+            CoroutineScope(Dispatchers.IO).launch {
+                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode)
+                if(currentItem!=null) {
+                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem)
+                }
+            }
             super.onCleared()
             playerControllerModel.close()
         }
@@ -403,6 +444,7 @@ class PlayerActivity : UtMortalActivity() {
 //            .bindCommand(viewModel.rotateCommand, this::onRotate)
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
+            .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
@@ -463,6 +505,10 @@ class PlayerActivity : UtMortalActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        ensureVisible()
+
+
+
 //        val wm = getSystemService(WIFI_SERVICE) as WifiManager
 //        val ip = wm.connectionInfo
 
@@ -478,114 +524,36 @@ class PlayerActivity : UtMortalActivity() {
 //        server.close()
     }
 
+    fun ensureVisible() {
+        val index = viewModel.currentIndex
+        if(index>=0) {
+            controls.listView.scrollToPosition(index)
+        }
+    }
+
     private fun sizeInKb(size: Long): String {
         return String.format("%,d KB", size / 1000L)
     }
 
     @SuppressLint("RestrictedApi")
     private fun startEditing(anchor:View, item:ItemEx) {
-        androidx.appcompat.widget.PopupMenu(this, anchor).apply {
-            menu.apply {
-                add(1, 1, 0, R.string.start_editing)
-                add(5,0,0,"Upload Video")
-                add(4, Mark.None.v, Mark.None.v+1, Mark.None.toString()).apply {
-                    icon = Mark.None.icon(this@PlayerActivity)
-                    iconTintList = Mark.None.colorStateList(this@PlayerActivity)
+        UtImmortalSimpleTask.run("editItem") {
+            viewModel.playerControllerModel.commandPause.invoke()
+            val vm = ItemDialog.ItemViewModel.createBy(this, item)
+            if(showDialog(taskName) { ItemDialog() }.status.ok) {
+                vm.saveIfNeed()
+                viewModel.playlist.sorter.add(vm.item)
+                if(vm.nextAction==ItemDialog.ItemViewModel.NextAction.EditItem) {
+                    viewModel.playlist.select(null)
+                    viewModel.playerControllerModel.playerModel.killPlayer()
+                    viewModel.editingItem = item.name
+                    controls.videoViewer.dissociatePlayer()
+                    val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
+                    startActivity(intent)
                 }
-                add(4, Mark.Star.v, Mark.Star.v+1, Mark.Star.toString()).apply {
-                    icon = Mark.Star.icon(this@PlayerActivity)
-                    iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
-                }
-                add(4, Mark.Flag.v, Mark.Flag.v+1, Mark.Flag.toString()).apply {
-                    icon = Mark.Flag.icon(this@PlayerActivity)
-                    iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
-                }
-                add(4, Mark.Check.v, Mark.Check.v+1, Mark.Check.toString()).apply {
-                    icon = Mark.Check.icon(this@PlayerActivity)
-                    iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-                    check(true)
-                }
-
-//                if(item.data.mark == 0) {
-//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-//                        icon = Mark.Check.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-//                        check(true)
-//                    }
-//                } else {
-//                    add(3, Mark.None.markValue, Mark.None.markValue+1, "Remove Mark")
-//                }
-//                addSubMenu("Mark").apply {
-//                    add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
-//                        icon = Mark.None.icon(this@PlayerActivity)
-//                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-//                        icon = Mark.Star.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
-//                        icon = Mark.Flag.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
-//                        icon = Mark.Check.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-//                        check(true)
-//                    }
-//                }
             }
-            setOnMenuItemClickListener {
-                when(it.groupId) {
-                     1 -> {
-                        viewModel.playlist.select(null)
-                        viewModel.playerControllerModel.playerModel.killPlayer()
-                        viewModel.editingItem = item.name
-                        controls.videoViewer.dissociatePlayer()
-                        val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
-                        startActivity(intent)
-                    }
-                    5 -> {
-                        UtImmortalSimpleTask.run("upload item") {
-                            val canceller = Canceller()
-                            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
-                            viewModel.message.value = "Uploading..."
-                            viewModel.cancelCommand.bindForever(canceller::cancel)
-                            CoroutineScope(Dispatchers.IO).launch {
-                                TcClient.uploadToSecureArchive(this@PlayerActivity,item,canceller) { current, total ->
-                                    val percent = (current * 100L / total).toInt()
-                                    viewModel.progress.value = percent
-                                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-                                }
-                                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(true) }
-                            }
-                            showDialog(taskName) { ProgressDialog() }
-                            true
-                        }
-                    }
-//                    2 -> {
-//                        CoroutineScope(Dispatchers.IO).launch {
-//                            val itemNew = MetaDB.updateFile(item, null, it.itemId)
-//                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-//                        }
-//                    }
-//                    3 -> {
-//                        CoroutineScope(Dispatchers.IO).launch {
-//                            val itemNew = MetaDB.updateFile(item, null, 0)
-//                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-//                        }
-//                    }
-
-                }
-                true
-            }
-            MenuPopupHelper(this@PlayerActivity, this.menu as MenuBuilder, anchor).apply {
-                gravity = Gravity.END
-                setForceShowIcon(true)
-                show()
-            }
+            true
         }
-
     }
 
     inner class ViewerManipulator : IUtManipulationTarget {

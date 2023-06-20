@@ -66,6 +66,24 @@ object MetaDB {
         }
     }
 
+    object KV {
+        suspend fun put(key:String, value:String) {
+            withContext(Dispatchers.IO) {
+                val e = db.kvTable().getAt(key)
+                if (e == null) {
+                    db.kvTable().insert(KeyValueEntry(key, value))
+                } else {
+                    db.kvTable().update(KeyValueEntry(key, value))
+                }
+            }
+        }
+        suspend fun get(key: String):String? {
+            return withContext(Dispatchers.IO) {
+                db.kvTable().getAt(key)?.value
+            }
+        }
+    }
+
     private fun filename2date(filename:String): Date? {
         val dateString = when {
             filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
