@@ -6,12 +6,14 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.BindingMode
+import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.ReliableCommand
 import io.github.toyota32k.binder.command.ReliableUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
@@ -49,10 +51,11 @@ class ItemDialog : UtDialogEx() {
             mark.value = item.mark
         }
 
-        suspend fun saveIfNeed() {
-            if(item.rating!=rating.value || item.mark != mark.value) {
+        suspend fun saveIfNeed():Boolean {
+            return if(item.rating!=rating.value || item.mark != mark.value) {
                 item = MetaDB.updateMarkRating(item, mark.value, rating.value)
-            }
+                true
+            } else false
         }
         companion object {
             fun createBy(task:IUtImmortalTask, item:ItemEx):ItemViewModel {
@@ -81,6 +84,7 @@ class ItemDialog : UtDialogEx() {
         controls = DialogItemBinding.inflate(inflater.layoutInflater)
         binder
             .textBinding(controls.itemName, ConstantLiveData(viewModel.item.name))
+            .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .materialRadioButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.editCommand, controls.editVideoButton) {

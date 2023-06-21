@@ -18,4 +18,5 @@
     <color name="my_tint_color_selected">#FF4081</color>
     <color name="my_tint_color_disabled">#BDBDBD</color>
 
+    <color name="accent_color">#FFFF4081</color>
 </resources>

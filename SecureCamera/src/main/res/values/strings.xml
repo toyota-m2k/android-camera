@@ -52,4 +52,6 @@
     <string name="rating_label">Rating</string>
     <string name="mark_label">Mark</string>
     <string name="edit_video_title">Edit Video</string>
+    <string name="uploaded">Uploaded to SecureArchive.</string>
+    <string name="rating_desc">Grouping</string>
 </resources>

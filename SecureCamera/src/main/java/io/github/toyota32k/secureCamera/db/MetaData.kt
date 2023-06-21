@@ -27,7 +27,9 @@ data class MetaData(
     val date:Long,
     val size:Long,
     val duration:Long,
-    val flag: Int = 0,      // rating として利用する
+    val rating:Int = 0,
+    val cloud:Int = 0,
+    val flag: Int = 0,
     val ext: String? = null,
 ) {
     val isVideo:Boolean

@@ -12,6 +12,7 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
+        <item name="colorAccent">@color/accent_color</item>
 
 
         <item name="controlPanelColor">#40000000</item>
@@ -27,4 +28,6 @@
         <item name="colorDialogSurface">?attr/colorSurface</item>
         <item name="colorOnDialogSurface">?android:textColorPrimary</item>
     </style>
+
+    <color name="accent_color">#000</color>
 </resources>

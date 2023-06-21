@@ -1,56 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
     android:paddingHorizontal="5dp"
     android:paddingVertical="10dp"
-    android:background="?attr/colorOnPrimary"
+    android:background="@color/color_list_item_background"
     >
     <ImageView
         android:id="@+id/icon_view"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="center_vertical"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:src="@drawable/ic_type_photo"
+        app:tint="@color/color_icon_primary"
         android:contentDescription="@string/file_type" />
-    <Space
-        android:layout_height="1dp"
-        android:layout_width="5dp"
-        />
-    <LinearLayout
-        android:layout_width="match_parent"
+    <ImageView
+        android:id="@+id/icon_mark"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/icon_view"
+        tools:src="@drawable/ic_mark_flag"
+        app:tint="@color/color_icon_accent"
+        android:layout_marginTop="10dp"
+        android:contentDescription="@string/file_type" />
+
+    <TextView
+        android:id="@+id/text_view"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_margin="5dp">
-        <TextView
-            android:id="@+id/text_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            tools:text="mov-2023.05.01-19:20:30.mp4"
-            />
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:orientation="horizontal">
-            <TextView
-                android:id="@+id/size_view"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="1.234 MB"
-                />
-            <TextView
-                android:id="@+id/duration_view"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="end"
-                tools:text="1.234 sec"
-                />
+        app:layout_constraintStart_toEndOf="@+id/icon_view"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        android:layout_marginStart="10dp"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        tools:text="mov-2023.05.01-19:20:30.mp4"
+        />
+    <TextView
+        android:id="@+id/size_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@+id/icon_mark"
+        app:layout_constraintTop_toTopOf="@+id/icon_mark"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
+        android:layout_marginStart="10dp"
+        android:textSize="14sp"
+        tools:text="1.234 MB"
+        />
+    <ImageView
+        android:id="@+id/icon_rating"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        tools:src="@drawable/ic_rating_3"
+        app:tint="@color/color_icon_accent"
+        android:contentDescription="@string/rating_desc" />
 
-        </LinearLayout>
+    <ImageView
+        android:id="@+id/icon_cloud"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintEnd_toStartOf="@+id/icon_rating"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        tools:src="@drawable/ic_cloud"
+        app:tint="@color/color_icon_primary"
+        android:contentDescription="@string/uploaded" />
 
-    </LinearLayout>
-</LinearLayout>
+    <TextView
+        android:id="@+id/duration_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/icon_mark"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
+        tools:text="1.234 sec"
+        />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

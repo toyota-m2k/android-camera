@@ -12,4 +12,6 @@
     <dimen name="setting_spacing">10dp</dimen>
     <dimen name="min_label_width">70dp</dimen>
     <dimen name="min_toggle_button_width">40dp</dimen>
+
+    <dimen name="icon_size_in_list">20dp</dimen>
 </resources>

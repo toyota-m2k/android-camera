@@ -3,13 +3,12 @@ package io.github.toyota32k.secureCamera
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.graphics.Matrix
-import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.view.Gravity
+import android.os.Debug
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -17,8 +16,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
@@ -41,8 +38,6 @@ import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.boodroid.common.getAttrColor
-import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -54,23 +49,23 @@ import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
-import io.github.toyota32k.secureCamera.client.Canceller
-import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -216,7 +211,8 @@ class PlayerActivity : UtMortalActivity() {
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
-            fun select(item_:ItemEx?) {
+            fun select(item_:ItemEx?, force:Boolean=true) {
+                if(!force && item_ == currentSelection.value) return
                 if(collection.isEmpty()) {
                     hasNext.value = false
                     hasPrevious.value = false
@@ -263,6 +259,14 @@ class PlayerActivity : UtMortalActivity() {
 
             suspend fun refreshList() {
                 setListMode(listMode.value)
+            }
+
+            fun replaceItem(item:ItemEx) {
+                val current = currentSelection.value?.id == item.id
+                sorter.add(item)
+                if(current) {
+                    select(item)
+                }
             }
 
             private suspend fun setListMode(mode:ListMode) {
@@ -394,21 +398,28 @@ class PlayerActivity : UtMortalActivity() {
         setContentView(controls.root)
         hideActionBar()
 
-        val normalColor: Drawable
-        val normalTextColor: Int
-        val selectedColor: Drawable
-        val selectedTextColor: Int
-
-        theme!!.apply {
-            normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
-            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
-            selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
-            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
-        }
+//        val normalColor: Drawable
+//        val normalTextColor: Int
+//        val selectedColor: Drawable
+//        val selectedTextColor: Int
+//
+//        theme!!.apply {
+//            normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
+//            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
+//            selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
+//            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
+//        }
         val icPhoto = AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!
         val icVideo = AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!
-        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
-        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
+        val icMarkStar = AppCompatResources.getDrawable(this, Mark.Star.iconId)!!
+        val icMarkFlag = AppCompatResources.getDrawable(this, Mark.Flag.iconId)!!
+        val icMarkCheck = AppCompatResources.getDrawable(this, Mark.Check.iconId)!!
+        val icRating1 = AppCompatResources.getDrawable(this, Rating.Rating1.icon)!!
+        val icRating2 = AppCompatResources.getDrawable(this, Rating.Rating2.icon)!!
+        val icRating3 = AppCompatResources.getDrawable(this, Rating.Rating3.icon)!!
+        val icRating4 = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
+//        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
+//        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
@@ -466,8 +477,11 @@ class PlayerActivity : UtMortalActivity() {
                 val sizeView = views.findViewById<TextView>(R.id.size_view)
                 val durationView = views.findViewById<TextView>(R.id.duration_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
+                val markView = views.findViewById<ImageView>(R.id.icon_mark)
+                val ratingView = views.findViewById<ImageView>(R.id.icon_rating)
                 val isVideo = item.isVideo
-                textView.text = item.name
+                views.tag = item
+                textView.text = item.nameForDisplay
                 sizeView.text = formatSize(item.size)
                 if(!isVideo) {
                     durationView.visibility = View.GONE
@@ -475,20 +489,62 @@ class PlayerActivity : UtMortalActivity() {
                     durationView.text = formatTime(item.duration,item.duration)
                     durationView.visibility = View.VISIBLE
                 }
+                iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+                val markIcon = when(item.mark) {
+                    Mark.None -> null
+                    Mark.Star -> icMarkStar
+                    Mark.Flag -> icMarkFlag
+                    Mark.Check -> icMarkCheck
+                }
+                markView.setImageDrawable(markIcon)
+                val ratingIcon = when(item.rating) {
+                    Rating.RatingNone -> null
+                    Rating.Rating1 -> icRating1
+                    Rating.Rating2 -> icRating2
+                    Rating.Rating3 -> icRating3
+                    Rating.Rating4 -> icRating4
+                }
+                ratingView.setImageDrawable(ratingIcon)
+//                val tint = AppCompatResources.getColorStateList(this@PlayerActivity, R.color.color_icon_primary)
+
                 itemBinder
                     .owner(this)
-                    .bindCommand(LiteUnitCommand { viewModel.playlist.select(item)}, views)
-                    .bindCommand(LongClickUnitCommand { startEditing(views, item) }, views )
-                    .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == item }) { hit->
-                        if(hit) {
-                            views.background = selectedColor
-                            textView.setTextColor(selectedTextColor)
-                            iconView.setImageDrawable(if(isVideo) icVideoSel else icPhotoSel)
-                        } else {
-                            views.background = normalColor
-                            textView.setTextColor(normalTextColor)
-                            iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+                    .bindCommand(LiteUnitCommand {
+                        viewModel.playlist.select(item, false)
+                    }, views)
+                    .bindCommand(LongClickUnitCommand {
+                        viewModel.playlist.select(item, false)
+                        startEditing(item)
+                    }, views )
+                    .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
+//                        iconView.isSelected = hit
+                        assert(views.tag === item)
+                        if(views.isSelected!=hit) {
+                            lifecycleScope.launch {
+                                if (hit) {
+                                    delay(10)
+                                    views.isSelected = hit
+                                    logger.debug("select: ${item.name}")
+                                } else {
+                                    delay(50)
+                                    views.isSelected = hit
+                                    logger.debug("unselect: ${item.name}")
+                                }
+//                                delay(10)
+//                                views.invalidate()
+                            }
                         }
+//                        iconView.invalidate()
+//                        if(hit) {
+//                            views.background = selectedColor
+//                            textView.setTextColor(selectedTextColor)
+//                            iconView.setImageDrawable(if(isVideo) icVideoSel else icPhotoSel)
+//                        } else {
+//                            views.isSelected = false
+//                            views.background = normalColor
+//                            textView.setTextColor(normalTextColor)
+//                            iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+//                        }
                     }
 
             }
@@ -536,13 +592,14 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     @SuppressLint("RestrictedApi")
-    private fun startEditing(anchor:View, item:ItemEx) {
+    private fun startEditing(item:ItemEx) {
         UtImmortalSimpleTask.run("editItem") {
             viewModel.playerControllerModel.commandPause.invoke()
             val vm = ItemDialog.ItemViewModel.createBy(this, item)
             if(showDialog(taskName) { ItemDialog() }.status.ok) {
-                vm.saveIfNeed()
-                viewModel.playlist.sorter.add(vm.item)
+                if(vm.saveIfNeed()) {
+                    viewModel.playlist.replaceItem(vm.item)
+                }
                 if(vm.nextAction==ItemDialog.ItemViewModel.NextAction.EditItem) {
                     viewModel.playlist.select(null)
                     viewModel.playerControllerModel.playerModel.killPlayer()
@@ -721,5 +778,9 @@ class PlayerActivity : UtMortalActivity() {
             return true
         }
         return false
+    }
+
+    companion object {
+        val logger = UtLog("PlayerActivity", null, PlayerActivity::class.java)
     }
 }

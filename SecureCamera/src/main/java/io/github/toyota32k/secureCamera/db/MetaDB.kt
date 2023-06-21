@@ -42,7 +42,11 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     val mark:Mark
         get() = Mark.valueOf(data.mark)
     val rating:Rating
-        get() = Rating.valueOf(data.flag)
+        get() = Rating.valueOf(data.rating)
+    val cloud:Boolean
+        get() = data.cloud!=0
+    val nameForDisplay:String
+        get() = name.substringAfter("-").substringBeforeLast(".")
 }
 
 object MetaDB {
@@ -54,7 +58,9 @@ object MetaDB {
         if(!this::db.isInitialized) {
             application = context.applicationContext as Application
 
-            db = Room.databaseBuilder(this.application, Database::class.java, "meta.db").build()
+            db = Room.databaseBuilder(this.application, Database::class.java, "meta.db")
+//                .addMigrations(migration1_2)
+                .build()
             CoroutineScope(Dispatchers.IO).launch {
                 val s = db.kvTable().getAt("INIT")
                 if (s == null) {
@@ -228,7 +234,7 @@ object MetaDB {
     private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
         if(mark==null && rating==null) return data;
         return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.flag).apply {
+            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating).apply {
                 db.metaDataTable().update(this)
             }
         }
