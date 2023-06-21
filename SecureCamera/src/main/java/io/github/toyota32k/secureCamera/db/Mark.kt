@@ -12,7 +12,7 @@ import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
 enum class Mark(val v:Int, @DrawableRes val iconId:Int, @IdRes val id:Int) {
-    None(0, R.drawable.ic_video_stop,0),
+    None(0, R.drawable.ic_video_stop,R.id.tg_mark_none),
     Star(1, R.drawable.ic_mark_star, R.id.tg_mark_star),
     Flag(2, R.drawable.ic_mark_flag, R.id.tg_mark_flag),
     Check(3, R.drawable.ic_mark_check, R.id.tg_mark_check),

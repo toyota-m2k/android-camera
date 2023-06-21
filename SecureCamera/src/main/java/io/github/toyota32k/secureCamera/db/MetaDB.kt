@@ -5,9 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
-import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.chapter.Chapter
-import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
 import io.github.toyota32k.secureCamera.utils.VideoUtil
@@ -232,9 +230,18 @@ object MetaDB {
 //    }
 
     private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
-        if(mark==null && rating==null) return data;
+        if(mark==null && rating==null) return data
         return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating).apply {
+            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating, data.cloud).apply {
+                db.metaDataTable().update(this)
+            }
+        }
+    }
+
+    private suspend fun updateCloud(data:MetaData, cloud: Boolean):MetaData {
+        return withContext(Dispatchers.IO) {
+
+            MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,if(cloud) 1 else 0).apply {
                 db.metaDataTable().update(this)
             }
         }
@@ -272,7 +279,7 @@ object MetaDB {
         }
     }
 
-    suspend fun MetaData.toItemEx():ItemEx {
+    private suspend fun MetaData.toItemEx():ItemEx {
         val chapters = if(isVideo) getChaptersFor(this) else null
         return ItemEx(this, chapters)
     }
@@ -292,6 +299,12 @@ object MetaDB {
     suspend fun updateMarkRating(item:ItemEx, mark:Mark?=null, rating: Rating?):ItemEx {
         val newData = updateMarkRating(item.data, mark, rating)
         return ItemEx(newData, item.chapterList)
+    }
+
+    suspend fun updateCloud(item: ItemEx, cloud:Boolean):ItemEx {
+        return if(item.cloud!=cloud) {
+            ItemEx(updateCloud(item.data, cloud), item.chapterList)
+        } else item
     }
 
     suspend fun updateFile(item:ItemEx, chapterList: List<IChapter>?, mark:Mark?=null, rating: Rating?=null):ItemEx {
