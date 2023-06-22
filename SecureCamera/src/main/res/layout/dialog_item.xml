@@ -33,14 +33,14 @@
         app:selectionRequired="false"
         android:orientation="horizontal"
         >
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/tg_rating_none"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="@dimen/min_toggle_button_width"
-            app:icon="@drawable/ic_close"
-            app:iconPadding="0dp"/>
+<!--        <com.google.android.material.button.MaterialButton-->
+<!--            android:id="@+id/tg_rating_none"-->
+<!--            style="?attr/materialButtonOutlinedStyle"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:minWidth="@dimen/min_toggle_button_width"-->
+<!--            app:icon="@drawable/ic_close"-->
+<!--            app:iconPadding="0dp"/>-->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/tg_rating_1"
             style="?attr/materialButtonOutlinedStyle"
@@ -99,14 +99,14 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         >
-        <Button
-            android:id="@+id/tg_mark_none"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="@dimen/min_toggle_button_width"
-            app:icon="@drawable/ic_close"
-            app:iconPadding="0dp"/>
+<!--        <Button-->
+<!--            android:id="@+id/tg_mark_none"-->
+<!--            style="?attr/materialButtonOutlinedStyle"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:minWidth="@dimen/min_toggle_button_width"-->
+<!--            app:icon="@drawable/ic_close"-->
+<!--            app:iconPadding="0dp"/>-->
         <Button
             android:id="@+id/tg_mark_star"
             style="?attr/materialButtonOutlinedStyle"

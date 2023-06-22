@@ -2,13 +2,10 @@ package io.github.toyota32k.secureCamera
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
-import android.os.Debug
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -41,6 +38,7 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
@@ -155,8 +153,6 @@ class PlayerActivity : UtMortalActivity() {
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
         val ensureVisibleCommand = LiteUnitCommand()
-
-        var editingItem: String? = null
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
             private val file: File = item.file(context)
@@ -330,10 +326,10 @@ class PlayerActivity : UtMortalActivity() {
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
-//                    val newItem = MetaDB.updateFile(item)
-//                    if (playlist.listMode.value != ListMode.VIDEO) {
-//                        withContext(Dispatchers.Main) { playlist.sorter.add(newItem) }
-//                    }
+                    val newItem = MetaDB.updateFile(item,null)
+                    if (playlist.listMode.value != ListMode.VIDEO) {
+                        withContext(Dispatchers.Main) { playlist.replaceItem(newItem) }
+                    }
                 }
             }
         }
@@ -480,6 +476,7 @@ class PlayerActivity : UtMortalActivity() {
                 val markView = views.findViewById<ImageView>(R.id.icon_mark)
                 val ratingView = views.findViewById<ImageView>(R.id.icon_rating)
                 val isVideo = item.isVideo
+                views.isSelected = false
                 views.tag = item
                 textView.text = item.nameForDisplay
                 sizeView.text = formatSize(item.size)
@@ -591,6 +588,15 @@ class PlayerActivity : UtMortalActivity() {
         return String.format("%,d KB", size / 1000L)
     }
 
+    private suspend fun itemUpdated(name:String) {
+//        val oldItem = MetaDB.itemExOf(name) ?: return
+//        val newItem = MetaDB.updateFile(oldItem, null)
+        val item = MetaDB.itemExOf(name) ?: return
+//        logger.debug("oldSize=${sizeInKb(oldItem.size)}, newSize=${sizeInKb(newItem.size)}, itemSize=${sizeInKb(item.size)}")
+        viewModel.updateItem(item)
+        viewModel.playlist.select(item)
+    }
+
     @SuppressLint("RestrictedApi")
     private fun startEditing(item:ItemEx) {
         UtImmortalSimpleTask.run("editItem") {
@@ -603,10 +609,15 @@ class PlayerActivity : UtMortalActivity() {
                 if(vm.nextAction==ItemDialog.ItemViewModel.NextAction.EditItem) {
                     viewModel.playlist.select(null)
                     viewModel.playerControllerModel.playerModel.killPlayer()
-                    viewModel.editingItem = item.name
                     controls.videoViewer.dissociatePlayer()
-                    val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
-                    startActivity(intent)
+                    val name = editorActivityBroker.invoke(item.name)
+                    if(name!=null) {
+                        val activity = this.getActivity() as? PlayerActivity
+                        activity?.itemUpdated(item.name)
+                    }
+
+//                    val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
+//                    startActivity(intent)
                 }
             }
             true
@@ -758,16 +769,6 @@ class PlayerActivity : UtMortalActivity() {
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()
             lifecycleScope.launch { viewModel.playlist.refreshList() }
-        }
-        val itemName = viewModel.editingItem
-        if(itemName!=null) {
-            viewModel.editingItem = null
-            lifecycleScope.launch {
-                val item = MetaDB.itemExOf(itemName)
-                if(item!=null) {
-                    viewModel.playlist.select(item)
-                }
-            }
         }
     }
 

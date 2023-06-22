@@ -44,7 +44,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     val cloud:Boolean
         get() = data.cloud!=0
     val nameForDisplay:String
-        get() = name.substringAfter("-").substringBeforeLast(".")
+        get() = name.substringAfter("-").substringBeforeLast(".").replace("-", "  ")
 }
 
 object MetaDB {
@@ -207,14 +207,14 @@ object MetaDB {
         }
     }
 
-    suspend fun register(name:String, mark:Mark?=null, rating: Rating?=null):MetaData? {
+    suspend fun register(name:String):MetaData? {
         return withContext(Dispatchers.IO) {
             val exist = db.metaDataTable().getDataOf(name)
             if (exist != null) {
-                updateFile(exist, null, mark, rating)
+                updateFile(exist, null)
                 exist
             } else {
-                metaDataFromName(0, name, 0, mark?.v ?: 0, allowRetry = 10)?.apply {
+                metaDataFromName(0, name, 0, 0, 0, allowRetry = 10)?.apply {
                     db.metaDataTable().insert(this)
                 }
             }
@@ -228,24 +228,6 @@ object MetaDB {
 //            }
 //        }
 //    }
-
-    private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
-        if(mark==null && rating==null) return data
-        return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating, data.cloud).apply {
-                db.metaDataTable().update(this)
-            }
-        }
-    }
-
-    private suspend fun updateCloud(data:MetaData, cloud: Boolean):MetaData {
-        return withContext(Dispatchers.IO) {
-
-            MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,if(cloud) 1 else 0).apply {
-                db.metaDataTable().update(this)
-            }
-        }
-    }
 
 //    private suspend fun updateFile(data:MetaData, group:Int?=null, mark:Int?=null):MetaData {
 //        return withContext(Dispatchers.IO) {
@@ -296,9 +278,31 @@ object MetaDB {
         }
     }
 
-    suspend fun updateMarkRating(item:ItemEx, mark:Mark?=null, rating: Rating?):ItemEx {
+    private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
+        if(mark==null && rating==null) return data
+        return withContext(Dispatchers.IO) {
+            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating, data.cloud).apply {
+                db.metaDataTable().update(this)
+            }
+        }
+    }
+    /**
+     * Rating, Mark を変更する
+     */
+    suspend fun updateMarkRating(item:ItemEx, mark:Mark?, rating: Rating?):ItemEx {
         val newData = updateMarkRating(item.data, mark, rating)
         return ItemEx(newData, item.chapterList)
+    }
+
+    /**
+     * cloud フラグを変更す
+     */
+    private suspend fun updateCloud(data:MetaData, cloud: Boolean):MetaData {
+        return withContext(Dispatchers.IO) {
+            MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,if(cloud) 1 else 0).apply {
+                db.metaDataTable().update(this)
+            }
+        }
     }
 
     suspend fun updateCloud(item: ItemEx, cloud:Boolean):ItemEx {
@@ -307,24 +311,28 @@ object MetaDB {
         } else item
     }
 
-    suspend fun updateFile(item:ItemEx, chapterList: List<IChapter>?, mark:Mark?=null, rating: Rating?=null):ItemEx {
-        if(chapterList!=null) {
-            setChaptersFor(item.data, chapterList)
-        }
-        val newData = updateMarkRating(item.data, mark, rating)
+    /**
+     * ファイルが編集されたとき、サイズやDurationなどの情報を更新する
+     */
+    suspend fun updateFile(item:ItemEx, chapterList: List<IChapter>?):ItemEx {
+        val newData = updateFile(item.data, chapterList)
         return ItemEx(newData, chapterList?:item.chapterList)
     }
-    suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?, mark:Mark?=null, rating: Rating?=null):MetaData {
+    suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
         if(chapterList!=null) {
             setChaptersFor(data, chapterList)
         }
-        return updateMarkRating(data, mark, rating)
+        return metaDataFromName(data.id, data.name, 0, data.mark, data.rating, allowRetry = 10)!!.also { newData ->
+            withContext(Dispatchers.IO) {
+                db.metaDataTable().update(newData)
+            }
+        }
     }
 
-    suspend fun registerEx(name:String, mark:Mark?=null, rating: Rating?=null):ItemEx? {
-        val newData = register(name, mark, rating) ?: return null
-        return ItemEx(newData, null)
-    }
+//    suspend fun registerEx(name:String, mark:Mark?=null, rating: Rating?=null):ItemEx? {
+//        val newData = register(name, mark, rating) ?: return null
+//        return ItemEx(newData, null)
+//    }
 
 
     suspend fun deleteFile(item:ItemEx) {
@@ -350,7 +358,7 @@ object MetaDB {
         val file = prepareTestFile()
         fn(file)
         if (file.exists()) {
-            register(testItemName, null, null)
+            register(testItemName)
         }
     }
 }

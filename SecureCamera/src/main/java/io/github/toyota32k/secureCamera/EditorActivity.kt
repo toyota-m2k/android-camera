@@ -53,6 +53,8 @@ class EditorActivity : UtMortalActivity() {
             .build()
         val playerModel get() = playerControllerModel.playerModel
         val videoSource get() = playerModel.currentSource.value as VideoSource
+        val targetItem:MetaData get() = videoSource.item
+
         val chapterList by lazy {
             ChapterEditor(videoSource.chapterList as IMutableChapterList)
         }
@@ -195,7 +197,7 @@ class EditorActivity : UtMortalActivity() {
     }
 
     private fun trimmingAndSave() {
-        val targetItem = (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.item ?: return
+        val targetItem = viewModel.targetItem
         val srcFile = targetItem.file(application)
         val dstFile = File(application.cacheDir ?: return, "trimming")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
@@ -236,7 +238,7 @@ class EditorActivity : UtMortalActivity() {
                         }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
-                            getActivity()?.finish()
+                            setResultAndFinish(true, targetItem)
                             true
                         }
                     } else if(!r.cancelled) {
@@ -274,9 +276,12 @@ class EditorActivity : UtMortalActivity() {
             if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
                     if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+                        setResult(RESULT_OK,)
                         MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
+                        setResultAndFinish(true, viewModel.targetItem)
+                    } else {
+                        setResultAndFinish(false, viewModel.targetItem)
                     }
-                    getActivity()?.finish()
                     true
                 }
                 return true
@@ -285,26 +290,33 @@ class EditorActivity : UtMortalActivity() {
         return super.handleKeyEvent(keyCode, event)
     }
 
-    class Broker(activity:FragmentActivity) : UtActivityBroker<String,String>() {
+    class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
         init{
             register(activity)
         }
-        class Contract:ActivityResultContract<String,String>() {
+        class Contract:ActivityResultContract<String,String?>() {
             override fun createIntent(context: Context, input: String): Intent {
                 return Intent(context.applicationContext, EditorActivity::class.java).apply { putExtra(KEY_FILE_NAME, input) }
             }
 
-            override fun parseResult(resultCode: Int, intent: Intent?): String {
-                return intent?.getStringExtra(KEY_FILE_NAME) ?: ""
+            override fun parseResult(resultCode: Int, intent: Intent?): String? {
+                return if(resultCode == RESULT_OK) intent?.getStringExtra(KEY_FILE_NAME) else null
             }
         }
 
-        override val contract: ActivityResultContract<String, String>
+        override val contract: ActivityResultContract<String, String?>
             get() = Contract()
     }
 
     companion object {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)
+
+        private suspend fun UtImmortalSimpleTask.setResultAndFinish(ok:Boolean,item:MetaData) {
+            (getActivity() as? EditorActivity)?.apply {
+                setResult(if(ok) RESULT_OK else RESULT_CANCELED, Intent().apply { putExtra(KEY_FILE_NAME, item.name) })
+                finish()
+            }
+        }
     }
 }
