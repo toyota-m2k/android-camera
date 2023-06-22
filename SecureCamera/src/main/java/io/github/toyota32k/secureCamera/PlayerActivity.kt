@@ -390,6 +390,7 @@ class PlayerActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Settings.initialize(application)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
         hideActionBar()

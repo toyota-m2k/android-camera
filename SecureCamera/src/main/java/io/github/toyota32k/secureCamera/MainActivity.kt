@@ -34,8 +34,8 @@ class MainActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
         UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.SEE_THROUGH.color
+        Settings.initialize(this.application)
         MetaDB.initialize(this)
-        Settings.initialize(this)
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
         UtStandardString.setContext(applicationContext)

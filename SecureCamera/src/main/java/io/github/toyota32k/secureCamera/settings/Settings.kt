@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera.settings
 
+import android.app.Application
 import android.content.Context
 import io.github.toyota32k.shared.SharedPreferenceDelegate
 import java.util.UUID
@@ -7,7 +8,7 @@ import java.util.UUID
 object Settings {
     private lateinit var spd :SharedPreferenceDelegate
 
-    fun initialize(application: Context) {
+    fun initialize(application: Application) {
         if(this::spd.isInitialized) return
         spd = SharedPreferenceDelegate(application)
         if(SecureArchive.clientId.isEmpty()) {
