@@ -41,8 +41,8 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         get() = Mark.valueOf(data.mark)
     val rating:Rating
         get() = Rating.valueOf(data.rating)
-    val cloud:Boolean
-        get() = data.cloud!=0
+    val cloud:CloudStatus
+        get() = CloudStatus.valueOf(data.cloud)
     val nameForDisplay:String
         get() = name.substringAfter("-").substringBeforeLast(".").replace("-", "  ")
 }
@@ -297,17 +297,17 @@ object MetaDB {
     /**
      * cloud フラグを変更す
      */
-    private suspend fun updateCloud(data:MetaData, cloud: Boolean):MetaData {
+    private suspend fun updateCloud(data:MetaData, cloud: Int):MetaData {
         return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,if(cloud) 1 else 0).apply {
+            MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,cloud).apply {
                 db.metaDataTable().update(this)
             }
         }
     }
 
-    suspend fun updateCloud(item: ItemEx, cloud:Boolean):ItemEx {
+    suspend fun updateCloud(item: ItemEx, cloud:CloudStatus):ItemEx {
         return if(item.cloud!=cloud) {
-            ItemEx(updateCloud(item.data, cloud), item.chapterList)
+            ItemEx(updateCloud(item.data, cloud.v), item.chapterList)
         } else item
     }
 
