@@ -13,7 +13,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -47,7 +46,9 @@ import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
+import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -155,13 +156,13 @@ class PlayerActivity : UtMortalActivity() {
         val ensureVisibleCommand = LiteUnitCommand()
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
-            private val file: File = item.file(context)
+            private val file: File = item.file
             override val name:String
                 get() = item.name
             override val id: String
                 get() = name
             override val uri: String
-                get() = file.toUri().toString()
+                get() = item.uri
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -241,7 +242,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoSelection = item
                     currentSource.value = null
                     photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file(context).path)
+                    photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file.path)
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
@@ -320,7 +321,7 @@ class PlayerActivity : UtMortalActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val item = currentSelection.value ?: return@launch
                     val bitmap = photoBitmap.value ?: return@launch
-                    val file = item.file(context)
+                    val file = item.file
                     file.outputStream().use {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
@@ -415,6 +416,8 @@ class PlayerActivity : UtMortalActivity() {
         val icRating2 = AppCompatResources.getDrawable(this, Rating.Rating2.icon)!!
         val icRating3 = AppCompatResources.getDrawable(this, Rating.Rating3.icon)!!
         val icRating4 = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
+        val icCloud = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
+        val icCloudFull = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 //        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
@@ -476,6 +479,7 @@ class PlayerActivity : UtMortalActivity() {
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
                 val markView = views.findViewById<ImageView>(R.id.icon_mark)
                 val ratingView = views.findViewById<ImageView>(R.id.icon_rating)
+                val cloudView = views.findViewById<ImageView>(R.id.icon_cloud)
                 val isVideo = item.isVideo
                 views.isSelected = false
                 views.tag = item
@@ -503,12 +507,23 @@ class PlayerActivity : UtMortalActivity() {
                     Rating.Rating4 -> icRating4
                 }
                 ratingView.setImageDrawable(ratingIcon)
+
+                val cloudIcon = when(item.cloud) {
+                    CloudStatus.Local-> null
+                    CloudStatus.Uploaded->icCloud
+                    CloudStatus.Cloud->icCloudFull
+                }
+                cloudView.setImageDrawable(cloudIcon)
 //                val tint = AppCompatResources.getColorStateList(this@PlayerActivity, R.color.color_icon_primary)
 
                 itemBinder
                     .owner(this)
                     .bindCommand(LiteUnitCommand {
-                        viewModel.playlist.select(item, false)
+                        if(item==viewModel.playlist.currentSelection.value) {
+                            startEditing(item)
+                        } else {
+                            viewModel.playlist.select(item, false)
+                        }
                     }, views)
                     .bindCommand(LongClickUnitCommand {
                         viewModel.playlist.select(item, false)
@@ -589,7 +604,7 @@ class PlayerActivity : UtMortalActivity() {
         return String.format("%,d KB", size / 1000L)
     }
 
-    private suspend fun itemUpdated(name:String) {
+    suspend fun itemUpdated(name:String) {
 //        val oldItem = MetaDB.itemExOf(name) ?: return
 //        val newItem = MetaDB.updateFile(oldItem, null)
         val item = MetaDB.itemExOf(name) ?: return
@@ -607,18 +622,23 @@ class PlayerActivity : UtMortalActivity() {
                 if(vm.saveIfNeed()) {
                     viewModel.playlist.replaceItem(vm.item)
                 }
-                if(vm.nextAction==ItemDialog.ItemViewModel.NextAction.EditItem) {
-                    viewModel.playlist.select(null)
-                    viewModel.playerControllerModel.playerModel.killPlayer()
-                    controls.videoViewer.dissociatePlayer()
-                    val name = editorActivityBroker.invoke(item.name)
-                    if(name!=null) {
-                        val activity = this.getActivity() as? PlayerActivity
-                        activity?.itemUpdated(item.name)
+                when(vm.nextAction) {
+                    ItemDialog.ItemViewModel.NextAction.EditItem -> {
+                        viewModel.playlist.select(null)
+                        viewModel.playerControllerModel.playerModel.killPlayer()
+                        controls.videoViewer.dissociatePlayer()
+                        val name = editorActivityBroker.invoke(item.name)
+                        if (name != null) {
+                            val activity = this.getActivity() as? PlayerActivity
+                            activity?.itemUpdated(item.name)
+                        }
                     }
 
-//                    val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
-//                    startActivity(intent)
+                    ItemDialog.ItemViewModel.NextAction.BackupItem -> {
+                        TcClient.uploadToSecureArchive(item)
+                    }
+
+                    else -> {}
                 }
             }
             true

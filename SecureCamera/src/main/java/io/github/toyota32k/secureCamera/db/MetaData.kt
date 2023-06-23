@@ -11,6 +11,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
+import io.github.toyota32k.secureCamera.SCApplication
 import java.io.File
 
 
@@ -36,8 +37,8 @@ data class MetaData(
         get() = type == 1
     val isPhoto:Boolean
         get() = type == 0
-    fun file(context:Context):File
-        = File(context.filesDir, name)
+    val file:File
+        get() = File(SCApplication.instance.filesDir, name)
 }
 
 @Dao

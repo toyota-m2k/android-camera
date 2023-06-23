@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.server
 
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.secureCamera.PlayerActivity
+import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.utils.HashUtils.encodeHex
 import io.github.toyota32k.server.HttpErrorResponse
@@ -86,16 +87,18 @@ class TcServer(val port:Int) : AutoCloseable {
                 }
                 val id = p["id"]?.toLongOrNull() ?: return@Route HttpErrorResponse.badRequest("id is not specified")
                 val item = runBlocking {
-                    MetaDB.itemAt(id)
+                    MetaDB.itemAt(id)?.run {
+                        if(CloudStatus.valueOf(cloud).isFileInLocal) this else null
+                    }
                 } ?: return@Route HttpErrorResponse.notFound()
                 val range = request.headers["Range"]
                 if(range==null) {
-                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file(UtImmortalTaskManager.application), 0L,0L)
+                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file, 0L,0L)
                 } else {
                     val c = regRange.find(range) ?: return@Route HttpErrorResponse.badRequest("invalid range")
                     val start = c.groups["start"]?.value?.toLongOrNull() ?: 0L
                     val end = c.groups["end"]?.value?.toLongOrNull() ?: 0L
-                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file(UtImmortalTaskManager.application), start, end)
+                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file, start, end)
                 }
             },
             Route("Backup Completed", HttpMethod.PUT, "/backup/completed") {_, request->

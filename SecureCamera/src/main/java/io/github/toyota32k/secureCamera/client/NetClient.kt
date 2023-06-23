@@ -17,7 +17,7 @@ import kotlin.coroutines.suspendCoroutine
 object NetClient {
     private val motherClient : OkHttpClient =
         OkHttpClient.Builder()
-//            .readTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
 //            .writeTimeout(120, TimeUnit.SECONDS)
             .build()
     val logger = UtLog("NetClient",null,this::class.java)

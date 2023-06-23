@@ -19,16 +19,25 @@ import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
-import io.github.toyota32k.dialog.task.*
-import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getActivity
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.dialog.task.showYesNoMessageBox
+import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.IChapterList
+import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
+import io.github.toyota32k.lib.player.model.IMutableChapterList
+import io.github.toyota32k.lib.player.model.PlayerControllerModel
+import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
+import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
-import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
@@ -98,7 +107,7 @@ class EditorActivity : UtMortalActivity() {
         inner class VideoSource(val item: MetaData) : IMediaSourceWithChapter {
             override val name:String
                 get() = item.name
-            private val file: File = item.file(getApplication())
+            private val file: File = item.file
             override val id: String
                 get() = name
             override val uri: String
@@ -198,7 +207,7 @@ class EditorActivity : UtMortalActivity() {
 
     private fun trimmingAndSave() {
         val targetItem = viewModel.targetItem
-        val srcFile = targetItem.file(application)
+        val srcFile = targetItem.file
         val dstFile = File(application.cacheDir ?: return, "trimming")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 

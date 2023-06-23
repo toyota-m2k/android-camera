@@ -54,4 +54,6 @@
     <string name="edit_video_title">Edit Video</string>
     <string name="uploaded">Uploaded to SecureArchive.</string>
     <string name="rating_desc">Grouping</string>
+    <string name="backup_title">Backup</string>
+    <string name="remove_title">Remove Local</string>
 </resources>

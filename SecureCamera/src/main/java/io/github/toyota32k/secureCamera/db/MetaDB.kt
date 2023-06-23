@@ -2,12 +2,14 @@ package io.github.toyota32k.secureCamera.db
 
 import android.app.Application
 import android.content.Context
+import androidx.core.net.toUri
 import androidx.room.Room
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
@@ -18,9 +20,11 @@ import java.io.File
 import java.util.Date
 
 data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
-    fun file(context: Context):File {
-        return data.file(context)
-    }
+//    fun file(context: Context):File {
+//        return data.file(context)
+//    }
+    val file:File
+        get() = data.file
     val id:Int
         get() = data.id
     val name:String
@@ -45,6 +49,15 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         get() = CloudStatus.valueOf(data.cloud)
     val nameForDisplay:String
         get() = name.substringAfter("-").substringBeforeLast(".").replace("-", "  ")
+
+    val uri:String
+        get() {
+            return if(cloud.isFileInCloud) {
+                "http://${Settings.SecureArchive.address}/${if(isVideo) "video" else "photo"}?o=${Settings.SecureArchive.clientId}&c=${id}"
+            } else {
+                file.toUri().toString()
+            }
+        }
 }
 
 object MetaDB {
@@ -240,7 +253,7 @@ object MetaDB {
     private suspend fun deleteFile(data:MetaData) {
         withContext(Dispatchers.IO) {
             try {
-                data.file(application).delete()
+                data.file.delete()
             } catch (_: Throwable) {
             }
             db.metaDataTable().delete(data)

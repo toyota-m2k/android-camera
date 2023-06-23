@@ -13,6 +13,7 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
@@ -29,12 +30,15 @@ class ItemDialog : UtDialogEx() {
         enum class NextAction {
             None,
             EditItem,
+            BackupItem,
         }
 
         var nextAction = NextAction.None
         val rating = MutableStateFlow(Rating.RatingNone)
         val mark = MutableStateFlow(Mark.None)
         val editCommand = LiteUnitCommand()
+        val backupCommand = LiteUnitCommand()
+        val removeLocalCommand = LiteUnitCommand()
 
         fun initFor(item:ItemEx) {
             this.item = item
@@ -76,10 +80,16 @@ class ItemDialog : UtDialogEx() {
         binder
             .textBinding(controls.itemName, ConstantLiveData(viewModel.item.nameForDisplay))
             .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.backupButton, ConstantLiveData(!viewModel.item.cloud.isFileInCloud), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.removeLocalButton, ConstantLiveData(viewModel.item.cloud.isFileInCloud), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.editCommand, controls.editVideoButton) {
                 viewModel.nextAction = ItemViewModel.NextAction.EditItem
+                onPositive()
+            }
+            .bindCommand(viewModel.backupCommand, controls.backupButton) {
+                viewModel.nextAction = ItemViewModel.NextAction.BackupItem
                 onPositive()
             }
         return controls.root

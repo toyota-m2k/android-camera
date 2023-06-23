@@ -98,6 +98,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:layout_gravity="center_horizontal"
         >
 <!--        <Button-->
 <!--            android:id="@+id/tg_mark_none"-->
@@ -142,9 +143,33 @@
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:textAllCaps="false"
         android:textAlignment="center"
-        android:textColor="?attr/colorPrimaryDark"
         android:text="@string/edit_video_title"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="20dp"
+        />
+
+    <Button
+        android:id="@+id/backup_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minEms="10"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:textAllCaps="false"
+        android:textAlignment="center"
+        android:text="@string/backup_title"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="5dp"
+        />
+    <Button
+        android:id="@+id/remove_local_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minEms="10"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:textAllCaps="false"
+        android:textAlignment="center"
+        android:text="@string/remove_title"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="5dp"
         />
 </LinearLayout>
