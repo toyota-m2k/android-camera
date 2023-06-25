@@ -56,4 +56,6 @@
     <string name="rating_desc">Grouping</string>
     <string name="backup_title">Backup</string>
     <string name="remove_title">Remove Local</string>
+    <string name="device_name_title">Device Name</string>
+    <string name="address_hint">SecureArchive Server Address</string>
 </resources>

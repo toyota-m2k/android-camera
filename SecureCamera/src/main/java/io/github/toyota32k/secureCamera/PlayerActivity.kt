@@ -47,6 +47,7 @@ import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -237,12 +238,26 @@ class PlayerActivity : UtMortalActivity() {
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    currentSource.value = VideoSource(item)
+                    if(item.cloud.isFileInCloud) {
+                        viewModelScope.launch {
+                            if(Authentication.authentication()) {
+                                currentSource.value = VideoSource(item)
+                            }
+                        }
+                    } else {
+                        currentSource.value = VideoSource(item)
+                    }
                 } else {
                     photoSelection = item
                     currentSource.value = null
                     photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file.path)
+                    if(item.cloud.isFileInCloud) {
+                        viewModelScope.launch {
+                            photoBitmap.mutable.value = TcClient.getPhoto(item)
+                        }
+                    } else {
+                        photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file.path)
+                    }
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1

@@ -1,17 +1,23 @@
 package io.github.toyota32k.secureCamera.client
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Build
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.NetClient.logger
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
+import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.server.response.StatusCode
 import kotlinx.coroutines.CoroutineScope
@@ -19,11 +25,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Authenticator
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import kotlin.time.Duration
 
@@ -32,7 +40,52 @@ object TcClient {
         return String.format("%,d KB", size / 1000L)
     }
 
+    suspend fun registerToSecureArchive():Boolean {
+        val address = Settings.SecureArchive.address
+        if(address.isEmpty()) return false
+
+        val json = JSONObject()
+            .put("id", Settings.SecureArchive.clientId)
+            .put("name", Build.MODEL)
+            .put("type", "SecureCamera")
+            .toString()
+        val request = Request.Builder()
+            .url("http://$address/owner")
+            .put(json.toRequestBody("application/json".toMediaType()))
+            .build()
+        return try {
+            NetClient.executeAndGetJsonAsync(request)
+            logger.info("owner registered.")
+            true
+        } catch (e:Throwable) {
+            logger.error(e)
+            false
+        }
+
+
+    }
+
+    suspend fun getPhoto(item:ItemEx): Bitmap? {
+        if(!item.isPhoto) return null
+        if(!Authentication.authentication()) return null
+        val address = Settings.SecureArchive.address
+        if(address.isEmpty()) return null
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(item.uri)
+                .build()
+            NetClient.executeAsync(request,null).use { response->
+                response.body?.use {body->
+                    BitmapFactory.decodeStream(body.byteStream())
+                }
+            }
+        }
+    }
+
     fun uploadToSecureArchive(item:ItemEx) {
+        val address = Settings.SecureArchive.address
+        if(address.isEmpty()) return
+
         UtImmortalSimpleTask.run("upload item") {
             val canceller = Canceller()
             val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
