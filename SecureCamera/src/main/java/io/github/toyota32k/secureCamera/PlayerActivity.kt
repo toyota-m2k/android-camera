@@ -50,9 +50,11 @@ import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
+import io.github.toyota32k.secureCamera.db.DBChange
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaDB.toItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
@@ -238,7 +240,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    if(item.cloud.isFileInCloud) {
+                    if(!item.cloud.isFileInLocal) {
                         viewModelScope.launch {
                             if(Authentication.authentication()) {
                                 currentSource.value = VideoSource(item)
@@ -251,7 +253,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoSelection = item
                     currentSource.value = null
                     photoRotation.mutable.value = 0
-                    if(item.cloud.isFileInCloud) {
+                    if(!item.cloud.isFileInLocal) {
                         viewModelScope.launch {
                             photoBitmap.mutable.value = TcClient.getPhoto(item)
                         }
@@ -271,6 +273,18 @@ class PlayerActivity : UtMortalActivity() {
 
             suspend fun refreshList() {
                 setListMode(listMode.value)
+            }
+
+            fun addItem(item:ItemEx) {
+                sorter.add(item)
+                select(item)
+            }
+
+            fun removeItem(item:ItemEx) {
+                var index = collection.indexOfFirst { it.id == item.id }
+                if(index>=0) {
+                    collection.removeAt(index)
+                }
             }
 
             fun replaceItem(item:ItemEx) {
@@ -342,10 +356,10 @@ class PlayerActivity : UtMortalActivity() {
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
-                    val newItem = MetaDB.updateFile(item,null)
-                    if (playlist.listMode.value != ListMode.VIDEO) {
-                        withContext(Dispatchers.Main) { playlist.replaceItem(newItem) }
-                    }
+                    MetaDB.updateFile(item,null)
+//                    if (playlist.listMode.value != ListMode.VIDEO) {
+//                        withContext(Dispatchers.Main) { playlist.replaceItem(newItem) }
+//                    }
                 }
             }
         }
@@ -375,12 +389,12 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        fun updateItem(itemNew:ItemEx) {
-            val index = playlist.sorter.find(itemNew)
-            if(index>=0) {
-                playlist.collection[index] = itemNew
-            }
-        }
+//        fun updateItem(itemNew:ItemEx) {
+//            val index = playlist.sorter.find(itemNew)
+//            if(index>=0) {
+//                playlist.collection[index] = itemNew
+//            }
+//        }
 
         override fun onCleared() {
             val listMode = playlist.listMode.value.toString()
@@ -591,7 +605,7 @@ class PlayerActivity : UtMortalActivity() {
 
         ensureVisible()
 
-
+        DBChange.observable.onEach(::onDataChanged).launchIn(lifecycleScope)
 
 //        val wm = getSystemService(WIFI_SERVICE) as WifiManager
 //        val ip = wm.connectionInfo
@@ -601,6 +615,26 @@ class PlayerActivity : UtMortalActivity() {
 //            logger.info(ip)
 //            server.start()
 //        }
+    }
+
+    private suspend fun onDataChanged(c:DBChange) {
+        when(c.type) {
+            DBChange.Type.Add -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.addItem(item)
+            }
+            DBChange.Type.Update -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.replaceItem(item)
+            }
+            DBChange.Type.Delete -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.removeItem(item)
+            }
+            DBChange.Type.Refresh -> {
+                viewModel.playlist.refreshList()
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -619,46 +653,47 @@ class PlayerActivity : UtMortalActivity() {
         return String.format("%,d KB", size / 1000L)
     }
 
-    suspend fun itemUpdated(name:String) {
-//        val oldItem = MetaDB.itemExOf(name) ?: return
-//        val newItem = MetaDB.updateFile(oldItem, null)
+    private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
         val item = MetaDB.itemExOf(name) ?: return
-//        logger.debug("oldSize=${sizeInKb(oldItem.size)}, newSize=${sizeInKb(newItem.size)}, itemSize=${sizeInKb(item.size)}")
-        viewModel.updateItem(item)
+        if(update) {
+            viewModel.playlist.replaceItem(item)
+        }
         viewModel.playlist.select(item)
     }
 
-    @SuppressLint("RestrictedApi")
     private fun startEditing(item:ItemEx) {
-        UtImmortalSimpleTask.run("editItem") {
+        UtImmortalSimpleTask.run("dealItem") {
             viewModel.playerControllerModel.commandPause.invoke()
             val vm = ItemDialog.ItemViewModel.createBy(this, item)
             if(showDialog(taskName) { ItemDialog() }.status.ok) {
-                if(vm.saveIfNeed()) {
-                    viewModel.playlist.replaceItem(vm.item)
-                }
+                vm.saveIfNeed()
                 when(vm.nextAction) {
-                    ItemDialog.ItemViewModel.NextAction.EditItem -> {
-                        viewModel.playlist.select(null)
-                        viewModel.playerControllerModel.playerModel.killPlayer()
-                        controls.videoViewer.dissociatePlayer()
-                        val name = editorActivityBroker.invoke(item.name)
-                        if (name != null) {
-                            val activity = this.getActivity() as? PlayerActivity
-                            activity?.itemUpdated(item.name)
-                        }
-                    }
-
-                    ItemDialog.ItemViewModel.NextAction.BackupItem -> {
-                        TcClient.uploadToSecureArchive(item)
-                    }
-
+                    ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
+                    ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
+                    ItemDialog.ItemViewModel.NextAction.RemoveLocal -> MetaDB.removeUploadedFile(item)
+                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> MetaDB.restoreFromCloud(item)
                     else -> {}
                 }
             }
             true
         }
     }
+
+    private suspend fun UtImmortalSimpleTask.editItem(item:ItemEx) {
+        viewModel.playlist.select(null)
+        viewModel.playerControllerModel.playerModel.killPlayer()
+        controls.videoViewer.dissociatePlayer()
+        val name = editorActivityBroker.invoke(item.name)
+        (getActivity() as? PlayerActivity)?.let { activity ->
+            ensureSelectItem(item.name, name != null)
+        }
+    }
+
+//    private suspend fun UtImmortalSimpleTask.removeLocalFile(item:ItemEx) {
+//        if(item.cloud != CloudStatus.Uploaded) return
+//        MetaDB.removeUploadedFile(item)
+//        (getActivity() as? PlayerActivity)?.itemUpdated(item.name)
+//    }
 
     inner class ViewerManipulator : IUtManipulationTarget {
         val agent = UtManipulationAgent(this)

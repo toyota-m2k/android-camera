@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class TextDialog : UtDialogEx() {
     class TextViewModel : UtImmortalViewModel() {
         val text = MutableStateFlow("")
-        val message:String = ""
+        var message:String = ""
         var hint:String = ""
         var title:String = "Input Text"
 
@@ -28,6 +28,9 @@ class TextDialog : UtDialogEx() {
             fun createBy(task: IUtImmortalTask, title:String, initialText:String, hint:String="", message:String=""): TextViewModel {
                 return UtImmortalViewModelHelper.createBy(TextViewModel::class.java, task).apply {
                     text.value = initialText
+                    this.title = title
+                    this.hint = hint
+                    this.message = message
                 }
             }
             fun instanceFor(dialog: TextDialog): TextViewModel {

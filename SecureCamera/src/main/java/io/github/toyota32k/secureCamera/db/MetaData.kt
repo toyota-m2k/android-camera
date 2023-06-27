@@ -29,7 +29,7 @@ data class MetaData(
     val size:Long,
     val duration:Long,
     val rating:Int = 0,
-    val cloud:Int = 0,
+    val cloud:Int = 0,      // 0: Local
     val flag: Int = 0,
     val ext: String? = null,
 ) {
@@ -56,7 +56,7 @@ interface MetaDataTable {
     fun getDataOf(name:String):MetaData?
 
     @Query("SELECT * from t_meta WHERE id = :id")
-    fun getDataAt(id:Long):MetaData?
+    fun getDataAt(id:Int):MetaData?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(vararg metaData:MetaData)

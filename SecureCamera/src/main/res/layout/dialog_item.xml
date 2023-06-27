@@ -172,4 +172,16 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="5dp"
         />
+    <Button
+        android:id="@+id/restore_local_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minEms="10"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:textAllCaps="false"
+        android:textAlignment="center"
+        android:text="@string/restore_title"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="5dp"
+        />
 </LinearLayout>

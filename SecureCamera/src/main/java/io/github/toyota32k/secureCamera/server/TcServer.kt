@@ -15,6 +15,9 @@ import io.github.toyota32k.server.response.StreamingHttpResponse
 import io.github.toyota32k.server.response.TextHttpResponse
 import io.github.toyota32k.server.response.TextHttpResponse.Companion.CT_TEXT_PLAIN
 import io.github.toyota32k.utils.UtLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -69,6 +72,7 @@ class TcServer(val port:Int) : AutoCloseable {
                             put("date", "${item.date}")
                             put("duration", item.duration)
                             put("type", "mp4")
+                            put("cloud", item.cloud)
                         })
                     }
                 }
@@ -85,7 +89,7 @@ class TcServer(val port:Int) : AutoCloseable {
                 if(p["auth"]!= authToken) {
                     return@Route HttpErrorResponse.unauthorized();
                 }
-                val id = p["id"]?.toLongOrNull() ?: return@Route HttpErrorResponse.badRequest("id is not specified")
+                val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is not specified")
                 val item = runBlocking {
                     MetaDB.itemAt(id)?.run {
                         if(CloudStatus.valueOf(cloud).isFileInLocal) this else null
@@ -101,11 +105,15 @@ class TcServer(val port:Int) : AutoCloseable {
                     StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file, start, end)
                 }
             },
-            Route("Backup Completed", HttpMethod.PUT, "/backup/completed") {_, request->
+            Route("1 file backup finished", HttpMethod.PUT, "/backup/done") {_, request->
                 val content = request.contentAsString()
                 val json = JSONObject(content)
-                val id = json.optString("id")
-                logger.debug("Backup completed: ${id}")
+                val id = json.optInt("id")
+                val status = json.optBoolean("status")
+                logger.debug("Backup id=$id done: $status")
+                if(status) {
+                    CoroutineScope(Dispatchers.IO).launch { MetaDB.updateCloud(id, CloudStatus.Uploaded) }
+                }
                 TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
             }
         )

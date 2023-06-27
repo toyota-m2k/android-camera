@@ -1,46 +1,35 @@
 package io.github.toyota32k.secureCamera.client
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.secureCamera.PlayerActivity
-import io.github.toyota32k.secureCamera.SCApplication
-import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.NetClient.logger
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
-import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
-import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.server.response.StatusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Authenticator
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.internal.headersContentLength
 import org.json.JSONObject
-import kotlin.time.Duration
 
 object TcClient {
     private fun sizeInKb(size: Long): String {
         return String.format("%,d KB", size / 1000L)
     }
 
-    suspend fun registerToSecureArchive():Boolean {
+    suspend fun registerOwnerToSecureArchive():Boolean {
         val address = Settings.SecureArchive.address
         if(address.isEmpty()) return false
 
@@ -61,8 +50,6 @@ object TcClient {
             logger.error(e)
             false
         }
-
-
     }
 
     suspend fun getPhoto(item:ItemEx): Bitmap? {
@@ -75,37 +62,115 @@ object TcClient {
                 .url(item.uri)
                 .build()
             NetClient.executeAsync(request,null).use { response->
-                response.body?.use {body->
-                    BitmapFactory.decodeStream(body.byteStream())
+                if(response.isSuccessful) {
+                    response.body?.use { body ->
+                        body.byteStream().use { inStream ->
+                            BitmapFactory.decodeStream(inStream)
+                        }
+                    }
+                } else {
+                    logger.error(response.message)
+                    null
                 }
             }
         }
     }
 
-    fun uploadToSecureArchive(item:ItemEx) {
-        val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return
+    suspend fun downloadFromSecureArchive(item: ItemEx):Boolean {
+        return UtImmortalSimpleTask.runAsync("downloading item") {
+            if(!Authentication.authentication()) return@runAsync false
+            val address = Settings.SecureArchive.address
+            if(address.isEmpty()) return@runAsync false
 
-        UtImmortalSimpleTask.run("upload item") {
+            val canceller = Canceller()
+            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+            viewModel.message.value = "Downloading..."
+            viewModel.cancelCommand.bindForever(canceller::cancel)
+            CoroutineScope(Dispatchers.IO).launch {
+                val result = downloadFromSecureArchiveAsync(item,canceller) { current, total ->
+                    val percent = (current * 100L / total).toInt()
+                    viewModel.progress.value = percent
+                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+                }
+                withContext(Dispatchers.Main) {viewModel.closeCommand.invoke(result) }
+//                withContext(Dispatchers.Main) {
+//                    viewModel.closeCommand.invoke(true)
+//                    if(result) {
+//                        val newItem = MetaDB.updateCloud(item, CloudStatus.Uploaded)
+//                        (getActivity() as? PlayerActivity)?.itemUpdated(newItem.name)
+//                    }
+//                }
+            }
+            showDialog(taskName) { ProgressDialog() }.status.ok
+        }
+    }
+
+    private suspend fun downloadFromSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:((current:Long, total:Long)->Unit)?):Boolean {
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(item.uri)
+                .build()
+            executeAsync(request,null).use { response->
+                try {
+                    if (response.isSuccessful) {
+                        response.body?.use { body ->
+                            body.byteStream().use { inStream ->
+                                item.file.outputStream().use { outStream ->
+                                    if (progress != null) {
+                                        val totalLength = response.headersContentLength()
+                                        var bytesCopied: Long = 0
+                                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                                        var bytes = inStream.read(buffer)
+                                        while (bytes >= 0) {
+                                            outStream.write(buffer, 0, bytes)
+                                            bytesCopied += bytes
+                                            progress.invoke(bytesCopied, totalLength)
+                                            bytes = inStream.read(buffer)
+                                        }
+                                    } else {
+                                        inStream.copyTo(outStream)
+                                    }
+                                    outStream.flush()
+                                }
+                            }
+                        }
+                        true
+                    } else {
+                        logger.error(response.message)
+                        false
+                    }
+                } catch(e:Throwable) {
+                    logger.error(e)
+                    false
+                }
+            }
+        }
+    }
+
+    suspend fun uploadToSecureArchive(item:ItemEx):Boolean {
+        val address = Settings.SecureArchive.address
+        if(address.isEmpty()) return false
+
+        return UtImmortalSimpleTask.runAsync("upload item") {
             val canceller = Canceller()
             val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
             viewModel.message.value = "Uploading..."
             viewModel.cancelCommand.bindForever(canceller::cancel)
             CoroutineScope(Dispatchers.IO).launch {
-                uploadToSecureArchiveAsync(item,canceller) { current, total ->
+                val result = uploadToSecureArchiveAsync(item,canceller) { current, total ->
                     val percent = (current * 100L / total).toInt()
                     viewModel.progress.value = percent
                     viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
                 }
-                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(true) }
+                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(result) }
             }
-            showDialog(taskName) { ProgressDialog() }
-            true
+            showDialog(taskName) { ProgressDialog() }.status.ok
         }
     }
-    private suspend fun uploadToSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:(current:Long, total:Long)->Unit) {
+
+    private suspend fun uploadToSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:(current:Long, total:Long)->Unit):Boolean {
         val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return
+        if(address.isEmpty()) return false
 
         val contentType = if(item.type==0) "image/png" else "video/mp4"
         val body = ProgressRequestBody(item.file.asRequestBody(contentType.toMediaType()), progress)
@@ -124,86 +189,68 @@ object TcClient {
         try {
             val location:String?
             val code = NetClient.executeAsync(request,canceller).use {
-                location =it.headers ["Location"]
+//                location =it.headers ["Location"]
                 it.code
             }
             if(code==200) {
                 logger.debug("uploaded")
-                return
+                MetaDB.updateCloud(item, CloudStatus.Uploaded)
+                return true
             }
-            if(code==202) {
-//                val location = result.headers["Location"]
-                val url = "http://${address}${location}?o=${Settings.SecureArchive.clientId}&c=${item.id}"
-                logger.debug("waiting: location:${url}")
-                waitForUploaded(url, item)
+            logger.error("unexpected status code: $code")
+//            if(code==202) {
+//                val url = "http://${address}${location}?o=${Settings.SecureArchive.clientId}&c=${item.id}"
+//                logger.debug("waiting: location:${url}")
+//                waitForUploaded(url, item)
+//            }
+        } catch(e:Throwable) {
+            logger.error(e)
+        }
+        return false
+    }
 
-//                val client = OkHttpClient.Builder().build()
-//                while(result.code==202) {
+//    private fun waitForUploaded(url:String, item: ItemEx) {
+//        CoroutineScope(Dispatchers.IO).launch {
+//            try {
+//                var cont = true
+//                while (cont) {
 //                    delay(1000)
 //                    val locationReq = Request.Builder().url(url).get().build()
-//                    result = NetClient.executeAsync(locationReq) //client.newCall(locationReq).executeAsync(null)
-//                    if(result.code == 200) {
-//                        return true
-//                    }
-//                    else if(result.code == 202) {
-//                        val body = result.body?.use { it.string() }
-//                            ?: throw IllegalStateException("Server Response No Data.")
-//                        val json = JSONObject(body)
-//                        val total = json.optLong("total")
-//                        val current = json.optLong("current")
-//                        progress(current, total)
+//                    NetClient.executeAsync(locationReq).use { result -> //client.newCall(locationReq).executeAsync(null)
+//                        when (result.code) {
+//                            StatusCode.Ok.code -> {
+//                                // upload completed
+//                                logger.debug("uploaded")
+//                                val newItem = MetaDB.updateCloud(item, CloudStatus.Uploaded)
+//                                withContext(Dispatchers.Main) {
+//                                    val activity = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? PlayerActivity
+//                                    if(activity!=null) {
+//                                        activity.itemUpdated(newItem.name)
+//                                    }
+//                                }
+//                                cont = false
+//                            }
+//
+//                            StatusCode.Accepted.code -> {
+//                                val body = result.body?.use { it.string() }
+//                                    ?: throw IllegalStateException("Server Response No Data.")
+//                                val json = JSONObject(body)
+//                                val total = json.optLong("total")
+//                                val current = json.optLong("current")
+//                                logger.debug("registering on server: $current / $total")
+//                            }
+//
+//                            else -> {
+//                                // error
+//                                logger.debug("error response: ${result.code}")
+//                                cont = false
+//                            }
+//                        }
 //                    }
 //                }
-            }
-//            return result.isSuccessful
-        } catch(e:Throwable) {
-            NetClient.logger.error(e)
-            return
-        }
-    }
-
-    private fun waitForUploaded(url:String, item: ItemEx) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                var cont = true
-                while (cont) {
-                    delay(1000)
-                    val locationReq = Request.Builder().url(url).get().build()
-                    NetClient.executeAsync(locationReq).use { result -> //client.newCall(locationReq).executeAsync(null)
-                        when (result.code) {
-                            StatusCode.Ok.code -> {
-                                // upload completed
-                                logger.debug("uploaded")
-                                val newItem = MetaDB.updateCloud(item, CloudStatus.Uploaded)
-                                withContext(Dispatchers.Main) {
-                                    val activity = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? PlayerActivity
-                                    if(activity!=null) {
-                                        activity.itemUpdated(newItem.name)
-                                    }
-                                }
-                                cont = false
-                            }
-
-                            StatusCode.Accepted.code -> {
-                                val body = result.body?.use { it.string() }
-                                    ?: throw IllegalStateException("Server Response No Data.")
-                                val json = JSONObject(body)
-                                val total = json.optLong("total")
-                                val current = json.optLong("current")
-                                logger.debug("registering on server: $current / $total")
-                            }
-
-                            else -> {
-                                // error
-                                logger.debug("error response: ${result.code}")
-                                cont = false
-                            }
-                        }
-                    }
-                }
-            } catch(e:Throwable) {
-                logger.error(e)
-            }
-        }
-    }
+//            } catch(e:Throwable) {
+//                logger.error(e)
+//            }
+//        }
+//    }
 }

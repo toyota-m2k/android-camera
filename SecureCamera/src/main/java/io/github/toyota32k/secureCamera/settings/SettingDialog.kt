@@ -22,6 +22,7 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.dialog.AddressDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
@@ -144,7 +145,10 @@ class SettingDialog : UtDialogEx() {
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
                 Settings.Security.numberOfIncorrectPassword = securityNumberOfIncorrectPassword.value
+                Settings.SecureArchive.address = secureArchiveAddress.value
+                Settings.SecureArchive.deviceName = deviceName.value
             }
+            UtImmortalSimpleTask.run { TcClient.registerOwnerToSecureArchive() }
         }
         fun reset() {
             cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION

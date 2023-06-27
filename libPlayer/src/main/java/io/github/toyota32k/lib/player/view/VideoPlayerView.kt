@@ -38,6 +38,6 @@ class VideoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribu
         controls.player.associatePlayer()
     }
     fun dissociatePlayer() {
-        controls.player.associatePlayer()
+        controls.player.dissociatePlayer()
     }
 }

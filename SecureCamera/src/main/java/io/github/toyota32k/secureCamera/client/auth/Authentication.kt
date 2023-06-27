@@ -53,7 +53,7 @@ object Authentication {
 
     private suspend fun getChallenge():String {
         val req = Request.Builder()
-            .url(authUrl)
+            .url(authUrlWithToken(""))
             .get()
             .build()
         return challengeFromResponse(NetClient.executeAsync(req))

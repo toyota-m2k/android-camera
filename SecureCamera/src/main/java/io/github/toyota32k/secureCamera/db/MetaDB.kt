@@ -9,6 +9,8 @@ import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
+import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.UtLog
@@ -52,10 +54,10 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
 
     val uri:String
         get() {
-            return if(cloud.isFileInCloud) {
-                "http://${Settings.SecureArchive.address}/${if(isVideo) "video" else "photo"}?o=${Settings.SecureArchive.clientId}&c=${id}"
-            } else {
+            return if(cloud.isFileInLocal) {
                 file.toUri().toString()
+            } else {
+                "http://${Settings.SecureArchive.address}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
             }
         }
 }
@@ -169,7 +171,7 @@ object MetaDB {
 
 //    }
 
-    private suspend fun metaDataFromName(id:Int, name:String, group: Int=0, mark:Int=0, rating:Int=0, allowRetry:Int=0):MetaData? {
+    private suspend fun metaDataFromName(id:Int, name:String, group: Int=0, mark:Int=0, rating:Int=0, cloud: Int=CloudStatus.Local.v, allowRetry:Int=0):MetaData? {
         return withContext(Dispatchers.IO) {
             val type = filename2type(name) ?: return@withContext null
             val file = File(application.filesDir, name)
@@ -178,9 +180,11 @@ object MetaDB {
             val duration = if (type == 1) {
                 VideoUtil.getDuration(file, allowRetry)
             } else 0L
-            MetaData(id, name, group, mark, type, date, size, duration, rating)
+            MetaData(id, name, group, mark, type, date, size, duration, rating, cloud)
         }
     }
+
+    // region READ
 
     suspend fun itemOf(name:String):MetaData? {
         return withContext(Dispatchers.IO) {
@@ -188,11 +192,42 @@ object MetaDB {
         }
     }
 
-    suspend fun itemAt(id:Long):MetaData? {
+    suspend fun itemAt(id:Int):MetaData? {
         return withContext(Dispatchers.IO) {
             db.metaDataTable().getDataAt(id)
         }
     }
+
+    suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
+        return withContext(Dispatchers.IO) {
+            when (listMode) {
+                PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()
+                PlayerActivity.ListMode.PHOTO -> db.metaDataTable().getImages()
+                PlayerActivity.ListMode.VIDEO -> db.metaDataTable().getVideos()
+            }
+        }
+    }
+
+    suspend fun MetaData.toItemEx():ItemEx {
+        val chapters = if(isVideo) getChaptersFor(this) else null
+        return ItemEx(this, chapters)
+    }
+
+    suspend fun listEx(mode:PlayerActivity.ListMode):List<ItemEx> {
+        return withContext(Dispatchers.IO) {
+            list(mode).map {it.toItemEx() }
+        }
+    }
+
+    suspend fun itemExOf(name:String):ItemEx? {
+        return withContext(Dispatchers.IO) {
+            itemOf(name)?.run {toItemEx() }
+        }
+    }
+
+    // endregion READ
+
+    // region CREATION
 
     private suspend fun makeAll() {
         withContext(Dispatchers.IO) {
@@ -210,16 +245,6 @@ object MetaDB {
         }
     }
 
-    suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
-        return withContext(Dispatchers.IO) {
-            when (listMode) {
-                PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()
-                PlayerActivity.ListMode.PHOTO -> db.metaDataTable().getImages()
-                PlayerActivity.ListMode.VIDEO -> db.metaDataTable().getVideos()
-            }
-        }
-    }
-
     suspend fun register(name:String):MetaData? {
         return withContext(Dispatchers.IO) {
             val exist = db.metaDataTable().getDataOf(name)
@@ -230,9 +255,14 @@ object MetaDB {
                 metaDataFromName(0, name, 0, 0, 0, allowRetry = 10)?.apply {
                     db.metaDataTable().insert(this)
                 }
+                itemOf(name)?.apply {
+                    DBChange.add(id)
+                }
             }
         }
     }
+
+    // endregion CREATION
 
 //    private suspend fun updateGroup(data:MetaData, group:Int):MetaData {
 //        return withContext(Dispatchers.IO) {
@@ -250,6 +280,8 @@ object MetaDB {
 //        }
 //    }
 
+    // region DELETION
+
     private suspend fun deleteFile(data:MetaData) {
         withContext(Dispatchers.IO) {
             try {
@@ -257,8 +289,18 @@ object MetaDB {
             } catch (_: Throwable) {
             }
             db.metaDataTable().delete(data)
+            DBChange.delete(data.id)
         }
     }
+
+    suspend fun deleteFile(item:ItemEx) {
+        setChaptersFor(item.data, emptyList())
+        deleteFile(item.data)
+    }
+
+    // endregion DELETION
+
+    // region Chapter
 
     suspend fun getChaptersFor(data:MetaData):List<IChapter> {
         return withContext(Dispatchers.IO) {
@@ -273,35 +315,22 @@ object MetaDB {
             db.chapterDataTable().setForOwner(data.id, chapters?.map {ChapterData(0,data.id, it.position, it.label, it.skip)})
         }
     }
+    // endregion Chapter
 
-    private suspend fun MetaData.toItemEx():ItemEx {
-        val chapters = if(isVideo) getChaptersFor(this) else null
-        return ItemEx(this, chapters)
-    }
+    // region UPDATE
 
-    suspend fun listEx(mode:PlayerActivity.ListMode):List<ItemEx> {
-        return withContext(Dispatchers.IO) {
-            list(mode).map {it.toItemEx() }
-        }
-    }
-
-    suspend fun itemExOf(name:String):ItemEx? {
-        return withContext(Dispatchers.IO) {
-            itemOf(name)?.run {toItemEx() }
-        }
-    }
-
+    /**
+     * Rating, Mark を変更する
+     */
     private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
         if(mark==null && rating==null) return data
         return withContext(Dispatchers.IO) {
             MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating, data.cloud).apply {
                 db.metaDataTable().update(this)
+                DBChange.update(data.id)
             }
         }
     }
-    /**
-     * Rating, Mark を変更する
-     */
     suspend fun updateMarkRating(item:ItemEx, mark:Mark?, rating: Rating?):ItemEx {
         val newData = updateMarkRating(item.data, mark, rating)
         return ItemEx(newData, item.chapterList)
@@ -314,6 +343,7 @@ object MetaDB {
         return withContext(Dispatchers.IO) {
             MetaData(data.id, data.name, data.group, data.mark, data.type, data.date, data.size, data.duration,data.rating,cloud).apply {
                 db.metaDataTable().update(this)
+                DBChange.update(data.id)
             }
         }
     }
@@ -324,6 +354,13 @@ object MetaDB {
         } else item
     }
 
+    suspend fun updateCloud(id:Int, cloud:CloudStatus) {
+        val item = itemAt(id) ?: return
+        if(item.cloud!=cloud.v) {
+            updateCloud(item, cloud.v)
+        }
+    }
+
     /**
      * ファイルが編集されたとき、サイズやDurationなどの情報を更新する
      */
@@ -331,27 +368,63 @@ object MetaDB {
         val newData = updateFile(item.data, chapterList)
         return ItemEx(newData, chapterList?:item.chapterList)
     }
+
     suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
         if(chapterList!=null) {
             setChaptersFor(data, chapterList)
         }
-        return metaDataFromName(data.id, data.name, 0, data.mark, data.rating, allowRetry = 10)!!.also { newData ->
+        return metaDataFromName(data.id, data.name, 0, data.mark, data.rating,  allowRetry = 10)!!.also { newData ->
             withContext(Dispatchers.IO) {
                 db.metaDataTable().update(newData)
+                DBChange.update(data.id)
             }
         }
     }
 
-//    suspend fun registerEx(name:String, mark:Mark?=null, rating: Rating?=null):ItemEx? {
-//        val newData = register(name, mark, rating) ?: return null
-//        return ItemEx(newData, null)
-//    }
+    // endregion UPDATING
 
+    // region Cloud Operation
 
-    suspend fun deleteFile(item:ItemEx) {
-        setChaptersFor(item.data, emptyList())
-        deleteFile(item.data)
+    fun backupToCloud(item: ItemEx) {
+        if(item.cloud != CloudStatus.Local) {
+            logger.warn("not need backup : ${item.name} (${item.cloud})")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            if (TcClient.uploadToSecureArchive(item)) {
+                updateCloud(item, CloudStatus.Uploaded)
+            }
+        }
     }
+
+    fun restoreFromCloud(item: ItemEx) {
+        if(item.cloud != CloudStatus.Cloud) {
+            logger.warn("not need restore : ${item.name} (${item.cloud})")
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            if (TcClient.downloadFromSecureArchive(item)) {
+                updateCloud(item, CloudStatus.Uploaded)
+            }
+        }
+    }
+
+    /**
+     * アップロード済みのローカルファイルを削除して、Cloudステータスを Cloud に変更する。
+     */
+    fun removeUploadedFile(item:ItemEx) {
+        if(item.cloud != CloudStatus.Uploaded) return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                item.data.file.delete()
+                updateCloud(item, CloudStatus.Cloud)
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    // endregion Operation
+
+    // region Video File Test
 
     private const val testItemName = "mov-2030.01.01-00:00:00.mp4"
 
@@ -374,4 +447,5 @@ object MetaDB {
             register(testItemName)
         }
     }
+    // endregion
 }

@@ -28,9 +28,9 @@ import kotlinx.coroutines.flow.stateIn
 class AddressDialog : UtDialogEx() {
     class AddressDialogViewModel : UtImmortalViewModel() {
         val address = MutableStateFlow(Settings.SecureArchive.address)
-        fun save() {
-            Settings.SecureArchive.address = address.value
-        }
+//        fun save() {
+//            Settings.SecureArchive.address = address.value
+//        }
         companion object {
             fun createBy(task:IUtImmortalTask):AddressDialogViewModel {
                 return UtImmortalViewModelHelper.createBy(AddressDialogViewModel::class.java, task)
@@ -63,10 +63,10 @@ class AddressDialog : UtDialogEx() {
         }
     }
 
-    override fun onPositive() {
-        viewModel.save()
-        super.onPositive()
-    }
+//    override fun onPositive() {
+//        viewModel.save()
+//        super.onPositive()
+//    }
 
     companion object {
         suspend fun show(): Boolean {

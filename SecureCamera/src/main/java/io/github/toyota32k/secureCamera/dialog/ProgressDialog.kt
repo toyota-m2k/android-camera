@@ -2,7 +2,6 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import io.github.toyota32k.binder.command.LiteUnitCommand
@@ -11,7 +10,11 @@ import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.progressBarBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.*
+import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
+import io.github.toyota32k.dialog.task.IUtImmortalTaskMutableContextSource
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.secureCamera.databinding.DialogProgressBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 
