@@ -2,18 +2,26 @@ package io.github.toyota32k.secureCamera.server
 
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.secureCamera.PlayerActivity
+import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.HashUtils.encodeHex
 import io.github.toyota32k.server.HttpErrorResponse
 import io.github.toyota32k.server.HttpMethod
+import io.github.toyota32k.server.HttpRequest
 import io.github.toyota32k.server.HttpServer
 import io.github.toyota32k.server.QueryParams
 import io.github.toyota32k.server.Route
+import io.github.toyota32k.server.response.IHttpResponse
 import io.github.toyota32k.server.response.StatusCode
 import io.github.toyota32k.server.response.StreamingHttpResponse
 import io.github.toyota32k.server.response.TextHttpResponse
 import io.github.toyota32k.server.response.TextHttpResponse.Companion.CT_TEXT_PLAIN
 import io.github.toyota32k.utils.UtLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -33,6 +41,36 @@ class TcServer(val port:Int) : AutoCloseable {
 
         var authToken: String = generateToken()
         val regRange = Regex("bytes=(?<start>\\d+)(?:-(?<end>\\d+))?");
+
+        private fun videoDownloadProc(route: Route, request: HttpRequest):IHttpResponse {
+            return downloadProcCore(request, "video/mp4")
+        }
+        private fun photoDownloadProc(route: Route, request: HttpRequest): IHttpResponse {
+            return downloadProcCore(request, "image/jpeg")
+        }
+
+        private fun downloadProcCore(request: HttpRequest, type: String):IHttpResponse {
+            val p = QueryParams.parse(request.url)
+            if(p["auth"]!= authToken) {
+                return HttpErrorResponse.unauthorized();
+            }
+            val id = p["id"]?.toIntOrNull() ?: return HttpErrorResponse.badRequest("id is not specified")
+            val item = runBlocking {
+                MetaDB.itemAt(id)?.run {
+                    if(CloudStatus.valueOf(cloud).isFileInLocal) this else null
+                }
+            } ?: return HttpErrorResponse.notFound()
+            val range = request.headers["Range"]
+            return if(range==null) {
+                StreamingHttpResponse(StatusCode.Ok, type, item.file, 0L,0L)
+            } else {
+                val c = regRange.find(range) ?: return HttpErrorResponse.badRequest("invalid range")
+                val start = c.groups["start"]?.value?.toLongOrNull() ?: 0L
+                val end = c.groups["end"]?.value?.toLongOrNull() ?: 0L
+                StreamingHttpResponse(StatusCode.Ok, type, item.file, start, end)
+            }
+        }
+
         val routes = arrayOf<Route>(
             Route("Capability", HttpMethod.GET, "/capability") { _, _ ->
                 TextHttpResponse(
@@ -59,15 +97,24 @@ class TcServer(val port:Int) : AutoCloseable {
                 if(p["auth"]!= authToken) {
                     return@Route HttpErrorResponse.unauthorized();
                 }
+                val type = when(p["type"]) {
+                    "all"->PlayerActivity.ListMode.ALL
+                    "photo"->PlayerActivity.ListMode.PHOTO
+                    else->PlayerActivity.ListMode.VIDEO
+                }
+                val backup = (p["backup"]?:"").toBoolean()
+                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud == 0 }
+
                 val list = runBlocking {
-                    MetaDB.list(PlayerActivity.ListMode.VIDEO).fold(JSONArray()) { array, item ->
+                    MetaDB.list(type).filter(predicate).fold(JSONArray()) { array, item ->
                         array.put(JSONObject().apply {
                             put("id", "${item.id}")
                             put("name", item.name)
                             put("size", item.size)
                             put("date", "${item.date}")
                             put("duration", item.duration)
-                            put("type", "mp4")
+                            put("type", item.type)
+                            put("cloud", item.cloud)
                         })
                     }
                 }
@@ -79,30 +126,25 @@ class TcServer(val port:Int) : AutoCloseable {
                         .put("date", "${Date().time}")
                 )
             },
-            Route("Video", HttpMethod.GET,"/video\\?.+") { _, request ->
-                val p = QueryParams.parse(request.url)
-                if(p["auth"]!= authToken) {
-                    return@Route HttpErrorResponse.unauthorized();
-                }
-                val id = p["id"]?.toLongOrNull() ?: return@Route HttpErrorResponse.badRequest("id is not specified")
-                val item = runBlocking {
-                    MetaDB.itemAt(id)
-                } ?: return@Route HttpErrorResponse.notFound()
-                val range = request.headers["Range"]
-                if(range==null) {
-                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file(UtImmortalTaskManager.application), 0L,0L)
-                } else {
-                    val c = regRange.find(range) ?: return@Route HttpErrorResponse.badRequest("invalid range")
-                    val start = c.groups["start"]?.value?.toLongOrNull() ?: 0L
-                    val end = c.groups["end"]?.value?.toLongOrNull() ?: 0L
-                    StreamingHttpResponse(StatusCode.Ok, "video/mp4", item.file(UtImmortalTaskManager.application), start, end)
-                }
-            },
-            Route("Backup Completed", HttpMethod.PUT, "/backup/completed") {_, request->
+            Route("Video", HttpMethod.GET,"/video\\?.+", ::videoDownloadProc),
+            Route("Photo", HttpMethod.GET,"/photo\\?.+", ::photoDownloadProc),
+            Route("1 file backup finished", HttpMethod.PUT, "/backup/done") {_, request->
                 val content = request.contentAsString()
                 val json = JSONObject(content)
-                val id = json.optString("id")
-                logger.debug("Backup completed: ${id}")
+                val auth = json.optString("auth")
+                if(auth!= authToken) {
+                    return@Route HttpErrorResponse.unauthorized()
+                }
+                val ownerId = json.optString("owner")
+                if(ownerId != Settings.SecureArchive.clientId) {
+                    return@Route HttpErrorResponse.badRequest()
+                }
+                val id = json.optInt("id")
+                val status = json.optBoolean("status")
+                logger.debug("Backup id=$id done: $status")
+                if(status) {
+                    CoroutineScope(Dispatchers.IO).launch { MetaDB.updateCloud(id, CloudStatus.Uploaded) }
+                }
                 TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
             }
         )

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.ReliableUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.editTextBinding
 import io.github.toyota32k.binder.textBinding
@@ -15,6 +16,7 @@ import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -27,6 +29,7 @@ class PasswordDialog : UtDialogEx() {
         enum class Mode {
             NEW_PASSWORD,       // パスワード登録用（入力後、確認のためもう一回がでるやつ）
             CHECK_PASSWORD,     // パスワード照合用（n回までリトライ）
+            SA_AUTH,            // SecureArchive Auth
         }
 
         var mode: Mode = Mode.NEW_PASSWORD
@@ -35,6 +38,7 @@ class PasswordDialog : UtDialogEx() {
         val password = MutableStateFlow("")
         val passwordConf = MutableStateFlow("")
         val message = MutableStateFlow("")
+        val completeCommand = ReliableUnitCommand()
 
         enum class CheckPasswordResult {
             OK,
@@ -46,7 +50,7 @@ class PasswordDialog : UtDialogEx() {
         val ready : StateFlow<Boolean> = combine(password, passwordConf) { p, c ->
             when(mode) {
                 Mode.NEW_PASSWORD -> p.isNotEmpty() && p==c
-                Mode.CHECK_PASSWORD ->p.isNotEmpty()
+                Mode.CHECK_PASSWORD,Mode.SA_AUTH-> p.isNotEmpty()
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
@@ -62,6 +66,16 @@ class PasswordDialog : UtDialogEx() {
             return HashGenerator.hash(password.value)
         }
 
+        fun authenticate() {
+            UtImmortalSimpleTask.run("remote execute") {
+                if(password.value.isEmpty()) return@run false
+                if(Authentication.authWithPassword(password.value)) {
+                    completeCommand.invoke()
+                    true
+                } else false
+            }
+        }
+
         companion object {
             fun createForNewPassword(taskName:String): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel() ?: throw IllegalStateException("no task")
@@ -71,6 +85,11 @@ class PasswordDialog : UtDialogEx() {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
                     mode = Mode.CHECK_PASSWORD
                     passwordToCheck = hashedPassword
+                } ?: throw IllegalStateException("no task")
+            }
+            fun createForAuthentication(taskName:String): PasswordViewModel {
+                return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
+                    mode = Mode.SA_AUTH
                 } ?: throw IllegalStateException("no task")
             }
 
@@ -99,7 +118,7 @@ class PasswordDialog : UtDialogEx() {
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogPasswordBinding.inflate(inflater.layoutInflater)
-        if(viewModel.mode==PasswordViewModel.Mode.CHECK_PASSWORD) {
+        if(viewModel.mode!=PasswordViewModel.Mode.NEW_PASSWORD) {
             controls.password.imeOptions = EditorInfo.IME_ACTION_DONE
         }
         return controls.root.also { _ ->
@@ -107,7 +126,7 @@ class PasswordDialog : UtDialogEx() {
                 controls.passwordInputLayout.hint = getString(R.string.password_hint_new)
                 controls.confirmPasswordInputLayout.visibility = View.VISIBLE
             }
-            val commandDone = LiteUnitCommand(::onPositive)
+            val commandDone = LiteUnitCommand(::action)
             binder
                 .editTextBinding(controls.password, viewModel.password)
                 .editTextBinding(controls.passwordConfirm, viewModel.passwordConf)
@@ -117,28 +136,33 @@ class PasswordDialog : UtDialogEx() {
                 .dialogRightButtonEnable(viewModel.ready)
                 .bindCommand(commandDone, controls.password)
                 .bindCommand(commandDone, controls.passwordConfirm)
+                .bindCommand(viewModel.completeCommand, ::onPositive)
         }
     }
 
-    override fun onPositive() {
-        if(viewModel.mode == PasswordViewModel.Mode.CHECK_PASSWORD) {
-            if(viewModel.password.value.isEmpty()) {
-                controls.password.requestFocus()
-                return
-            }
-            if(!checkPassword()) {
-                return
-            }
-        } else {
-            if(!viewModel.ready.value) {
-                if (viewModel.password.value.isEmpty()) {
-                    controls.password.requestFocus()
-                } else {
+    private fun action() {
+        if(viewModel.password.value.isEmpty()) {
+            controls.password.requestFocus()
+            return
+        }
+        when(viewModel.mode) {
+            PasswordViewModel.Mode.NEW_PASSWORD-> {
+                if(!viewModel.ready.value) {
                     controls.passwordConfirm.requestFocus()
+                    return
                 }
             }
+            PasswordViewModel.Mode.CHECK_PASSWORD-> {
+                if(!checkPassword()) {
+                    return
+                }
+            }
+            PasswordViewModel.Mode.SA_AUTH-> {
+                viewModel.authenticate()
+                return
+            }
         }
-        super.onPositive()
+        onPositive()
     }
 
     private fun checkPassword():Boolean {
@@ -196,6 +220,13 @@ class PasswordDialog : UtDialogEx() {
                 if(showDialog(taskName) { PasswordDialog() }.status.ok) {
                    vm.getPassword()
                 } else null
+            }
+        }
+
+        suspend fun authenticate():Boolean {
+            return UtImmortalSimpleTask.runAsync("auth") {
+                PasswordViewModel.createForAuthentication(taskName)
+                showDialog(taskName) { PasswordDialog() }.status.ok
             }
         }
     }

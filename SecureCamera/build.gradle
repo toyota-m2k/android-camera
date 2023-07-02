@@ -65,6 +65,7 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$app_compat_version"
     implementation "com.google.android.material:material:$material_version"
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.gridlayout:gridlayout:1.0.0'
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_ktx_version"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_ktx_version"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_ktx_version"
@@ -90,7 +91,7 @@ dependencies {
     implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
     implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
     implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
-    implementation "com.github.toyota-m2k:android-server:LOCAL"
+    implementation "com.github.toyota-m2k:android-server:$m2k_android_server_version"
 
     implementation project(path: ':shared')
     implementation project(path: ':libCamera')

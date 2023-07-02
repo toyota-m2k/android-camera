@@ -11,6 +11,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
+import io.github.toyota32k.secureCamera.SCApplication
 import java.io.File
 
 
@@ -27,6 +28,8 @@ data class MetaData(
     val date:Long,
     val size:Long,
     val duration:Long,
+    val rating:Int = 0,
+    val cloud:Int = 0,      // 0: Local
     val flag: Int = 0,
     val ext: String? = null,
 ) {
@@ -34,8 +37,8 @@ data class MetaData(
         get() = type == 1
     val isPhoto:Boolean
         get() = type == 0
-    fun file(context:Context):File
-        = File(context.filesDir, name)
+    val file:File
+        get() = File(SCApplication.instance.filesDir, name)
 }
 
 @Dao
@@ -53,7 +56,7 @@ interface MetaDataTable {
     fun getDataOf(name:String):MetaData?
 
     @Query("SELECT * from t_meta WHERE id = :id")
-    fun getDataAt(id:Long):MetaData?
+    fun getDataAt(id:Int):MetaData?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(vararg metaData:MetaData)

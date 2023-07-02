@@ -1,12 +1,16 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
 import androidx.core.net.toUri
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -14,16 +18,26 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
-import io.github.toyota32k.dialog.task.*
-import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.dialog.broker.UtActivityBroker
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getActivity
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.dialog.task.showYesNoMessageBox
+import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.IChapterList
+import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
+import io.github.toyota32k.lib.player.model.IMutableChapterList
+import io.github.toyota32k.lib.player.model.PlayerControllerModel
+import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
+import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
-import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
@@ -48,6 +62,8 @@ class EditorActivity : UtMortalActivity() {
             .build()
         val playerModel get() = playerControllerModel.playerModel
         val videoSource get() = playerModel.currentSource.value as VideoSource
+        val targetItem:MetaData get() = videoSource.item
+
         val chapterList by lazy {
             ChapterEditor(videoSource.chapterList as IMutableChapterList)
         }
@@ -91,7 +107,7 @@ class EditorActivity : UtMortalActivity() {
         inner class VideoSource(val item: MetaData) : IMediaSourceWithChapter {
             override val name:String
                 get() = item.name
-            private val file: File = item.file(getApplication())
+            private val file: File = item.file
             override val id: String
                 get() = name
             override val uri: String
@@ -190,8 +206,8 @@ class EditorActivity : UtMortalActivity() {
     }
 
     private fun trimmingAndSave() {
-        val targetItem = (viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource)?.item ?: return
-        val srcFile = targetItem.file(application)
+        val targetItem = viewModel.targetItem
+        val srcFile = targetItem.file
         val dstFile = File(application.cacheDir ?: return, "trimming")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 
@@ -227,11 +243,11 @@ class EditorActivity : UtMortalActivity() {
                         } else {
                             safeDelete(srcFile)
                             dstFile.renameTo(srcFile)
-                            MetaDB.updateFile(ItemEx(targetItem, viewModel.chapterList.defrag()))
+                            MetaDB.updateFile(targetItem, viewModel.chapterList.defrag())
                         }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
-                            getActivity()?.finish()
+                            setResultAndFinish(true, targetItem)
                             true
                         }
                     } else if(!r.cancelled) {
@@ -269,9 +285,12 @@ class EditorActivity : UtMortalActivity() {
             if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
                     if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+                        setResult(RESULT_OK,)
                         MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
+                        setResultAndFinish(true, viewModel.targetItem)
+                    } else {
+                        setResultAndFinish(false, viewModel.targetItem)
                     }
-                    getActivity()?.finish()
                     true
                 }
                 return true
@@ -279,8 +298,34 @@ class EditorActivity : UtMortalActivity() {
         }
         return super.handleKeyEvent(keyCode, event)
     }
+
+    class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
+        init{
+            register(activity)
+        }
+        class Contract:ActivityResultContract<String,String?>() {
+            override fun createIntent(context: Context, input: String): Intent {
+                return Intent(context.applicationContext, EditorActivity::class.java).apply { putExtra(KEY_FILE_NAME, input) }
+            }
+
+            override fun parseResult(resultCode: Int, intent: Intent?): String? {
+                return if(resultCode == RESULT_OK) intent?.getStringExtra(KEY_FILE_NAME) else null
+            }
+        }
+
+        override val contract: ActivityResultContract<String, String?>
+            get() = Contract()
+    }
+
     companion object {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)
+
+        private suspend fun UtImmortalSimpleTask.setResultAndFinish(ok:Boolean,item:MetaData) {
+            (getActivity() as? EditorActivity)?.apply {
+                setResult(if(ok) RESULT_OK else RESULT_CANCELED, Intent().apply { putExtra(KEY_FILE_NAME, item.name) })
+                finish()
+            }
+        }
     }
 }

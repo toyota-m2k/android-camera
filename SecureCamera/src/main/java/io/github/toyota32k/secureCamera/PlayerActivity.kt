@@ -2,14 +2,12 @@ package io.github.toyota32k.secureCamera
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -17,9 +15,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuPopupHelper
-import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -41,11 +36,11 @@ import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.boodroid.common.getAttrColor
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
@@ -54,24 +49,28 @@ import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
-import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
+import io.github.toyota32k.secureCamera.db.CloudStatus
+import io.github.toyota32k.secureCamera.db.DBChange
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaDB.toItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
-import io.github.toyota32k.secureCamera.server.NetworkUtils
-import io.github.toyota32k.secureCamera.server.TcServer
+import io.github.toyota32k.secureCamera.db.Rating
+import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,12 +97,22 @@ class PlayerActivity : UtMortalActivity() {
             fun valueOf(resId: Int, def: ListMode = PHOTO): ListMode {
                 return values().find { it.resId == resId } ?: def
             }
+            fun valueOf(name:String?):ListMode? {
+                if(name==null) return null
+                return try {
+                    java.lang.Enum.valueOf(ListMode::class.java, name)
+                } catch (e:Throwable) {
+                    null
+                }
+            }
         }
 
     }
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
         companion object {
+            const val KEY_CURRENT_LIST_MODE = "ListMode"
+            const val KEY_CURRENT_ITEM = "CurrentItem"
             suspend fun takeSnapshot(item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
@@ -150,17 +159,16 @@ class PlayerActivity : UtMortalActivity() {
         }
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
-
-        var editingItem: String? = null
+        val ensureVisibleCommand = LiteUnitCommand()
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
-            private val file: File = item.file(context)
+            private val file: File = item.file
             override val name:String
                 get() = item.name
             override val id: String
                 get() = name
             override val uri: String
-                get() = file.toUri().toString()
+                get() = item.uri
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -206,7 +214,8 @@ class PlayerActivity : UtMortalActivity() {
             init {
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
-            fun select(item_:ItemEx?) {
+            fun select(item_:ItemEx?, force:Boolean=true) {
+                if(!force && item_ == currentSelection.value) return
                 if(collection.isEmpty()) {
                     hasNext.value = false
                     hasPrevious.value = false
@@ -226,7 +235,13 @@ class PlayerActivity : UtMortalActivity() {
                     return
                 }
 
-                val index = collection.indexOf(item_).takeIf { it>=0 } ?: 0
+                val index = collection.indexOfFirst{ it.id == item_.id }
+                if(index<0) {
+                    // 要求されたアイテムが存在しない
+                    select(null, true)
+                    return
+                }
+
                 val item = collection[index]
                 currentSelection.mutable.value = item
                 if(item.isVideo) {
@@ -234,19 +249,59 @@ class PlayerActivity : UtMortalActivity() {
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    currentSource.value = VideoSource(item)
+                    if(!item.cloud.isFileInLocal) {
+                        viewModelScope.launch {
+                            if(Authentication.authentication()) {
+                                currentSource.value = VideoSource(item)
+                            }
+                        }
+                    } else {
+                        currentSource.value = VideoSource(item)
+                    }
                 } else {
                     photoSelection = item
                     currentSource.value = null
                     photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file(context).path)
+                    if(!item.cloud.isFileInLocal) {
+                        viewModelScope.launch {
+                            photoBitmap.mutable.value = TcClient.getPhoto(item)
+                        }
+                    } else {
+                        photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file.path)
+                    }
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
+                ensureVisibleCommand.invoke()
+            }
+
+            fun currentIndex():Int {
+                val item = currentSelection.value ?: return -1
+                return collection.indexOf(item)
             }
 
             suspend fun refreshList() {
                 setListMode(listMode.value)
+            }
+
+            fun addItem(item:ItemEx) {
+                sorter.add(item)
+                select(item)
+            }
+
+            fun removeItem(item:ItemEx) {
+                var index = collection.indexOfFirst { it.id == item.id }
+                if(index>=0) {
+                    collection.removeAt(index)
+                }
+            }
+
+            fun replaceItem(item:ItemEx) {
+                val current = currentSelection.value?.id == item.id
+                sorter.add(item)
+                if(current) {
+                    select(item)
+                }
             }
 
             private suspend fun setListMode(mode:ListMode) {
@@ -257,7 +312,7 @@ class PlayerActivity : UtMortalActivity() {
             private fun setFileList(list:Collection<ItemEx>, newMode:ListMode) {
                 val current = currentSource.value as VideoSource?
                 sorter.replace(list)
-                listMode.value = newMode
+//                listMode.value = newMode
                 when(newMode) {
                     ListMode.ALL->  select(current?.item)
                     ListMode.VIDEO -> select(videoSelection)
@@ -304,20 +359,35 @@ class PlayerActivity : UtMortalActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val item = currentSelection.value ?: return@launch
                     val bitmap = photoBitmap.value ?: return@launch
-                    val file = item.file(context)
+                    val file = item.file
                     file.outputStream().use {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
-                    val newItem = MetaDB.updateFile(item)
-                    if (playlist.listMode.value != ListMode.VIDEO) {
-                        withContext(Dispatchers.Main) { playlist.sorter.add(newItem) }
-                    }
+                    MetaDB.updateFile(item,null)
+//                    if (playlist.listMode.value != ListMode.VIDEO) {
+//                        withContext(Dispatchers.Main) { playlist.replaceItem(newItem) }
+//                    }
                 }
             }
         }
-        
+
+        init {
+            viewModelScope.launch {
+                val mode = ListMode.valueOf(MetaDB.KV.get(KEY_CURRENT_LIST_MODE))
+                if(mode!=null) {
+                    playlist.listMode.value = mode
+                }
+                val name = MetaDB.KV.get(KEY_CURRENT_ITEM) ?: return@launch
+                val item = MetaDB.itemExOf(name) ?: return@launch
+                playlist.select(item)
+            }
+        }
+
+        val currentIndex:Int
+            get() = playlist.currentIndex()
+
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
@@ -328,19 +398,28 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        fun updateItem(itemNew:ItemEx) {
-            val index = playlist.sorter.find(itemNew)
-            if(index>=0) {
-                playlist.collection[index] = itemNew
-            }
-        }
+//        fun updateItem(itemNew:ItemEx) {
+//            val index = playlist.sorter.find(itemNew)
+//            if(index>=0) {
+//                playlist.collection[index] = itemNew
+//            }
+//        }
 
         override fun onCleared() {
+            val listMode = playlist.listMode.value.toString()
+            val currentItem = playlist.currentSelection.value?.name
+            CoroutineScope(Dispatchers.IO).launch {
+                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode)
+                if(currentItem!=null) {
+                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem)
+                }
+            }
             super.onCleared()
             playerControllerModel.close()
         }
     }
 
+    private val editorActivityBroker = EditorActivity.Broker(this)
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
@@ -350,25 +429,37 @@ class PlayerActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Settings.initialize(application)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
         hideActionBar()
 
         val normalColor: Drawable
-        val normalTextColor: Int
+//        val normalTextColor: Int
         val selectedColor: Drawable
-        val selectedTextColor: Int
-
+//        val selectedTextColor: Int
+//
         theme!!.apply {
             normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
-            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
+//            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
             selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
-            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
+//            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
         }
+
+
         val icPhoto = AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!
         val icVideo = AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!
-        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
-        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
+        val icMarkStar = AppCompatResources.getDrawable(this, Mark.Star.iconId)!!
+        val icMarkFlag = AppCompatResources.getDrawable(this, Mark.Flag.iconId)!!
+        val icMarkCheck = AppCompatResources.getDrawable(this, Mark.Check.iconId)!!
+        val icRating1 = AppCompatResources.getDrawable(this, Rating.Rating1.icon)!!
+        val icRating2 = AppCompatResources.getDrawable(this, Rating.Rating2.icon)!!
+        val icRating3 = AppCompatResources.getDrawable(this, Rating.Rating3.icon)!!
+        val icRating4 = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
+        val icCloud = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
+        val icCloudFull = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
+//        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
+//        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
 //        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
 //        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
@@ -404,6 +495,7 @@ class PlayerActivity : UtMortalActivity() {
 //            .bindCommand(viewModel.rotateCommand, this::onRotate)
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
+            .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
@@ -425,8 +517,13 @@ class PlayerActivity : UtMortalActivity() {
                 val sizeView = views.findViewById<TextView>(R.id.size_view)
                 val durationView = views.findViewById<TextView>(R.id.duration_view)
                 val iconView = views.findViewById<ImageView>(R.id.icon_view)
+                val markView = views.findViewById<ImageView>(R.id.icon_mark)
+                val ratingView = views.findViewById<ImageView>(R.id.icon_rating)
+                val cloudView = views.findViewById<ImageView>(R.id.icon_cloud)
                 val isVideo = item.isVideo
-                textView.text = item.name
+                views.isSelected = false
+                views.tag = item
+                textView.text = item.nameForDisplay
                 sizeView.text = formatSize(item.size)
                 if(!isVideo) {
                     durationView.visibility = View.GONE
@@ -434,20 +531,63 @@ class PlayerActivity : UtMortalActivity() {
                     durationView.text = formatTime(item.duration,item.duration)
                     durationView.visibility = View.VISIBLE
                 }
+                iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+                val markIcon = when(item.mark) {
+                    Mark.None -> null
+                    Mark.Star -> icMarkStar
+                    Mark.Flag -> icMarkFlag
+                    Mark.Check -> icMarkCheck
+                }
+                markView.setImageDrawable(markIcon)
+                val ratingIcon = when(item.rating) {
+                    Rating.RatingNone -> null
+                    Rating.Rating1 -> icRating1
+                    Rating.Rating2 -> icRating2
+                    Rating.Rating3 -> icRating3
+                    Rating.Rating4 -> icRating4
+                }
+                ratingView.setImageDrawable(ratingIcon)
+
+                val cloudIcon = when(item.cloud) {
+                    CloudStatus.Local-> null
+                    CloudStatus.Uploaded->icCloud
+                    CloudStatus.Cloud->icCloudFull
+                }
+                cloudView.setImageDrawable(cloudIcon)
+//                val tint = AppCompatResources.getColorStateList(this@PlayerActivity, R.color.color_icon_primary)
+
                 itemBinder
                     .owner(this)
-                    .bindCommand(LiteUnitCommand { viewModel.playlist.select(item)}, views)
-                    .bindCommand(LongClickUnitCommand { startEditing(views, item) }, views )
-                    .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it == item }) { hit->
-                        if(hit) {
-                            views.background = selectedColor
-                            textView.setTextColor(selectedTextColor)
-                            iconView.setImageDrawable(if(isVideo) icVideoSel else icPhotoSel)
+                    .bindCommand(LiteUnitCommand {
+                        if(item==viewModel.playlist.currentSelection.value) {
+                            startEditing(item)
                         } else {
-                            views.background = normalColor
-                            textView.setTextColor(normalTextColor)
-                            iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+                            viewModel.playlist.select(item, false)
                         }
+                    }, views)
+                    .bindCommand(LongClickUnitCommand {
+                        viewModel.playlist.select(item, false)
+                        startEditing(item)
+                    }, views )
+                    .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
+                        logger.debug("${item.name} isSelected = $hit")
+                        views.background = if(hit) selectedColor else normalColor
+
+//                        iconView.isSelected = hit
+//                        assert(views.tag === item)
+//                        if(views.isSelected!=hit) {
+//                            lifecycleScope.launch {
+//                                if (hit) {
+//                                    delay(10)
+//                                    views.isSelected = hit
+//                                    logger.debug("select: ${item.name}")
+//                                } else {
+//                                    delay(50)
+//                                    views.isSelected = hit
+//                                    logger.debug("unselect: ${item.name}")
+//                                }
+//                            }
+//                        }
                     }
 
             }
@@ -464,6 +604,10 @@ class PlayerActivity : UtMortalActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        ensureVisible()
+
+        DBChange.observable.onEach(::onDataChanged).launchIn(lifecycleScope)
+
 //        val wm = getSystemService(WIFI_SERVICE) as WifiManager
 //        val ip = wm.connectionInfo
 
@@ -474,120 +618,83 @@ class PlayerActivity : UtMortalActivity() {
 //        }
     }
 
+    private suspend fun onDataChanged(c:DBChange) {
+        when(c.type) {
+            DBChange.Type.Add -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.addItem(item)
+            }
+            DBChange.Type.Update -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.replaceItem(item)
+            }
+            DBChange.Type.Delete -> {
+                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                viewModel.playlist.removeItem(item)
+            }
+            DBChange.Type.Refresh -> {
+                viewModel.playlist.refreshList()
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 //        server.close()
+    }
+
+    fun ensureVisible() {
+        val index = viewModel.currentIndex
+        if(index>=0) {
+            controls.listView.scrollToPosition(index)
+        }
     }
 
     private fun sizeInKb(size: Long): String {
         return String.format("%,d KB", size / 1000L)
     }
 
-    @SuppressLint("RestrictedApi")
-    private fun startEditing(anchor:View, item:ItemEx) {
-        androidx.appcompat.widget.PopupMenu(this, anchor).apply {
-            menu.apply {
-                add(1, 1, 0, R.string.start_editing)
-                add(5,0,0,"Upload Video")
-                add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
-                    icon = Mark.None.icon(this@PlayerActivity)
-                    iconTintList = Mark.None.colorStateList(this@PlayerActivity)
-                }
-                add(4, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-                    icon = Mark.Star.icon(this@PlayerActivity)
-                    iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
-                }
-                add(4, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
-                    icon = Mark.Flag.icon(this@PlayerActivity)
-                    iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
-                }
-                add(4, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
-                    icon = Mark.Check.icon(this@PlayerActivity)
-                    iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-                    check(true)
-                }
-
-//                if(item.data.mark == 0) {
-//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-//                        icon = Mark.Check.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-//                        check(true)
-//                    }
-//                } else {
-//                    add(3, Mark.None.markValue, Mark.None.markValue+1, "Remove Mark")
-//                }
-//                addSubMenu("Mark").apply {
-//                    add(4, Mark.None.markValue, Mark.None.markValue+1, Mark.None.toString()).apply {
-//                        icon = Mark.None.icon(this@PlayerActivity)
-//                        iconTintList = Mark.None.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Star.markValue, Mark.Star.markValue+1, Mark.Star.toString()).apply {
-//                        icon = Mark.Star.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Star.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Flag.markValue, Mark.Flag.markValue+1, Mark.Flag.toString()).apply {
-//                        icon = Mark.Flag.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Flag.colorStateList(this@PlayerActivity)
-//                    }
-//                    add(2, Mark.Check.markValue, Mark.Check.markValue+1, Mark.Check.toString()).apply {
-//                        icon = Mark.Check.icon(this@PlayerActivity)
-//                        iconTintList = Mark.Check.colorStateList(this@PlayerActivity)
-//                        check(true)
-//                    }
-//                }
-            }
-            setOnMenuItemClickListener {
-                when(it.groupId) {
-                     1 -> {
-                        viewModel.playlist.select(null)
-                        viewModel.playerControllerModel.playerModel.killPlayer()
-                        viewModel.editingItem = item.name
-                        controls.videoViewer.dissociatePlayer()
-                        val intent = Intent(this@PlayerActivity, EditorActivity::class.java).apply { putExtra(EditorActivity.KEY_FILE_NAME, item.name) }
-                        startActivity(intent)
-                    }
-                    5 -> {
-                        UtImmortalSimpleTask.run("upload item") {
-                            val canceller = Canceller()
-                            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
-                            viewModel.message.value = "Uploading..."
-                            viewModel.cancelCommand.bindForever(canceller::cancel)
-                            CoroutineScope(Dispatchers.IO).launch {
-                                TcClient.uploadToSecureArchive(this@PlayerActivity,item,canceller) { current, total ->
-                                    val percent = (current * 100L / total).toInt()
-                                    viewModel.progress.value = percent
-                                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-                                }
-                                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(true) }
-                            }
-                            showDialog(taskName) { ProgressDialog() }
-                            true
-                        }
-                    }
-                    2 -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val itemNew = MetaDB.updateFile(item, null, it.itemId)
-                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-                        }
-                    }
-                    3 -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val itemNew = MetaDB.updateFile(item, null, 0)
-                            withContext(Dispatchers.Main) { viewModel.updateItem(itemNew) }
-                        }
-                    }
-
-                }
-                true
-            }
-            MenuPopupHelper(this@PlayerActivity, this.menu as MenuBuilder, anchor).apply {
-                gravity = Gravity.END
-                setForceShowIcon(true)
-                show()
-            }
+    private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
+        val item = MetaDB.itemExOf(name) ?: return
+        if(update) {
+            viewModel.playlist.replaceItem(item)
         }
-
+        viewModel.playlist.select(item)
     }
+
+    private fun startEditing(item:ItemEx) {
+        UtImmortalSimpleTask.run("dealItem") {
+            viewModel.playerControllerModel.commandPause.invoke()
+            val vm = ItemDialog.ItemViewModel.createBy(this, item)
+            if(showDialog(taskName) { ItemDialog() }.status.ok) {
+                vm.saveIfNeed()
+                when(vm.nextAction) {
+                    ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
+                    ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
+                    ItemDialog.ItemViewModel.NextAction.RemoveLocal -> MetaDB.removeUploadedFile(item)
+                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> MetaDB.restoreFromCloud(item)
+                    else -> {}
+                }
+            }
+            true
+        }
+    }
+
+    private suspend fun UtImmortalSimpleTask.editItem(item:ItemEx) {
+        viewModel.playlist.select(null)
+        viewModel.playerControllerModel.playerModel.killPlayer()
+        controls.videoViewer.dissociatePlayer()
+        val name = editorActivityBroker.invoke(item.name)
+        (getActivity() as? PlayerActivity)?.let { activity ->
+            ensureSelectItem(item.name, name != null)
+        }
+    }
+
+//    private suspend fun UtImmortalSimpleTask.removeLocalFile(item:ItemEx) {
+//        if(item.cloud != CloudStatus.Uploaded) return
+//        MetaDB.removeUploadedFile(item)
+//        (getActivity() as? PlayerActivity)?.itemUpdated(item.name)
+//    }
 
     inner class ViewerManipulator : IUtManipulationTarget {
         val agent = UtManipulationAgent(this)
@@ -735,16 +842,6 @@ class PlayerActivity : UtMortalActivity() {
             controls.videoViewer.associatePlayer()
             lifecycleScope.launch { viewModel.playlist.refreshList() }
         }
-        val itemName = viewModel.editingItem
-        if(itemName!=null) {
-            viewModel.editingItem = null
-            lifecycleScope.launch {
-                val item = MetaDB.itemExOf(itemName)
-                if(item!=null) {
-                    viewModel.playlist.select(item)
-                }
-            }
-        }
     }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
@@ -754,5 +851,9 @@ class PlayerActivity : UtMortalActivity() {
             return true
         }
         return false
+    }
+
+    companion object {
+        val logger = UtLog("PlayerActivity", null, PlayerActivity::class.java)
     }
 }

@@ -6,6 +6,7 @@ import android.view.View
 import androidx.annotation.IdRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.checkBinding
@@ -21,9 +22,11 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.dialog.AddressDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
+import io.github.toyota32k.secureCamera.dialog.TextDialog
 import io.github.toyota32k.shared.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
@@ -86,13 +89,16 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
-        val secureArchiveAddress = MutableStateFlow("")
+        val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.address)
         val secureArchiveAddressForDisplay = secureArchiveAddress.map { if(it.isNotEmpty()) it else "(u/a)" }
+
+        val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
 
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
         val commandSkipBackward = LiteCommand(this::updateSkipBackwardSpan)
         val commandEditAddress = LiteUnitCommand(this::editAddress)
+        val commandDeviceName = LiteUnitCommand(this::editDeviceName)
 
         private fun updateNip(diff:Int) {
             val before = securityNumberOfIncorrectPassword.value
@@ -113,11 +119,19 @@ class SettingDialog : UtDialogEx() {
         }
 
         private fun editAddress() {
-            UtImmortalSimpleTask.run("editAddress") {
-                if(showDialog(taskName) { AddressDialog() }.status.ok) {
+            viewModelScope.launch {
+                if(AddressDialog.show()) {
                     secureArchiveAddress.value = Settings.SecureArchive.address
                 }
-                true
+            }
+        }
+
+        private fun editDeviceName() {
+            viewModelScope.launch {
+                val name = TextDialog.getText("Device Name", deviceName.value)
+                if(name!=null) {
+                    deviceName.value = name
+                }
             }
         }
 
@@ -131,7 +145,10 @@ class SettingDialog : UtDialogEx() {
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
                 Settings.Security.numberOfIncorrectPassword = securityNumberOfIncorrectPassword.value
+                Settings.SecureArchive.address = secureArchiveAddress.value
+                Settings.SecureArchive.deviceName = deviceName.value
             }
+            UtImmortalSimpleTask.run { TcClient.registerOwnerToSecureArchive() }
         }
         fun reset() {
             cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
@@ -171,6 +188,7 @@ class SettingDialog : UtDialogEx() {
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                     .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
                     .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
+                    .textBinding(controls.deviceName, viewModel.deviceName)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +0.1f)
@@ -178,6 +196,7 @@ class SettingDialog : UtDialogEx() {
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +0.1f)
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton)
+                    .bindCommand(viewModel.commandDeviceName, controls.editDeviceNameButton)
                     .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {

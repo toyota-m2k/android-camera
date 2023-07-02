@@ -103,7 +103,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
-                    MetaDB.register(file.name, 0,0)
+                    MetaDB.register(file.name)
                 } catch(e:Throwable) {
                     logger.error(e)
                 } finally {
@@ -127,7 +127,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                     val file = newVideoFile()
                     videoCapture.takeVideoInFile(file) {
                         CoroutineScope(Dispatchers.IO).launch {
-                            MetaDB.register(file.name, 0, 0)
+                            MetaDB.register(file.name)
                         }
                     }
                 }

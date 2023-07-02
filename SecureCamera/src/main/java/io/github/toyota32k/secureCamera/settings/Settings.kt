@@ -1,13 +1,15 @@
 package io.github.toyota32k.secureCamera.settings
 
+import android.app.Application
 import android.content.Context
+import android.os.Build
 import io.github.toyota32k.shared.SharedPreferenceDelegate
 import java.util.UUID
 
 object Settings {
     private lateinit var spd :SharedPreferenceDelegate
 
-    fun initialize(application: Context) {
+    fun initialize(application: Application) {
         if(this::spd.isInitialized) return
         spd = SharedPreferenceDelegate(application)
         if(SecureArchive.clientId.isEmpty()) {
@@ -53,6 +55,7 @@ object Settings {
         var clientId:String by spd.pref("")
         var address:String by spd.pref("")
         var myPort by spd.pref(5001)
+        var deviceName by spd.pref(Build.MODEL)
         val isConfigured:Boolean get() = address.isNotEmpty()
     }
 

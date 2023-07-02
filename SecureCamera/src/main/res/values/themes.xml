@@ -11,6 +11,7 @@
         <item name="colorOnSecondary">@color/black</item>
 <!--        <item name="colorOutline">@color/color_outline</item>-->
         <item name="colorOutline">?attr/colorPrimary</item>
+        <item name="colorAccent">@color/accent_color</item>
 
 <!--        <item name="colorSurface">@color/white</item>-->
 <!--        <item name="colorOnSurface">@color/black</item>-->
