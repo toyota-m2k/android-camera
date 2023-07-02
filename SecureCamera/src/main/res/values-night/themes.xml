@@ -21,7 +21,7 @@
         <item name="pauseIconColor">#8080FF</item>
         <item name="stopIconColor">?attr/pauseIconColor</item>
 
-        <item name="panelBackgroundColor">#40000000</item>
+        <item name="panelBackgroundColor">#40FFFFFF</item>
         <item name="playerBackground">@color/black</item>
         <item name="splitterColor">@color/gray80</item>
 

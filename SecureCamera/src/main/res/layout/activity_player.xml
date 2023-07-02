@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_gravity="bottom|center_horizontal"
-                android:background="?attr/controlPanelColor"
+                android:background="?attr/panelBackgroundColor"
                 >
 <!--                <ImageButton-->
 <!--                    android:id="@+id/image_prev_button"-->

@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -34,6 +36,7 @@ import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -232,7 +235,13 @@ class PlayerActivity : UtMortalActivity() {
                     return
                 }
 
-                val index = collection.indexOf(item_).takeIf { it>=0 } ?: 0
+                val index = collection.indexOfFirst{ it.id == item_.id }
+                if(index<0) {
+                    // 要求されたアイテムが存在しない
+                    select(null, true)
+                    return
+                }
+
                 val item = collection[index]
                 currentSelection.mutable.value = item
                 if(item.isVideo) {
@@ -425,17 +434,19 @@ class PlayerActivity : UtMortalActivity() {
         setContentView(controls.root)
         hideActionBar()
 
-//        val normalColor: Drawable
+        val normalColor: Drawable
 //        val normalTextColor: Int
-//        val selectedColor: Drawable
+        val selectedColor: Drawable
 //        val selectedTextColor: Int
 //
-//        theme!!.apply {
-//            normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
+        theme!!.apply {
+            normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
 //            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
-//            selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
+            selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
 //            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
-//        }
+        }
+
+
         val icPhoto = AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!
         val icVideo = AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!
         val icMarkStar = AppCompatResources.getDrawable(this, Mark.Star.iconId)!!
@@ -559,33 +570,23 @@ class PlayerActivity : UtMortalActivity() {
                         startEditing(item)
                     }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
+                        logger.debug("${item.name} isSelected = $hit")
+                        views.background = if(hit) selectedColor else normalColor
+
 //                        iconView.isSelected = hit
-                        assert(views.tag === item)
-                        if(views.isSelected!=hit) {
-                            lifecycleScope.launch {
-                                if (hit) {
-                                    delay(10)
-                                    views.isSelected = hit
-                                    logger.debug("select: ${item.name}")
-                                } else {
-                                    delay(50)
-                                    views.isSelected = hit
-                                    logger.debug("unselect: ${item.name}")
-                                }
-//                                delay(10)
-//                                views.invalidate()
-                            }
-                        }
-//                        iconView.invalidate()
-//                        if(hit) {
-//                            views.background = selectedColor
-//                            textView.setTextColor(selectedTextColor)
-//                            iconView.setImageDrawable(if(isVideo) icVideoSel else icPhotoSel)
-//                        } else {
-//                            views.isSelected = false
-//                            views.background = normalColor
-//                            textView.setTextColor(normalTextColor)
-//                            iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+//                        assert(views.tag === item)
+//                        if(views.isSelected!=hit) {
+//                            lifecycleScope.launch {
+//                                if (hit) {
+//                                    delay(10)
+//                                    views.isSelected = hit
+//                                    logger.debug("select: ${item.name}")
+//                                } else {
+//                                    delay(50)
+//                                    views.isSelected = hit
+//                                    logger.debug("unselect: ${item.name}")
+//                                }
+//                            }
 //                        }
                     }
 
