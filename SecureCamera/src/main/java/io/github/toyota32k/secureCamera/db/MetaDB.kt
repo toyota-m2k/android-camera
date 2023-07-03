@@ -403,7 +403,10 @@ object MetaDB {
         }
         CoroutineScope(Dispatchers.IO).launch {
             if (TcClient.downloadFromSecureArchive(item)) {
+                logger.debug("downloaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
+            } else {
+                logger.debug("download error.")
             }
         }
     }

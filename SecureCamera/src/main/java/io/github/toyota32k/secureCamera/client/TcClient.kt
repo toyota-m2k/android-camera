@@ -101,7 +101,9 @@ object TcClient {
 //                    }
 //                }
             }
-            showDialog(taskName) { ProgressDialog() }.status.ok
+            showDialog(taskName) { ProgressDialog() }
+                .status
+                .ok
         }
     }
 
@@ -110,7 +112,7 @@ object TcClient {
             val request = Request.Builder()
                 .url(item.uri)
                 .build()
-            executeAsync(request,null).use { response->
+            executeAsync(request,canceller).use { response->
                 try {
                     if (response.isSuccessful) {
                         response.body?.use { body ->

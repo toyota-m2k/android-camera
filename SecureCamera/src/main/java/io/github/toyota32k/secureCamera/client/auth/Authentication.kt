@@ -56,7 +56,9 @@ object Authentication {
             .url(authUrlWithToken(""))
             .get()
             .build()
-        return challengeFromResponse(NetClient.executeAsync(req))
+        return NetClient.executeAsync(req).use { res ->
+            challengeFromResponse(res)
+        }
     }
 
     private fun getPassPhrase(password:String, challenge:String) : String {
@@ -72,19 +74,20 @@ object Authentication {
                 .url(authUrl)
                 .put(passPhrase.toRequestBody("text/plain".toMediaType()))
                 .build()
-            val res = NetClient.executeAsync(req)
-            if(res.code==200) {
-                // OK
-                authTokenFromResponse(res)
-                true
-            } else {
-                val c = challengeFromResponse(res)
-                if(c!=challenge) {
-                    authWithPassword(password)
+            NetClient.executeAsync(req).use { res ->
+                if (res.code == 200) {
+                    // OK
+                    authTokenFromResponse(res)
+                    true
                 } else {
-                    false
+                    val c = challengeFromResponse(res)
+                    if (c != challenge) {
+                        null// to be retried.
+                    } else {
+                        false
+                    }
                 }
-            }
+            } ?: authWithPassword(password)
         }
     }
 
@@ -95,13 +98,14 @@ object Authentication {
                 .url(authUrlWithToken(token))
                 .get()
                 .build()
-            val res = NetClient.executeAsync(req)
-            if (res.code == 200) {
-                // OK
-                true
-            } else {
-                challengeFromResponse(res)
-                false
+            NetClient.executeAsync(req).use { res ->
+                if (res.code == 200) {
+                    // OK
+                    true
+                } else {
+                    challengeFromResponse(res)
+                    false
+                }
             }
         }
 
