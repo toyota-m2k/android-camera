@@ -16,14 +16,18 @@ import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getColorAsDrawable
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.FitMode
+import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.player.lib.databinding.V2VideoExoPlayerBinding
 import io.github.toyota32k.utils.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlin.math.abs
 
 class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : FrameLayout(context, attrs, defStyleAttr) {
@@ -44,6 +48,7 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
 
     val fitParent:Boolean
 
+    private val rootViewSize = MutableStateFlow<Size?>(null)
 //    val playOnTouch:Boolean
 
     init {
@@ -103,27 +108,47 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
             .textBinding(controls.expErrorMessage, playerModel.errorMessage.filterNotNull())
 //            .bindCommand(playerControllerModel.commandPlayerTapped, this)
 
-        val matchParent = Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        combine(playerModel.playerSize, playerModel.stretchVideoToView) { playerSize, stretch ->
-            logger.debug("AmvExoVideoPlayer:Size=(${playerSize.width}w, ${playerSize.height}h (stretch=$stretch))")
-            if(stretch) {
-                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-                matchParent
-            } else {
-                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                playerSize
-            }
-        }.onEach(this::updateLayout).launchIn(scope)
+//        val matchParent = Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+//        combine(playerModel.playerSize, playerModel.stretchVideoToView) { playerSize, stretch ->
+//            logger.debug("AmvExoVideoPlayer:Size=(${playerSize.width}w, ${playerSize.height}h (stretch=$stretch))")
+//            if(stretch) {
+//                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+//                matchParent
+//            } else {
+//                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+//                playerSize
+//            }
+//        }.onEach(this::updateLayout).launchIn(scope)
 
-        playerModel.rotation.onEach {
-            playerView.rotation = it.toFloat()
-        }.launchIn(scope)
+//        playerModel.rotation.onEach {
+//            playerView.rotation = it.toFloat()
+//        }.launchIn(scope)
+
+        combine(playerModel.videoSize, playerModel.rotation, rootViewSize, this::updateLayout).launchIn(scope)
     }
 
-    private fun updateLayout(videoSize:Size) {
+    private val mFitter = UtFitter(FitMode.Inside)
+    private fun updateLayout(videoSize:Size?, rotation:Int, rootViewSize:Size?) {
+        if(rootViewSize==null||videoSize==null) return
         logger.debug("layoutSize = ${videoSize.width} x ${videoSize.height}")
+
         handler?.post {
-            playerView.setLayoutSize(videoSize.width, videoSize.height)
+//            playerView.rotation = rotation.toFloat()
+            if(abs(rotation%180) == 0) {
+                mFitter
+                    .setLayoutSize(rootViewSize)
+                    .fit(videoSize)
+//                playerView.setLayoutSize(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                playerView.setLayoutSize(mFitter.resultWidth.toInt(), mFitter.resultHeight.toInt())
+                playerView.translationY = 0f
+            } else {
+                mFitter
+                    .setLayoutSize(rootViewSize)
+                    .fit(videoSize.height, videoSize.width)
+                playerView.setLayoutSize(mFitter.resultHeight.toInt(), mFitter.resultWidth.toInt())
+                playerView.translationY = -(mFitter.resultWidth-mFitter.resultHeight)/2f
+            }
+            playerView.rotation = rotation.toFloat()
         }
     }
 
@@ -132,7 +157,8 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
         if(!this::model.isInitialized) return
         if(w>0 && h>0) {
             logger.debug("width=$w (${context.px2dp(w)}dp), height=$h (${context.px2dp(h)}dp)")
-            model.playerModel.onRootViewSizeChanged(Size(w, h))
+//            model.playerModel.onRootViewSizeChanged(Size(w, h))
+            rootViewSize.value = Size(w,h)
         }
     }
 

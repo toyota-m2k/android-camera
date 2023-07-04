@@ -35,6 +35,7 @@ import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
+import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -58,6 +59,8 @@ class EditorActivity : UtMortalActivity() {
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportChapter()
             .supportSnapshot(this::onSnapshot)
+            .enableRotateLeft()
+            .enableRotateRight()
             .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .build()
         val playerModel get() = playerControllerModel.playerModel
@@ -214,11 +217,13 @@ class EditorActivity : UtMortalActivity() {
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
             vm.message.value = "Trimming Now..."
+            val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
             val converter = Converter.Factory()
                 .input(srcFile)
                 .output(dstFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
                 .videoStrategy(PresetVideoStrategies.HEVC1080Profile)
+                .rotate(rotation)
                 .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
                 .setProgressHandler {
                     vm.progress.value = it.percentage

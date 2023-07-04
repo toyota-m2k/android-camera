@@ -3,8 +3,11 @@ package io.github.toyota32k.lib.player.model
 import android.app.Application
 import android.content.Context
 import android.util.Size
-import android.view.ViewGroup
-import com.google.android.exoplayer2.*
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.PlaybackException
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.SeekParameters
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
@@ -12,13 +15,26 @@ import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.video.VideoSize
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.FitMode
+import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.shared.UtManualIncarnateResetableValue
-import io.github.toyota32k.utils.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.SuspendableEvent
+import io.github.toyota32k.utils.UtLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
@@ -110,7 +126,7 @@ open class BasicPlayerModel(
      * 動画の画面サイズ情報
      * ExoPlayerの動画読み込みが成功したとき onVideoSizeChanged()イベントから設定される。
      */
-    val videoSize: StateFlow<VideoSize?> = MutableStateFlow<VideoSize?>(null)
+    override val videoSize: StateFlow<Size?> = MutableStateFlow(null)
 
     /**
      * （外部から）エラーメッセージを設定する
@@ -120,19 +136,19 @@ open class BasicPlayerModel(
     }
 
     // endregion
-    /**
-     * VideoSizeはExoPlayerの持ち物なので、ライブラリ利用者が明示的にexoplayerをリンクしていないとアクセスできない。
-     * そのような不憫な人のために中身を開示してあげる。
-     */
-    val videoWidth:Int? get() = videoSize.value?.width
-    val videoHeight:Int? get() = videoSize.value?.height
+//    /**
+//     * VideoSizeはExoPlayerの持ち物なので、ライブラリ利用者が明示的にexoplayerをリンクしていないとアクセスできない。
+//     * そのような不憫な人のために中身を開示してあげる。
+//     */
+//    val videoWidth:Int? get() = videoSize.value?.width
+//    val videoHeight:Int? get() = videoSize.value?.height
 
     /**
      * 動画プレーヤーを配置するルートビューのサイズ
      * AmvExoVideoPlayerビュークラスのonSizeChanged()からonRootViewSizeChanged()経由で設定される。
      * このルートビューの中に収まるよう、動画プレーヤーのサイズが調整される。
      */
-    private val rootViewSize: StateFlow<Size?> = MutableStateFlow<Size?>(null)
+//    private val rootViewSize: StateFlow<Size?> = MutableStateFlow<Size?>(null)
 
     /**
      * ルートビューに動画プレーヤーを配置する方法を指定
@@ -140,7 +156,7 @@ open class BasicPlayerModel(
      *  false: ルートビューの中に収まるサイズ（Aspect維持）
      */
     // var stretchVideoToView = false
-    override val stretchVideoToView = MutableStateFlow(false)
+//    override val stretchVideoToView = MutableStateFlow(false)
     final override val rotation = MutableStateFlow(0)
     override fun rotate(value: Rotation) {
         if(value == Rotation.NONE) {
@@ -150,17 +166,17 @@ open class BasicPlayerModel(
         }
     }
 
-    private val mFitter = UtFitter(FitMode.Inside)
-    override val playerSize: StateFlow<Size> = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
-        logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
-        val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))
-        Rotation.transposeSize(rotation,mFitter
-            .setLayoutWidth(rootViewSize.width)
-            .setLayoutHeight(rootViewSize.height)
-            .fit(size.width, size.height)
-            .resultSize)
-            .apply { logger.debug("result playerSize = (${width} x ${height})") }
-    }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+//    private val mFitter = UtFitter(FitMode.Inside)
+//    override val playerSize: StateFlow<Size> = combine(rotation, videoSize.filterNotNull(),rootViewSize.filterNotNull()) { rotation, videoSize, rootViewSize->
+//        logger.debug("rotation=$rotation, videoSize=(${videoSize.width} x ${videoSize.height}), rootViewSize=(${rootViewSize.width} x ${rootViewSize.height})")
+//        val size = Rotation.transposeSize(rotation, Size(videoSize.width, videoSize.height))
+//        Rotation.transposeSize(rotation,mFitter
+//            .setLayoutWidth(rootViewSize.width)
+//            .setLayoutHeight(rootViewSize.height)
+//            .fit(size.width, size.height)
+//            .resultSize)
+//            .apply { logger.debug("result playerSize = (${width} x ${height})") }
+//    }.stateIn(scope, SharingStarted.Eagerly, Size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
     /**
      * １つのアプリで、同時に、ExoPlayer を１つ以上インスタンス化できないようなので、
@@ -355,7 +371,7 @@ open class BasicPlayerModel(
      */
     inner class PlayerListener :  Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) {
-            this@BasicPlayerModel.videoSize.mutable.value = videoSize
+            this@BasicPlayerModel.videoSize.mutable.value = Size(videoSize.width, videoSize.height)
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -458,9 +474,9 @@ open class BasicPlayerModel(
     /**
      * ルートビューサイズ変更のお知らせ
      */
-    override fun onRootViewSizeChanged(size: Size) {
-        rootViewSize.mutable.value = size
-    }
+//    override fun onRootViewSizeChanged(size: Size) {
+//        rootViewSize.mutable.value = size
+//    }
 
     // endregion
 

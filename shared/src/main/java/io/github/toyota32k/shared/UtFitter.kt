@@ -92,12 +92,10 @@ class UtFitter(override var fitMode: FitMode, override var layoutWidth:Float, ov
     constructor(fitMode: FitMode, layoutSize:SizeF):this(fitMode,layoutSize.width, layoutSize.height)
 
     val result = MuSize()
-    val resultSize:Size
-        get() = result.asSize
-    val resultSizeF:SizeF
-        get() = result.asSizeF
-    val resultWidth = result.width
-    val resultHeight = result.height
+    val resultSize:Size get() = result.asSize
+    val resultSizeF:SizeF get() = result.asSizeF
+    val resultWidth get() = result.width
+    val resultHeight get() = result.height
 
     fun setMode(fitMode: FitMode):UtFitter {
         this.fitMode = fitMode
