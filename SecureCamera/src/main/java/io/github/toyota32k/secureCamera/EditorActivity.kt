@@ -282,19 +282,25 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
-                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
-                        setResult(RESULT_OK,)
+                    if(viewModel.chapterList.isDirty) {
                         MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
-                        setResultAndFinish(true, viewModel.targetItem)
-                    } else {
-                        setResultAndFinish(false, viewModel.targetItem)
                     }
+                    setResultAndFinish(true, viewModel.targetItem)
                     true
                 }
                 return true
-            }
+//            if(viewModel.chapterList.isDirty) {
+//                UtImmortalSimpleTask.run {
+//                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+//                        setResult(RESULT_OK,)
+//                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
+//                    }
+//                    setResultAndFinish(true, viewModel.targetItem)
+//                    true
+//                }
+//                return true
+//            }
         }
         return super.handleKeyEvent(keyCode, event)
     }
