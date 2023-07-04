@@ -5,6 +5,10 @@ import android.animation.ValueAnimator
 import android.graphics.Matrix
 import android.graphics.PointF
 import android.view.View
+import io.github.toyota32k.shared.Direction
+import io.github.toyota32k.shared.Orientation
+import io.github.toyota32k.shared.Timing
+import io.github.toyota32k.shared.UtGestureInterpreter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,9 +59,9 @@ interface IUtManipulationTarget {
      * @return true     移動した（続くページ切り替えアニメーションを実行）
      * @return false    移動しなかった（びよーんと戻す）
      */
-    fun changePage(orientation: Orientation, dir:Direction):Boolean
+    fun changePage(orientation: Orientation, dir: Direction):Boolean
     // 指定方向に次のページはあるか？
-    fun hasNextPage(orientation: Orientation, dir:Direction):Boolean
+    fun hasNextPage(orientation: Orientation, dir: Direction):Boolean
 
     // endregion
 }
@@ -191,7 +195,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
     /**
      * スクロール処理
      */
-    fun onScroll(p:UtGestureInterpreter.IScrollEvent) {
+    fun onScroll(p: UtGestureInterpreter.IScrollEvent) {
         if(changingPageNow) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
@@ -221,7 +225,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
     /**
      * ズーム処理
      */
-    fun onScale(p:UtGestureInterpreter.IScaleEvent) {
+    fun onScale(p: UtGestureInterpreter.IScaleEvent) {
         if(changingPageNow) {
             // ページ切り替えアニメーション中は次の操作を止める
             return
@@ -331,7 +335,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         val movable:Float
         val overScroll:Float
         val contentSize:Float
-        if(orientation==Orientation.Horizontal) {
+        if(orientation== Orientation.Horizontal) {
             c = translationX
             movable = movableX
             overScroll = overScrollX
@@ -345,12 +349,12 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         if(abs(c)==movable+overScroll) {
             val direction = if(c>0) Direction.Start else Direction.End
             if(targetViewInfo.hasNextPage(orientation, direction)) {
-                if(orientation==Orientation.Horizontal) translationY = 0f else translationX = 0f
+                if(orientation== Orientation.Horizontal) translationY = 0f else translationX = 0f
                 changingPageNow = true
                 CoroutineScope(Dispatchers.Main).launch {
                     try {
                         val slideOut = (contentSize - abs(c)) * sign(c)
-                        val slideOutUpdater:(Float)->Unit = if(orientation==Orientation.Horizontal) {
+                        val slideOutUpdater:(Float)->Unit = if(orientation== Orientation.Horizontal) {
                             { ratio -> translationX = c + slideOut * ratio }
                         } else {
                             { ratio -> translationY = c + slideOut * ratio }
@@ -359,8 +363,8 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
                         if (targetViewInfo.changePage(orientation, direction)) {
                             scale = 1f
                             val slideIn = -contentSize * sign(c)
-                            if(orientation==Orientation.Horizontal) translationX = slideIn else translationY = slideIn
-                            val slideInUpdater:(Float)->Unit = if(orientation==Orientation.Horizontal) {
+                            if(orientation== Orientation.Horizontal) translationX = slideIn else translationY = slideIn
+                            val slideInUpdater:(Float)->Unit = if(orientation== Orientation.Horizontal) {
                                 {ratio -> translationX = slideIn - slideIn * ratio}
                             } else {
                                 {ratio -> translationY = slideIn - slideIn * ratio}

@@ -8,7 +8,7 @@ import androidx.camera.view.PreviewView
 import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.secureCamera.utils.UtGestureInterpreter
+import io.github.toyota32k.shared.UtGestureInterpreter
 import io.github.toyota32k.shared.WeakReferenceDelegate
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
@@ -161,7 +161,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         }
     }
 
-    fun focus(event:UtGestureInterpreter.IPositionalEvent) {
+    fun focus(event: UtGestureInterpreter.IPositionalEvent) {
         val previewView = previewView ?: return
         val camera = camera ?: return
         val meteringPointFactory = previewView.meteringPointFactory

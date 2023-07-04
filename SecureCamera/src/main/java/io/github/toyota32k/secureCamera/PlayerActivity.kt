@@ -1,6 +1,5 @@
 package io.github.toyota32k.secureCamera
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -63,6 +62,9 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
+import io.github.toyota32k.shared.Direction
+import io.github.toyota32k.shared.Orientation
+import io.github.toyota32k.shared.UtGestureInterpreter
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
@@ -70,7 +72,6 @@ import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -423,9 +424,10 @@ class PlayerActivity : UtMortalActivity() {
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
-    val gestureInterpreter:UtGestureInterpreter by lazy { UtGestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
 
-//    val server = TcServer(5001)
+    // Manipulation Handling
+    private val gestureInterpreter: UtGestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
+    private val manipulator: ManipulationTarget by lazy { ManipulationTarget() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -696,7 +698,7 @@ class PlayerActivity : UtMortalActivity() {
 //        (getActivity() as? PlayerActivity)?.itemUpdated(item.name)
 //    }
 
-    inner class ViewerManipulator : IUtManipulationTarget {
+    inner class ManipulationTarget : IUtManipulationTarget {
         val agent = UtManipulationAgent(this)
         fun onScroll(event: UtGestureInterpreter.IScrollEvent) {
             agent.onScroll(event)
@@ -712,12 +714,12 @@ class PlayerActivity : UtMortalActivity() {
 //            controls.imageView.scaleX = newScale
 //            controls.imageView.scaleY = newScale
         }
-        fun onTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
+        fun onTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
             if(viewModel.playlist.isVideo.value) {
                 viewModel.playerControllerModel.playerModel.togglePlay()
             }
         }
-        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
+        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
             contentView.translationX = 0f
             contentView.translationY = 0f
             contentView.scaleX = 1f
@@ -746,7 +748,7 @@ class PlayerActivity : UtMortalActivity() {
             get() = 0f
         override val pageOrientation:EnumSet<Orientation> = EnumSet.of(Orientation.Horizontal)
         override fun changePage(orientation: Orientation, dir: Direction): Boolean {
-            return if(orientation==Orientation.Horizontal) {
+            return if(orientation== Orientation.Horizontal) {
                 when(dir) {
                     Direction.Start-> viewModel.playlist.hasPrevious.value.onTrue { viewModel.playlist.previous() }
                     Direction.End-> viewModel.playlist.hasNext.value.onTrue { viewModel.playlist.next() }
@@ -755,7 +757,7 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         override fun hasNextPage(orientation: Orientation, dir: Direction): Boolean {
-            return if(orientation==Orientation.Horizontal) {
+            return if(orientation== Orientation.Horizontal) {
                 when(dir) {
                     Direction.Start-> viewModel.playlist.hasPrevious.value
                     Direction.End-> viewModel.playlist.hasNext.value
@@ -763,8 +765,7 @@ class PlayerActivity : UtMortalActivity() {
             } else false
         }
     }
-    val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
-    
+
     private fun onDeletingItem(item:ItemEx): RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
             viewModel.playlist.select(null)

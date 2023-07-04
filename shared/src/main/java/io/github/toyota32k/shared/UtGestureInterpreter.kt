@@ -1,4 +1,4 @@
-package io.github.toyota32k.secureCamera.utils
+package io.github.toyota32k.shared
 
 import android.content.Context
 import android.graphics.PointF
@@ -26,6 +26,15 @@ enum class Timing {
     End
 }
 
+/**
+ * 各種タッチ操作を一元的に管理し、以下のイベントを発行する。
+ * - タップ
+ * - ロングタップ（長押し）
+ * - ダブルタップ ... rapidTap == false の場合のみ
+ * - スクロール（ドラッグ）
+ * - フリック（Fling: 弾くような動作＝速めのドラッグ）
+ * - スケール（スワイプ、ピンチ） ... enableScaleEvent == true の場合のみ
+ */
 class UtGestureInterpreter(
     val applicationContext: Context,
     enableScaleEvent:Boolean,
@@ -79,7 +88,8 @@ class UtGestureInterpreter(
     private val scaleListenerRef =
         UtLazyResetableValue<Listeners<IScaleEvent>> { Listeners<IScaleEvent>() }
 
-    private class ScaleEvent(override var scale: Float, override var pivot: PointF?, override var timing: Timing) : IScaleEvent
+    private class ScaleEvent(override var scale: Float, override var pivot: PointF?, override var timing: Timing) :
+        IScaleEvent
 
     private val scaleEvent = ScaleEvent(1f, null, Timing.Start)
     private fun fireScaleEvent(scale: Float, pivot:PointF?, timing: Timing): Boolean {
@@ -100,7 +110,7 @@ class UtGestureInterpreter(
         val x:Float
         val y:Float
     }
-    class PositionalEvent(override var x: Float, override var y: Float):IPositionalEvent
+    class PositionalEvent(override var x: Float, override var y: Float): IPositionalEvent
     private val positionalEvent = PositionalEvent(0f,0f)
 
     val tapListeners: Listeners<IPositionalEvent>
@@ -152,7 +162,7 @@ class UtGestureInterpreter(
 
     // endregion
     interface IFlickEvent {
-        val direction:Direction
+        val direction: Direction
     }
     class FlickEvent(override var direction: Direction) : IFlickEvent
     private val flickEvent = FlickEvent(Direction.Start)
@@ -202,7 +212,7 @@ class UtGestureInterpreter(
         fun onFlickHorizontal(fn:(IFlickEvent)->Unit)
         fun onFlickVertical(fn:(IFlickEvent)->Unit)
     }
-    private inner class ListenerBuilder:IListenerBuilder {
+    private inner class ListenerBuilder: IListenerBuilder {
         private var mScroll:  ((IScrollEvent)->Unit)? = null
         private var mScale:  ((IScaleEvent)->Unit)? = null
         private var mTap: ((IPositionalEvent)->Unit)? = null
@@ -265,7 +275,7 @@ class UtGestureInterpreter(
             }
         }
     }
-    fun setup(owner:LifecycleOwner, view:View, setupMe:IListenerBuilder.()->Unit) {
+    fun setup(owner:LifecycleOwner, view:View, setupMe: IListenerBuilder.()->Unit) {
         attachView(view)
         ListenerBuilder().apply {
             setupMe()
@@ -425,12 +435,12 @@ class UtGestureInterpreter(
 
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
             logger.debug(GI_LOG) {"${detector.scaleFactor}"}
-            return fireScaleEvent(detector.scaleFactor, getPivot(detector),Timing.Start)
+            return fireScaleEvent(detector.scaleFactor, getPivot(detector), Timing.Start)
         }
 
         override fun onScaleEnd(detector: ScaleGestureDetector) {
             logger.debug(GI_LOG) { "$detector}" }
-            fireScaleEvent(detector.scaleFactor, getPivot(detector),Timing.End)
+            fireScaleEvent(detector.scaleFactor, getPivot(detector), Timing.End)
         }
     }
     companion object {
