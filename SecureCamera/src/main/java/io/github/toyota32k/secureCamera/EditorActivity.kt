@@ -63,7 +63,10 @@ class EditorActivity : UtMortalActivity() {
             .supportSnapshot(this::onSnapshot)
             .enableRotateLeft()
             .enableRotateRight()
-            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+//            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+            .enableSeekSmall(100,100)
+            .enableSeekMedium(1000, 3000)
+            .enableSeekLarge(5000, 10000)
             .build()
         val playerModel get() = playerControllerModel.playerModel
         val videoSource get() = playerModel.currentSource.value as VideoSource

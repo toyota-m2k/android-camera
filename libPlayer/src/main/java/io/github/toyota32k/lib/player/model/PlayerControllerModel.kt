@@ -29,12 +29,17 @@ open class PlayerControllerModel(
     val enableRotateRight:Boolean,
     val enableRotateLeft:Boolean,
     val showNextPreviousButton:Boolean,
-    var seekRelativeForward:Long,
-    var seekRelativeBackword:Long,
+//    var seekRelativeForward:Long,
+//    var seekRelativeBackword:Long,
+    val seekSmall:RelativeSeek?,
+    val seekMedium:RelativeSeek?,
+    val seekLarge:RelativeSeek?,
+
 ) : Closeable, IUtPropOwner {
     companion object {
         val logger by lazy { UtLog("CPM", TpLib.logger) }
     }
+    data class RelativeSeek(val backward:Long, val forward:Long)
 
     class Builder(val context:Context, val coroutineScope: CoroutineScope) {
         private var mSupportChapter:Boolean = false
@@ -47,8 +52,12 @@ open class PlayerControllerModel(
         private var mEnableRotateRight:Boolean = false
         private var mEnableRotateLeft:Boolean = false
         private var mShowNextPreviousButton:Boolean = false
-        private var mSeekForward:Long = 1000L
-        private var mSeekBackword:Long = 500L
+//        private var mSeekForward:Long = 1000L
+//        private var mSeekBackword:Long = 500L
+        private var mSeekSmall:RelativeSeek? = null
+        private var mSeekMedium:RelativeSeek? = null
+        private var mSeekLarge:RelativeSeek? = null
+
         private var mHideChapterViewIfEmpty = false
 //        private var mScope:CoroutineScope? = null
 
@@ -90,9 +99,22 @@ open class PlayerControllerModel(
             mEnableRotateLeft = true
             return this
         }
-        fun relativeSeekDuration(forward:Long, backward:Long):Builder {
-            mSeekForward = forward
-            mSeekBackword = backward
+//        fun relativeSeekDuration(forward:Long, backward:Long):Builder {
+//            mSeekForward = forward
+//            mSeekBackword = backward
+//            return this
+//        }
+
+        fun enableSeekSmall(backward:Long, forward:Long):Builder {
+            mSeekSmall = RelativeSeek(backward, forward)
+            return this
+        }
+        fun enableSeekMedium(backward:Long, forward:Long):Builder {
+            mSeekMedium = RelativeSeek(backward, forward)
+            return this
+        }
+        fun enableSeekLarge(backward:Long, forward:Long):Builder {
+            mSeekLarge = RelativeSeek(backward, forward)
             return this
         }
 
@@ -113,8 +135,11 @@ open class PlayerControllerModel(
                 enableRotateRight = mEnableRotateRight,
                 enableRotateLeft = mEnableRotateLeft,
                 showNextPreviousButton = mShowNextPreviousButton,
-                seekRelativeForward = mSeekForward,
-                seekRelativeBackword = mSeekBackword
+                seekSmall = mSeekSmall,
+                seekMedium = mSeekMedium,
+                seekLarge = mSeekLarge,
+//                seekRelativeForward = mSeekForward,
+//                seekRelativeBackword = mSeekBackword
             )
         }
     }
@@ -142,6 +167,11 @@ open class PlayerControllerModel(
 
     // region Commands
 
+    private fun seekRelative(forward:Boolean, s:RelativeSeek?) {
+        if(s==null) return
+        playerModel.seekRelative(if(forward) s.forward else -s.backward)
+    }
+
     val commandPlay = LiteUnitCommand(playerModel::play)
     val commandPause = LiteUnitCommand(playerModel::pause)
 //    val commandTogglePlay = LiteUnitCommand { playerModel.togglePlay() }
@@ -149,8 +179,10 @@ open class PlayerControllerModel(
 //    val commandPrev = LiteUnitCommand { playerModel.previous() }
 //    val commandNextChapter = LiteUnitCommand { playerModel.nextChapter() }
 //    val commandPrevChapter = LiteUnitCommand { playerModel.prevChapter() }
-    val commandSeekForward = LiteUnitCommand { playerModel.seekRelative(seekRelativeForward) }
-    val commandSeekBackward = LiteUnitCommand { playerModel.seekRelative(-seekRelativeBackword) }
+//    val commandSeek = LiteCommand<Long?> { if(it!=null) playerModel.seekRelative(it) }
+    val commandSeekLarge = LiteCommand<Boolean> { seekRelative(it, seekLarge) }
+    val commandSeekMedium = LiteCommand<Boolean> { seekRelative(it, seekMedium) }
+    val commandSeekSmall = LiteCommand<Boolean> { seekRelative(it, seekSmall) }
     val commandFullscreen = LiteUnitCommand { setWindowMode(WindowMode.FULLSCREEN) }
     val commandPinP = LiteUnitCommand { setWindowMode(WindowMode.PINP) }
     val commandCollapse = LiteUnitCommand { setWindowMode(WindowMode.NORMAL) }

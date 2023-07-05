@@ -153,7 +153,7 @@ class PlayerActivity : UtMortalActivity() {
             .supportChapter(hideChapterViewIfEmpty = true)
             .enableRotateRight()
             .enableRotateLeft()
-            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+            .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 
@@ -293,7 +293,7 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun removeItem(item:ItemEx) {
-                var index = collection.indexOfFirst { it.id == item.id }
+                val index = collection.indexOfFirst { it.id == item.id }
                 if(index>=0) {
                     collection.removeAt(index)
                 }
@@ -473,7 +473,7 @@ class PlayerActivity : UtMortalActivity() {
             .visibilityBinding(controls.photoViewer, viewModel.playlist.isPhoto)
 //            .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
 //            .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
-            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map {it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
+            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map { it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
                 straightGone(controls.collapseButton)
                 inverseGone(controls.expandButton)
             }

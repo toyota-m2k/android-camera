@@ -42,10 +42,27 @@
                 android:contentDescription="@string/desc_prev_chapter" />
 
             <ImageButton
-                android:id="@+id/seek_back_button"
+                android:id="@+id/seek_back_l_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_seek_prev"
+                app:srcCompat="@drawable/ic_seek_forward_l"
+                android:rotationY="180"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
+            <ImageButton
+                android:id="@+id/seek_back_m_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_m"
+                android:rotationY="180"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
+            <ImageButton
+                android:id="@+id/seek_back_s_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_s"
+                android:rotationY="180"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_seek_back" />
 
@@ -66,10 +83,24 @@
                 android:contentDescription="@string/desc_pause" />
 
             <ImageButton
-                android:id="@+id/seek_forward_button"
+                android:id="@+id/seek_forward_s_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_seek_next"
+                app:srcCompat="@drawable/ic_seek_forward_s"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_forward" />
+            <ImageButton
+                android:id="@+id/seek_forward_m_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_m"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_forward" />
+            <ImageButton
+                android:id="@+id/seek_forward_l_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_l"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_seek_forward" />
 

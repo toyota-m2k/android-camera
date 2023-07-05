@@ -109,9 +109,12 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .visibilityBinding(controls.snapshotButton, ConstantLiveData(model.snapshotHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.rotateLeft, ConstantLiveData(model.enableRotateLeft), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.rotateRight, ConstantLiveData(model.enableRotateRight), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.seekBackLButton,controls.seekForwardLButton), ConstantLiveData(model.seekLarge!=null), BoolConvert.Straight,VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.seekBackMButton,controls.seekForwardMButton), ConstantLiveData(model.seekMedium!=null), BoolConvert.Straight,VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.seekBackSButton,controls.seekForwardSButton), ConstantLiveData(model.seekSmall!=null), BoolConvert.Straight,VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.prevChapterButton, controls.nextChapterButton), ConstantLiveData(chapterHandler!=null), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.prevVideoButton, controls.nextVideoButton), ConstantLiveData(playlistHandler!=null && model.showNextPreviousButton), BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .multiEnableBinding(arrayOf(controls.playButton, controls.pauseButton, controls.seekBackButton, controls.seekForwardButton, controls.fullscreenButton, controls.pinpButton, controls.slider), model.playerModel.isReady)
+            .multiEnableBinding(arrayOf(controls.playButton, controls.pauseButton, controls.seekBackLButton, controls.seekBackMButton, controls.seekBackSButton, controls.seekForwardLButton, controls.seekForwardMButton, controls.seekForwardSButton, controls.fullscreenButton, controls.pinpButton, controls.slider), model.playerModel.isReady)
             .textBinding(findViewById(R.id.counter_label), combine(model.playerModel.playerSeekPosition, model.playerModel.naturalDuration) { pos,dur->formatTime(pos, dur) })
             .textBinding(findViewById(R.id.duration_label), model.playerModel.naturalDuration.map { formatTime(it,it) } )
             .sliderBinding(controls.slider, model.playerModel.playerSeekPosition.map { it.toFloat() }, min=null, max= model.playerModel.naturalDuration.map { max(100f, it.toFloat())})
@@ -119,8 +122,24 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPause, controls.pauseButton)
-            .bindCommand(model.commandSeekBackward, controls.seekBackButton)
-            .bindCommand(model.commandSeekForward, controls.seekForwardButton)
+            .conditional(model.seekLarge!=null) {
+                bindCommand(model.commandSeekLarge, controls.seekBackLButton, false)
+                bindCommand(model.commandSeekLarge, controls.seekForwardLButton, true)
+                add(UtClickRepeater(controls.seekBackLButton))
+                add(UtClickRepeater(controls.seekForwardLButton))
+            }
+            .conditional(model.seekMedium!=null) {
+                bindCommand(model.commandSeekMedium, controls.seekBackMButton, false)
+                bindCommand(model.commandSeekMedium, controls.seekForwardMButton, true)
+                add(UtClickRepeater(controls.seekBackMButton))
+                add(UtClickRepeater(controls.seekForwardMButton))
+            }
+            .conditional(model.seekSmall!=null) {
+                bindCommand(model.commandSeekSmall, controls.seekBackSButton, false)
+                bindCommand(model.commandSeekSmall, controls.seekForwardSButton, true)
+                add(UtClickRepeater(controls.seekBackSButton))
+                add(UtClickRepeater(controls.seekForwardSButton))
+            }
             .bindCommand(model.commandFullscreen, controls.fullscreenButton)
             .bindCommand(model.commandSnapshot, controls.snapshotButton)
             .bindCommand(model.commandPinP, controls.pinpButton)
@@ -139,8 +158,6 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
                     bindCommand(chapterHandler.commandPrevChapter, controls.prevChapterButton)
                 }
             }
-            .add(UtClickRepeater(controls.seekBackButton))
-            .add(UtClickRepeater(controls.seekForwardButton))
     }
 
     @SuppressLint("RestrictedApi")
