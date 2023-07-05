@@ -288,8 +288,14 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun addItem(item:ItemEx) {
-                sorter.add(item)
-                select(item)
+                if(when(listMode.value){
+                    ListMode.ALL-> true
+                    ListMode.PHOTO->item.isPhoto
+                    ListMode.VIDEO->item.isVideo
+                }) {
+                    sorter.add(item)
+                    select(item)
+                }
             }
 
             fun removeItem(item:ItemEx) {
@@ -300,9 +306,9 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun replaceItem(item:ItemEx) {
-                val current = currentSelection.value?.id == item.id
-                sorter.add(item)
-                if(current) {
+                val index = collection.indexOfFirst { it.id == item.id }
+                if(index>=0) {
+                    sorter.add(item)
                     select(item)
                 }
             }

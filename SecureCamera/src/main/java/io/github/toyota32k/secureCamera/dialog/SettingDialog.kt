@@ -118,8 +118,9 @@ class SettingDialog : UtDialogEx() {
 
         private fun editAddress() {
             viewModelScope.launch {
-                if(AddressDialog.show()) {
-                    secureArchiveAddress.value = Settings.SecureArchive.address
+                val address = AddressDialog.show(secureArchiveAddress.value)
+                if(address!=null) {
+                    secureArchiveAddress.value = address
                 }
             }
         }

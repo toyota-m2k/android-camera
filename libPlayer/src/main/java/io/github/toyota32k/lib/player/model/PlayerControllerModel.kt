@@ -165,6 +165,9 @@ open class PlayerControllerModel(
 
     val showControlPanel = MutableStateFlow(true)
 
+    val canSnapshot:StateFlow<Boolean> = playerModel.currentSource.map {
+        it?.uri?.startsWith("http") == false
+    }.stateIn(playerModel.scope, SharingStarted.Eagerly, false)
     // region Commands
 
     private fun seekRelative(forward:Boolean, s:RelativeSeek?) {
@@ -208,6 +211,8 @@ open class PlayerControllerModel(
     private fun snapshot() {
         val handler = snapshotHandler ?: return
         val src = playerModel.currentSource.value ?: return
+        if(src.uri.startsWith("http")) return
+
         val pos = playerModel.currentPosition
         val rotation = Rotation.normalize(playerModel.rotation.value)
 

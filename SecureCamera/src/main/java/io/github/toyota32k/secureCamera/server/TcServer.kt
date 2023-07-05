@@ -103,7 +103,7 @@ class TcServer(val port:Int) : AutoCloseable {
                     else->PlayerActivity.ListMode.VIDEO
                 }
                 val backup = (p["backup"]?:"").toBoolean()
-                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud == 0 }
+                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud != CloudStatus.Cloud.v }
 
                 val list = runBlocking {
                     MetaDB.list(type).filter(predicate).fold(JSONArray()) { array, item ->

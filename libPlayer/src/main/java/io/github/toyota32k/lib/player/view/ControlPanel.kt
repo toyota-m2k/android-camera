@@ -118,7 +118,7 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .textBinding(findViewById(R.id.counter_label), combine(model.playerModel.playerSeekPosition, model.playerModel.naturalDuration) { pos,dur->formatTime(pos, dur) })
             .textBinding(findViewById(R.id.duration_label), model.playerModel.naturalDuration.map { formatTime(it,it) } )
             .sliderBinding(controls.slider, model.playerModel.playerSeekPosition.map { it.toFloat() }, min=null, max= model.playerModel.naturalDuration.map { max(100f, it.toFloat())})
-
+            .enableBinding(controls.snapshotButton, model.canSnapshot)
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPause, controls.pauseButton)
