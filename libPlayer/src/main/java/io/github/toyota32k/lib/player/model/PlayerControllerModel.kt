@@ -29,7 +29,6 @@ open class PlayerControllerModel(
     val enableRotateRight:Boolean,
     val enableRotateLeft:Boolean,
     val showNextPreviousButton:Boolean,
-//    val playerTapToPlay:Boolean,
     var seekRelativeForward:Long,
     var seekRelativeBackword:Long,
 ) : Closeable, IUtPropOwner {

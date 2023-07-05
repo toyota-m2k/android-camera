@@ -186,8 +186,8 @@ class PlayerActivity : UtMortalActivity() {
                 collection,
                 actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE
             ) { a, b ->
-                val ta = a.date // filename2date(a)?.time ?: 0L
-                val tb = b.date // filename2date(b)?.time ?: 0L
+                val ta = a.creationDate // filename2date(a)?.time ?: 0L
+                val tb = b.creationDate // filename2date(b)?.time ?: 0L
 //                if(ta==tb) {
 //                    TpLib.logger.debug("same value")
 //                }
