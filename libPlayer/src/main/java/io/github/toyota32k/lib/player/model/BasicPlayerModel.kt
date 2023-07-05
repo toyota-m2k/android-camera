@@ -15,8 +15,6 @@ import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.video.VideoSize
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.common.FitMode
-import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.shared.UtManualIncarnateResetableValue
 import io.github.toyota32k.utils.IUtPropOwner

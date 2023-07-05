@@ -62,10 +62,12 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
-import io.github.toyota32k.shared.Direction
-import io.github.toyota32k.shared.Orientation
-import io.github.toyota32k.shared.UtGestureInterpreter
+import io.github.toyota32k.shared.gesture.Direction
+import io.github.toyota32k.shared.gesture.Orientation
+import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.UtSorter
+import io.github.toyota32k.shared.gesture.IUtManipulationTarget
+import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
@@ -604,7 +606,9 @@ class PlayerActivity : UtMortalActivity() {
             onFlickVertical(manipulator::onFlick)
         }
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // スリープしない
+              or WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止
 
         ensureVisible()
 
@@ -638,11 +642,6 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playlist.refreshList()
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-//        server.close()
     }
 
     fun ensureVisible() {
@@ -702,17 +701,10 @@ class PlayerActivity : UtMortalActivity() {
         val agent = UtManipulationAgent(this)
         fun onScroll(event: UtGestureInterpreter.IScrollEvent) {
             agent.onScroll(event)
-//            controls.imageView.translationX  -= event.dx
-//            controls.imageView.translationY  -= event.dy
         }
 
         fun onScale(event: UtGestureInterpreter.IScaleEvent) {
             agent.onScale(event)
-//            val newScale = (controls.imageView.scaleX * event.scale).run {
-//                max(1f, min(10f, this))
-//            }
-//            controls.imageView.scaleX = newScale
-//            controls.imageView.scaleY = newScale
         }
         fun onTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
             if(viewModel.playlist.isVideo.value) {
@@ -720,16 +712,8 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
         fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
-            contentView.translationX = 0f
-            contentView.translationY = 0f
-            contentView.scaleX = 1f
-            contentView.scaleY = 1f
+            agent.resetScrollAndScale()
         }
-//        fun onLongTap() {
-//            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-//                viewModel.playerControllerModel.showControlPanel.toggle()
-//            }
-//        }
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
             if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
@@ -837,13 +821,24 @@ class PlayerActivity : UtMortalActivity() {
 //        controls.imageView.scaleY = newScale
 //        return true
 //    }
+
+//    override fun onPause() {
+//        controls.videoViewer.visibility = View.INVISIBLE
+//        super.onPause()
+//    }
+
     override fun onResume() {
         super.onResume()
+//        controls.videoViewer.visibility = View.VISIBLE
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()
             lifecycleScope.launch { viewModel.playlist.refreshList() }
         }
     }
+
+//    override fun onDestroy() {
+//        super.onDestroy()
+//    }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         // return super.handleKeyEvent(keyCode, event)

@@ -1,8 +1,9 @@
-package io.github.toyota32k.shared
+package io.github.toyota32k.shared.gesture
 
 import android.annotation.SuppressLint
 import android.view.MotionEvent
 import android.view.View
+import io.github.toyota32k.shared.WeakReferenceDelegate
 import io.github.toyota32k.utils.Chronos
 import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.UtLog
@@ -47,7 +48,7 @@ class UtClickRepeater(
 
     private val repeat = object: Runnable {
         override fun run() {
-            if(status!=RepeatStatus.REPEATING) return
+            if(status!= RepeatStatus.REPEATING) return
             chronos.lap("Touch - Perform Repeat")
             view?.performClick()
             view?.postDelayed(this,repeatInterval)

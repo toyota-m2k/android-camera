@@ -9,7 +9,6 @@ import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.TpFrameExtractor
 import io.github.toyota32k.lib.player.common.formatTime
-import io.github.toyota32k.shared.UtManualIncarnateResetableValue
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.*

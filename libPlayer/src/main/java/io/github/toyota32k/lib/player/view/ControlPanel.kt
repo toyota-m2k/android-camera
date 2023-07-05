@@ -27,7 +27,7 @@ import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.lib.player.model.*
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.player.lib.databinding.V2ControlPanelBinding
-import io.github.toyota32k.shared.UtClickRepeater
+import io.github.toyota32k.shared.gesture.UtClickRepeater
 import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.combine

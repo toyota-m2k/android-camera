@@ -8,14 +8,10 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.dialog.UtDialog
-import io.github.toyota32k.dialog.UtDialogConfig
-import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
-import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
-import io.github.toyota32k.secureCamera.settings.SettingDialog
+import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.launch

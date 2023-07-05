@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
 import android.view.WindowManager
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
@@ -24,7 +23,6 @@ import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.dialog.task.showYesNoMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -44,21 +42,18 @@ import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.secureCamera.utils.IUtManipulationTarget
 import io.github.toyota32k.secureCamera.utils.TimeSpan
-import io.github.toyota32k.secureCamera.utils.UtManipulationAgent
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
-import io.github.toyota32k.shared.Direction
-import io.github.toyota32k.shared.Orientation
-import io.github.toyota32k.shared.UtGestureInterpreter
+import io.github.toyota32k.shared.gesture.UtGestureInterpreter
+import io.github.toyota32k.shared.gesture.UtManipulationAgent
+import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.EnumSet
 import java.util.concurrent.atomic.AtomicLong
 
 class EditorActivity : UtMortalActivity() {
@@ -138,28 +133,9 @@ class EditorActivity : UtMortalActivity() {
     private val viewModel by viewModels<EditorViewModel>()
     private lateinit var controls: ActivityEditorBinding
 
-    // Zoom
-    inner class ManipulationTarget : IUtManipulationTarget {
-        override val parentView: View
-            get() = controls.videoViewer
-        override val contentView: View
-            get() = controls.videoViewer.controls.player
-        override val overScrollX: Float
-            get() = 0f
-        override val overScrollY: Float
-            get() = 0f
-        override val pageOrientation: EnumSet<Orientation>
-            get() = EnumSet.noneOf(Orientation::class.java)
-        override fun changePage(orientation: Orientation, dir: Direction): Boolean {
-            return false
-        }
-        override fun hasNextPage(orientation: Orientation, dir: Direction): Boolean {
-            return false
-        }
-    }
+    // Scale/Scroll
     private val gestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
-    private val manipulationTarget by lazy { ManipulationTarget() }
-    private val manipulationAgent by lazy { UtManipulationAgent(manipulationTarget) }
+    private val manipulationAgent by lazy { UtManipulationAgent(UtSimpleManipulationTarget(controls.videoViewer,controls.videoViewer.controls.player)) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -195,9 +171,12 @@ class EditorActivity : UtMortalActivity() {
         }
 
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        gestureInterpreter.setup(this, manipulationTarget.parentView) {
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // スリープしない
+              or WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止
+
+        gestureInterpreter.setup(this, manipulationAgent.parentView) {
             onScale(manipulationAgent::onScale)
             onScroll(manipulationAgent::onScroll)
             onTap {

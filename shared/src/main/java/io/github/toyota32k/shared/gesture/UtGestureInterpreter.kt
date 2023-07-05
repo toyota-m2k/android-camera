@@ -1,4 +1,4 @@
-package io.github.toyota32k.shared
+package io.github.toyota32k.shared.gesture
 
 import android.content.Context
 import android.graphics.PointF
@@ -27,7 +27,7 @@ enum class Timing {
 }
 
 /**
- * 各種タッチ操作を一元的に管理し、以下のイベントを発行する。
+ * Androidのなんやようわからんタッチイベントをええ具合に解釈して、以下のイベントに振り分ける。
  * - タップ
  * - ロングタップ（長押し）
  * - ダブルタップ ... rapidTap == false の場合のみ

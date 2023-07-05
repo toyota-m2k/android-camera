@@ -1,14 +1,8 @@
-package io.github.toyota32k.secureCamera.utils
+package io.github.toyota32k.shared.gesture
 
 import android.animation.Animator
 import android.animation.ValueAnimator
-import android.graphics.Matrix
-import android.graphics.PointF
 import android.view.View
-import io.github.toyota32k.shared.Direction
-import io.github.toyota32k.shared.Orientation
-import io.github.toyota32k.shared.Timing
-import io.github.toyota32k.shared.UtGestureInterpreter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,102 +15,69 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.math.*
 
 /**
- * スクロール/ズームの対象（View）に関する情報
+ * parentView, contentView が動的に変化しない単純な ManipulationTarget
  */
-interface IUtManipulationTarget {
-    val parentView:View      // contentViewのコンテナ（通常、このビューがタッチイベントを受け取る-->GestureInterrupter に attachViewする）
-    val contentView:View     // 移動/拡大するビュー : containerView 上にセンタリングされて配置されることを想定
-
-    val parentWidth:Int
-        get() = parentView.width
-    val parentHeight:Int
-        get() = parentView.height
-
-    /**
-     * コンテントのサイズ
-     * contentViewが wrap_content なら、contentWidth/Height は、contentView.width/height に一致するが、
-     * scaleType=fitCenter の ImageViewなど、ビューのサイズとスクロール/ズーム対象が異なる場合は、真のコンテントのサイズを返すようオーバーライドする。
-     */
-    val contentWidth:Int
-        get() = contentView.width
-    val contentHeight:Int
-        get() = contentView.height
-
-    /**
-     * びよーんってなる量を親フレームに対する比率で指定
-     * 0 なら可動範囲でスクロールをストップする。
-     */
-    val overScrollX:Float
-    val overScrollY:Float
-
-
-    // region ページめくり
-
-    val pageOrientation: EnumSet<Orientation>
-
-    /**
-     * overScrollX/Y != 0 の場合、限界まで達した状態でタッチをリリースしたときに呼び出すので、ページ移動処理を行う。
-     * @return true     移動した（続くページ切り替えアニメーションを実行）
-     * @return false    移動しなかった（びよーんと戻す）
-     */
-    fun changePage(orientation: Orientation, dir: Direction):Boolean
-    // 指定方向に次のページはあるか？
-    fun hasNextPage(orientation: Orientation, dir: Direction):Boolean
-
-    // endregion
-}
-
-abstract class UtSimpleManipulationTarget(
+@Suppress("unused")
+open class UtSimpleManipulationTarget(
     override val parentView: View,
     override val contentView: View,
-    override val overScrollX: Float,
-    override val overScrollY: Float,
-    override val pageOrientation: EnumSet<Orientation>
+    override val overScrollX: Float = 0f,
+    override val overScrollY: Float = 0f,
+    override val pageOrientation: EnumSet<Orientation> = EnumSet.noneOf(Orientation::class.java)
 ) : IUtManipulationTarget {
+    override fun changePage(orientation: Orientation, dir: Direction): Boolean {
+        return false
+    }
+
+    override fun hasNextPage(orientation: Orientation, dir: Direction): Boolean {
+        return false
+    }
 }
 
 /**
  * スクロール / ズーム操作をカプセル化するクラス
  */
-class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
-    var minScale:Float = 1f
-    var maxScale:Float = 10f
+class UtManipulationAgent(private val targetViewInfo: IUtManipulationTarget) {
+    private var minScale:Float = 1f
+    private var maxScale:Float = 10f
 
+    @Suppress("MemberVisibilityCanBePrivate")
     val contentView:View
         get() = targetViewInfo.contentView
-    val contentWidth:Int
+    private val contentWidth:Int
         get() = targetViewInfo.contentWidth
-    val contentHeight:Int
+    private val contentHeight:Int
         get() = targetViewInfo.contentHeight
 
+    @Suppress("MemberVisibilityCanBePrivate")
     val parentView:View
         get() = targetViewInfo.parentView
-    val parentWidth:Int
+    private val parentWidth:Int
         get() = targetViewInfo.parentWidth
-    val parentHeight:Int
+    private val parentHeight:Int
         get() = targetViewInfo.parentHeight
 
-    var scale:Float
+    private var scale:Float
         get() = contentView.scaleX
         set(v) {
             contentView.scaleX = v
             contentView.scaleY = v
         }
 
-    var translationX:Float
+    private var translationX:Float
         get() = contentView.translationX
         set(v) { contentView.translationX = v }
 
-    var translationY:Float
+    private var translationY:Float
         get() = contentView.translationY
         set(v) { contentView.translationY = v }
 
     /**
      * 現在、表示しているサイズ
      */
-    val scaledWidth:Float
+    private val scaledWidth:Float
         get() = contentWidth*scale
-    val scaledHeight:Float
+    private val scaledHeight:Float
         get() = contentHeight*scale
 
     /**
@@ -124,14 +85,14 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
      * 親ビューからはみ出している部分だけ移動できる。
      * contentViewがparentViewに対してセンタリングされている状態を基準として、絶対値で、はみ出している量/2だけ上下左右に移動可能。
      */
-    val movableX:Float
+    private val movableX:Float
         get() = max(0f,(scaledWidth - parentWidth)/2f)
-    val movableY:Float
+    private val movableY:Float
         get() = max(0f,(scaledHeight - parentHeight)/2f)
 
-    val overScrollX:Float
+    private val overScrollX:Float
         get() = targetViewInfo.overScrollX*parentWidth
-    val overScrollY:Float
+    private val overScrollY:Float
         get() = targetViewInfo.overScrollY*parentHeight
 
 
@@ -183,14 +144,13 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
     /**
      * 移動量を可動範囲（＋オーバースクロール範囲）でクリップする
      */
-    private fun clipTranslation(translation:Float, movable:Float, overScroll: Float):Float {
-        val d = translation
-        val ad = abs(d)
-        return min(movable+overScroll, ad) * sign(d)
+    private fun clipTranslation(translation:Float, movable:Float, @Suppress("SameParameterValue") overScroll: Float):Float {
+        val ad = abs(translation)
+        return min(movable+overScroll, ad) * sign(translation)
     }
 
 
-    var scaling: Boolean = false
+    private var scaling: Boolean = false
 
     /**
      * スクロール処理
@@ -211,17 +171,17 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         }
     }
 
-    private fun Matrix.mapPoint(p:PointF) {
-        val points = floatArrayOf(p.x, p.y)
-        mapPoints(points)
-        p.x = points[0]
-        p.y = points[1]
-    }
-    private fun Matrix.mapPoint(x:Float,y:Float):Pair<Float,Float> {
-        val points = floatArrayOf(x,y)
-        mapPoints(points)
-        return Pair(points[0], points[1])
-    }
+//    private fun Matrix.mapPoint(p:PointF) {
+//        val points = floatArrayOf(p.x, p.y)
+//        mapPoints(points)
+//        p.x = points[0]
+//        p.y = points[1]
+//    }
+//    private fun Matrix.mapPoint(x:Float,y:Float):Pair<Float,Float> {
+//        val points = floatArrayOf(x,y)
+//        mapPoints(points)
+//        return Pair(points[0], points[1])
+//    }
     /**
      * ズーム処理
      */
@@ -307,7 +267,7 @@ class UtManipulationAgent(val targetViewInfo:IUtManipulationTarget) {
         suspend fun suspendStart(duration:Long, update:(Float)->Unit):Boolean {
             currentUpdater = update
             animator.duration = duration
-            return suspendCoroutine<Boolean> {
+            return suspendCoroutine {
                 animating = it
                 animator.start()
             }

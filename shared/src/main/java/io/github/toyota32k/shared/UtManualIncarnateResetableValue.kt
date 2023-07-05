@@ -2,6 +2,11 @@ package io.github.toyota32k.shared
 
 import io.github.toyota32k.utils.IUtResetableValue
 
+/**
+ * UtLazyResetableValueに似ているが、こちらは、一旦リセットされると、valueを参照で、勝手に蘇生しない。
+ * hasValue==false で valueを参照すると NRE が出るので、事前チェックが必須。
+ * ... だんだん、IUtResetableValue の本質から離れてしまった気もする。
+ */
 class UtManualIncarnateResetableValue<T>(private val onIncarnate:()->T, private val onReset:((T)->Unit)?): IUtResetableValue<T> {
     constructor(onIncarnate: () -> T) : this(onIncarnate, null)
     private var rawValue:T? = onIncarnate()
