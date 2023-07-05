@@ -11,15 +11,15 @@ buildscript {
     ext.room_version = "2.5.2"
     ext.okhttp_version = '4.9.2'
 
-    // ext.m2k_media_processor_version = "2.4.1"
-    ext.m2k_media_processor_version = "LOCALv2"
+    ext.m2k_media_processor_version = "2.5.0"
+//    ext.m2k_media_processor_version = "LOCALv2"
 
     // Utilities > Binding > Dialog の依存関係があるので、
     // たとえば、BindingをLOCALにするときはDialogもLOCALにする必要がある。
 
     ext.m2k_utilities_version = "1.0.3"
     ext.m2k_binding_version = "1.0.4"
-    ext.m2k_android_dialog_version = "3.6.3"
+    ext.m2k_android_dialog_version = "3.6.4"
 
 //    ext.m2k_utilities_version = "LOCAL"
 //    ext.m2k_binding_version = "LOCAL"
