@@ -113,7 +113,7 @@ class TcServer(val port:Int) : AutoCloseable {
                             put("size", item.size)
                             put("date", "${item.date}")
                             put("duration", item.duration)
-                            put("type", item.type)
+                            put("type", if(item.type==0) "jpg" else "mp4")
                             put("cloud", item.cloud)
                         })
                     }
