@@ -36,6 +36,8 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.UtMessageBox
+import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -414,16 +416,20 @@ class PlayerActivity : UtMortalActivity() {
 //            }
 //        }
 
-        override fun onCleared() {
-            val listMode = playlist.listMode.value.toString()
-            val currentItem = playlist.currentSelection.value?.name
+        fun saveListModeAndSelection() {
+            val listMode = playlist.listMode.value
+            val currentItem = playlist.currentSelection.value
             CoroutineScope(Dispatchers.IO).launch {
-                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode)
+                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
                 if(currentItem!=null) {
-                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem)
+                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                 }
             }
+        }
+
+        override fun onCleared() {
             super.onCleared()
+            saveListModeAndSelection()
             playerControllerModel.close()
         }
     }
@@ -609,12 +615,14 @@ class PlayerActivity : UtMortalActivity() {
             onScale(manipulator::onScale)
             onTap(manipulator::onTap)
             onDoubleTap(manipulator::onDoubleTap)
+            onLongTap { _ -> setSecureMode() }
             onFlickVertical(manipulator::onFlick)
         }
 
         window.addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // スリープしない
-              or WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止
+            or WindowManager.LayoutParams.FLAG_SECURE  // キャプチャーを禁止（タスクマネージャで見えないようにする）
+        )
 
         ensureVisible()
 
@@ -679,7 +687,12 @@ class PlayerActivity : UtMortalActivity() {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
                     ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
                     ItemDialog.ItemViewModel.NextAction.RemoveLocal -> MetaDB.removeUploadedFile(item)
-                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> MetaDB.restoreFromCloud(item)
+                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
+                        if(viewModel.playlist.isVideo.value) {
+                            viewModel.playlist.select(null,true)
+                        }
+                        MetaDB.restoreFromCloud(item)
+                    }
                     else -> {}
                 }
             }
@@ -688,6 +701,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private suspend fun UtImmortalSimpleTask.editItem(item:ItemEx) {
+        viewModel.saveListModeAndSelection()
         viewModel.playlist.select(null)
         viewModel.playerControllerModel.playerModel.killPlayer()
         controls.videoViewer.dissociatePlayer()
@@ -828,13 +842,31 @@ class PlayerActivity : UtMortalActivity() {
 //        return true
 //    }
 
-//    override fun onPause() {
+    private fun setSecureMode() {
+        val current = (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+        UtImmortalSimpleTask.run("setSecureMode") {
+            val next = showDialog(taskName) { UtRadioSelectionBox.create("Secure Mode", arrayOf("Allow Capture", "Disallow Capture"), if(current) 1 else 0) }.selectedIndex == 1
+            if(current!=next) {
+                if(next) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+            true
+        }
+    }
+
+
+    override fun onPause() {
 //        controls.videoViewer.visibility = View.INVISIBLE
-//        super.onPause()
-//    }
+//        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
+        super.onPause()
+    }
 
     override fun onResume() {
         super.onResume()
+//        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
 //        controls.videoViewer.visibility = View.VISIBLE
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()

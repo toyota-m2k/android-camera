@@ -12,6 +12,7 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,6 +26,8 @@ import okhttp3.internal.headersContentLength
 import org.json.JSONObject
 
 object TcClient {
+    val logger = UtLog("Tc", NetClient.logger, this::class.java)
+
     private fun sizeInKb(size: Long): String {
         return String.format("%,d KB", size / 1000L)
     }
@@ -61,17 +64,22 @@ object TcClient {
             val request = Request.Builder()
                 .url(item.uri)
                 .build()
-            NetClient.executeAsync(request,null).use { response->
-                if(response.isSuccessful) {
-                    response.body?.use { body ->
-                        body.byteStream().use { inStream ->
-                            BitmapFactory.decodeStream(inStream)
+            try {
+                executeAsync(request, null).use { response ->
+                    if (response.isSuccessful) {
+                        response.body?.use { body ->
+                            body.byteStream().use { inStream ->
+                                BitmapFactory.decodeStream(inStream)
+                            }
                         }
+                    } else {
+                        logger.error(response.message)
+                        null
                     }
-                } else {
-                    logger.error(response.message)
-                    null
                 }
+            } catch (e:Throwable) {
+                logger.error(e)
+                null
             }
         }
     }
@@ -112,39 +120,44 @@ object TcClient {
             val request = Request.Builder()
                 .url(item.uri)
                 .build()
-            executeAsync(request,canceller).use { response->
-                try {
-                    if (response.isSuccessful) {
-                        response.body?.use { body ->
-                            body.byteStream().use { inStream ->
-                                item.file.outputStream().use { outStream ->
-                                    if (progress != null) {
-                                        val totalLength = response.headersContentLength()
-                                        var bytesCopied: Long = 0
-                                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                                        var bytes = inStream.read(buffer)
-                                        while (bytes >= 0) {
-                                            outStream.write(buffer, 0, bytes)
-                                            bytesCopied += bytes
-                                            progress.invoke(bytesCopied, totalLength)
-                                            bytes = inStream.read(buffer)
+            try {
+                executeAsync(request, canceller).use { response ->
+                    try {
+                        if (response.isSuccessful) {
+                            response.body?.use { body ->
+                                body.byteStream().use { inStream ->
+                                    item.file.outputStream().use { outStream ->
+                                        if (progress != null) {
+                                            val totalLength = response.headersContentLength()
+                                            var bytesCopied: Long = 0
+                                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                                            var bytes = inStream.read(buffer)
+                                            while (bytes >= 0) {
+                                                outStream.write(buffer, 0, bytes)
+                                                bytesCopied += bytes
+                                                progress.invoke(bytesCopied, totalLength)
+                                                bytes = inStream.read(buffer)
+                                            }
+                                        } else {
+                                            inStream.copyTo(outStream)
                                         }
-                                    } else {
-                                        inStream.copyTo(outStream)
+                                        outStream.flush()
                                     }
-                                    outStream.flush()
                                 }
                             }
+                            true
+                        } else {
+                            logger.error(response.message)
+                            false
                         }
-                        true
-                    } else {
-                        logger.error(response.message)
+                    } catch (e: Throwable) {
+                        logger.error(e)
                         false
                     }
-                } catch(e:Throwable) {
-                    logger.error(e)
-                    false
                 }
+            } catch (e:Throwable) {
+                logger.error(e)
+                false
             }
         }
     }
@@ -189,8 +202,8 @@ object TcClient {
             .post(multipartBody)
             .build()
         try {
-            val location:String?
-            val code = NetClient.executeAsync(request,canceller).use {
+//            val location:String?
+            val code = executeAsync(request,canceller).use {
 //                location =it.headers ["Location"]
                 it.code
             }

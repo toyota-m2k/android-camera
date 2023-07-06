@@ -392,28 +392,36 @@ object MetaDB {
 
     // region Cloud Operation
 
-    fun backupToCloud(item: ItemEx) {
+    suspend fun backupToCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Local) {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
-            return
+            return true
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        return withContext(Dispatchers.IO) {
             if (TcClient.uploadToSecureArchive(item)) {
+                logger.debug("uploaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
+                true
+            } else {
+                logger.debug("upload error: ${item.name}")
+                false
             }
         }
     }
 
-    fun restoreFromCloud(item: ItemEx) {
+    suspend fun restoreFromCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
+            return true
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        return withContext(Dispatchers.IO) {
             if (TcClient.downloadFromSecureArchive(item)) {
                 logger.debug("downloaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
+                true
             } else {
-                logger.debug("download error.")
+                logger.debug("download error: ${item.name}")
+                false
             }
         }
     }
