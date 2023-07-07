@@ -139,11 +139,24 @@ class TcServer(val port:Int) : AutoCloseable {
                 if(ownerId != Settings.SecureArchive.clientId) {
                     return@Route HttpErrorResponse.badRequest()
                 }
-                val id = json.optInt("id")
+                val id = json.optInt("id", -1)
+                val ids = json.optJSONArray("ids")
                 val status = json.optBoolean("status")
                 logger.debug("Backup id=$id done: $status")
                 if(status) {
-                    CoroutineScope(Dispatchers.IO).launch { MetaDB.updateCloud(id, CloudStatus.Uploaded) }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        if(id>=0) {
+                            MetaDB.updateCloud(id, CloudStatus.Uploaded)
+                        }
+                        if(ids!=null) {
+                            for(i in 0 until ids.length()) {
+                                val d = ids.optInt(i, -1)
+                                if(d>=0) {
+                                    MetaDB.updateCloud(d, CloudStatus.Uploaded)
+                                }
+                            }
+                        }
+                    }
                 }
                 TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
             }
