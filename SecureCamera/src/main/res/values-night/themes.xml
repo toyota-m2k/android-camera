@@ -12,14 +12,14 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
-        <item name="colorAccent">@color/accent_color</item>
+        <item name="colorAccent">@color/pink_a100</item>
 
 
         <item name="controlPanelColor">#40000000</item>
         <item name="iconColor">?attr/colorSecondary</item>
-        <item name="recIconColor">#FFFF4081</item>
-        <item name="pauseIconColor">#8080FF</item>
-        <item name="stopIconColor">?attr/pauseIconColor</item>
+        <item name="noRecIconColor">@color/orange_300</item>
+        <item name="recIconColor">@color/pink_a400</item>
+        <item name="stopIconColor">@color/blue_a400</item>
 
         <item name="panelBackgroundColor">#40FFFFFF</item>
         <item name="playerBackground">@color/black</item>
@@ -28,6 +28,4 @@
         <item name="colorDialogSurface">?attr/colorSurface</item>
         <item name="colorOnDialogSurface">?android:textColorPrimary</item>
     </style>
-
-    <color name="accent_color">#FFFF4081</color>
 </resources>
