@@ -23,7 +23,6 @@ import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.dialog.task.showYesNoMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -35,6 +34,7 @@ import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.IProgress
+import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -45,6 +45,9 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.TimeSpan
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
+import io.github.toyota32k.shared.gesture.UtGestureInterpreter
+import io.github.toyota32k.shared.gesture.UtManipulationAgent
+import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +61,12 @@ class EditorActivity : UtMortalActivity() {
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportChapter()
             .supportSnapshot(this::onSnapshot)
-            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+            .enableRotateLeft()
+            .enableRotateRight()
+//            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+            .enableSeekSmall(100,100)
+            .enableSeekMedium(1000, 3000)
+            .enableSeekLarge(5000, 10000)
             .build()
         val playerModel get() = playerControllerModel.playerModel
         val videoSource get() = playerModel.currentSource.value as VideoSource
@@ -128,6 +136,10 @@ class EditorActivity : UtMortalActivity() {
     private val viewModel by viewModels<EditorViewModel>()
     private lateinit var controls: ActivityEditorBinding
 
+    // Scale/Scroll
+    private val gestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
+    private val manipulationAgent by lazy { UtManipulationAgent(UtSimpleManipulationTarget(controls.videoViewer,controls.videoViewer.controls.player)) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         hideActionBar()
@@ -162,7 +174,21 @@ class EditorActivity : UtMortalActivity() {
         }
 
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // スリープしない
+              or WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止
+
+        gestureInterpreter.setup(this, manipulationAgent.parentView) {
+            onScale(manipulationAgent::onScale)
+            onScroll(manipulationAgent::onScroll)
+            onTap {
+                viewModel.playerModel.togglePlay()
+            }
+            onDoubleTap {
+                manipulationAgent.resetScrollAndScale()
+            }
+        }
     }
 
     private fun formatTime(time:Long, duration:Long) : String {
@@ -214,11 +240,13 @@ class EditorActivity : UtMortalActivity() {
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
             vm.message.value = "Trimming Now..."
+            val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
             val converter = Converter.Factory()
                 .input(srcFile)
                 .output(dstFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
                 .videoStrategy(PresetVideoStrategies.HEVC1080Profile)
+                .rotate(rotation)
                 .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
                 .setProgressHandler {
                     vm.progress.value = it.percentage
@@ -282,19 +310,25 @@ class EditorActivity : UtMortalActivity() {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            if(viewModel.chapterList.isDirty) {
                 UtImmortalSimpleTask.run {
-                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
-                        setResult(RESULT_OK,)
+                    if(viewModel.chapterList.isDirty) {
                         MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
-                        setResultAndFinish(true, viewModel.targetItem)
-                    } else {
-                        setResultAndFinish(false, viewModel.targetItem)
                     }
+                    setResultAndFinish(true, viewModel.targetItem)
                     true
                 }
                 return true
-            }
+//            if(viewModel.chapterList.isDirty) {
+//                UtImmortalSimpleTask.run {
+//                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+//                        setResult(RESULT_OK,)
+//                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
+//                    }
+//                    setResultAndFinish(true, viewModel.targetItem)
+//                    true
+//                }
+//                return true
+//            }
         }
         return super.handleKeyEvent(keyCode, event)
     }

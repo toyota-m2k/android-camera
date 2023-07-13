@@ -11,7 +11,7 @@
         <item name="colorOnSecondary">@color/black</item>
 <!--        <item name="colorOutline">@color/color_outline</item>-->
         <item name="colorOutline">?attr/colorPrimary</item>
-        <item name="colorAccent">@color/accent_color</item>
+        <item name="colorAccent">@color/pink_a400</item>
 
 <!--        <item name="colorSurface">@color/white</item>-->
 <!--        <item name="colorOnSurface">@color/black</item>-->
@@ -24,9 +24,9 @@
 
         <item name="controlPanelColor">#40FFFFFF</item>
         <item name="iconColor">?attr/colorSecondary</item>
-        <item name="recIconColor">#FF4080</item>
-        <item name="pauseIconColor">#8080FF</item>
-        <item name="stopIconColor">?attr/pauseIconColor</item>
+        <item name="noRecIconColor">@color/orange_300</item>
+        <item name="recIconColor">@color/pink_a400</item>
+        <item name="stopIconColor">@color/blue_a400</item>
 
         <item name="panelBackgroundColor">#40FFFFFF</item>
         <!-- libPlayer theme -->

@@ -1,4 +1,4 @@
-package io.github.toyota32k.secureCamera.settings
+package io.github.toyota32k.secureCamera.dialog
 
 import android.app.Application
 import android.os.Bundle
@@ -24,10 +24,8 @@ import io.github.toyota32k.dialog.task.*
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
-import io.github.toyota32k.secureCamera.dialog.AddressDialog
-import io.github.toyota32k.secureCamera.dialog.PasswordDialog
-import io.github.toyota32k.secureCamera.dialog.TextDialog
-import io.github.toyota32k.shared.UtClickRepeater
+import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.shared.gesture.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
@@ -52,10 +50,10 @@ class SettingDialog : UtDialogEx() {
                 return min(maxNumberOfIncorrectPassword,max(minNumberOfIncorrectPassword, v))
             }
 
-            fun createBy(taskName:String, application: Application):SettingViewModel {
+            fun createBy(taskName:String, application: Application): SettingViewModel {
                 return logger.chronos { UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task") }
             }
-            fun instanceFor(dlg:SettingDialog):SettingViewModel {
+            fun instanceFor(dlg: SettingDialog): SettingViewModel {
                 return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
             }
         }
@@ -70,7 +68,7 @@ class SettingDialog : UtDialogEx() {
                 }
 
                 override fun value2id(v: Int): Int {
-                    return enumValues<CameraTapAction>().find { it.value==v }?.id ?: CameraTapAction.NONE.id
+                    return enumValues<CameraTapAction>().find { it.value==v }?.id ?: NONE.id
                 }
             }
         }
@@ -120,8 +118,9 @@ class SettingDialog : UtDialogEx() {
 
         private fun editAddress() {
             viewModelScope.launch {
-                if(AddressDialog.show()) {
-                    secureArchiveAddress.value = Settings.SecureArchive.address
+                val address = AddressDialog.show(secureArchiveAddress.value)
+                if(address!=null) {
+                    secureArchiveAddress.value = address
                 }
             }
         }
@@ -157,8 +156,10 @@ class SettingDialog : UtDialogEx() {
             playerSpanOfSkipBackward.value = Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat()/1000f
             securityEnablePassword.value = Settings.Security.DEF_ENABLE_PASSWORD
             securityPassword.value = Settings.Security.DEF_PASSWORD
-            securityClearAllOnPasswordError.value = Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
-            securityNumberOfIncorrectPassword.value = Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+            securityClearAllOnPasswordError.value =
+                Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
+            securityNumberOfIncorrectPassword.value =
+                Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         }
     }
     override fun preCreateBodyView() {
@@ -197,7 +198,9 @@ class SettingDialog : UtDialogEx() {
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton)
                     .bindCommand(viewModel.commandDeviceName, controls.editDeviceNameButton)
-                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction, SettingViewModel.CameraTapAction.TapActionResolver)
+                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
+                        SettingViewModel.CameraTapAction.TapActionResolver
+                    )
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {
                             setPassword()

@@ -27,13 +27,15 @@ import kotlinx.coroutines.flow.stateIn
 
 class AddressDialog : UtDialogEx() {
     class AddressDialogViewModel : UtImmortalViewModel() {
-        val address = MutableStateFlow(Settings.SecureArchive.address)
+        val address = MutableStateFlow("")
 //        fun save() {
 //            Settings.SecureArchive.address = address.value
 //        }
         companion object {
-            fun createBy(task:IUtImmortalTask):AddressDialogViewModel {
-                return UtImmortalViewModelHelper.createBy(AddressDialogViewModel::class.java, task)
+            fun createBy(task:IUtImmortalTask, initialAddress:String):AddressDialogViewModel {
+                return UtImmortalViewModelHelper.createBy(AddressDialogViewModel::class.java, task).apply {
+                    address.value = initialAddress
+                }
             }
             fun instanceFor(dialog: AddressDialog):AddressDialogViewModel {
                 return UtImmortalViewModelHelper.instanceFor(AddressDialogViewModel::class.java, dialog)
@@ -69,10 +71,12 @@ class AddressDialog : UtDialogEx() {
 //    }
 
     companion object {
-        suspend fun show(): Boolean {
-            return UtImmortalSimpleTask.runAsync("editAddress") {
-                AddressDialogViewModel.createBy(this)
-                showDialog(taskName) { AddressDialog() }.status.positive
+        suspend fun show(initialAddress: String): String? {
+            return UtImmortalSimpleTask.executeAsync("editAddress") {
+                val vm = AddressDialogViewModel.createBy(this, initialAddress)
+                if(showDialog(taskName) { AddressDialog() }.status.positive) {
+                    vm.address.value
+                } else null
             }
         }
     }

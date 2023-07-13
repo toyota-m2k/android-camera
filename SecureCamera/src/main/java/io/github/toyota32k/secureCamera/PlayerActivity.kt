@@ -1,6 +1,5 @@
 package io.github.toyota32k.secureCamera
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -37,6 +36,8 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
+import io.github.toyota32k.dialog.UtMessageBox
+import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -63,14 +64,18 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
+import io.github.toyota32k.shared.gesture.Direction
+import io.github.toyota32k.shared.gesture.Orientation
+import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.UtSorter
+import io.github.toyota32k.shared.gesture.IUtManipulationTarget
+import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -150,7 +155,7 @@ class PlayerActivity : UtMortalActivity() {
             .supportChapter(hideChapterViewIfEmpty = true)
             .enableRotateRight()
             .enableRotateLeft()
-            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
+            .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
             .build()
         //val playerModel get() = playerControllerModel.playerModel
 
@@ -183,8 +188,8 @@ class PlayerActivity : UtMortalActivity() {
                 collection,
                 actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE
             ) { a, b ->
-                val ta = a.date // filename2date(a)?.time ?: 0L
-                val tb = b.date // filename2date(b)?.time ?: 0L
+                val ta = a.creationDate // filename2date(a)?.time ?: 0L
+                val tb = b.creationDate // filename2date(b)?.time ?: 0L
 //                if(ta==tb) {
 //                    TpLib.logger.debug("same value")
 //                }
@@ -285,21 +290,27 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun addItem(item:ItemEx) {
-                sorter.add(item)
-                select(item)
+                if(when(listMode.value){
+                    ListMode.ALL-> true
+                    ListMode.PHOTO->item.isPhoto
+                    ListMode.VIDEO->item.isVideo
+                }) {
+                    sorter.add(item)
+                    select(item)
+                }
             }
 
             fun removeItem(item:ItemEx) {
-                var index = collection.indexOfFirst { it.id == item.id }
+                val index = collection.indexOfFirst { it.id == item.id }
                 if(index>=0) {
                     collection.removeAt(index)
                 }
             }
 
             fun replaceItem(item:ItemEx) {
-                val current = currentSelection.value?.id == item.id
-                sorter.add(item)
-                if(current) {
+                val index = collection.indexOfFirst { it.id == item.id }
+                if(index>=0) {
+                    sorter.add(item)
                     select(item)
                 }
             }
@@ -405,16 +416,20 @@ class PlayerActivity : UtMortalActivity() {
 //            }
 //        }
 
-        override fun onCleared() {
-            val listMode = playlist.listMode.value.toString()
-            val currentItem = playlist.currentSelection.value?.name
+        fun saveListModeAndSelection() {
+            val listMode = playlist.listMode.value
+            val currentItem = playlist.currentSelection.value
             CoroutineScope(Dispatchers.IO).launch {
-                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode)
+                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
                 if(currentItem!=null) {
-                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem)
+                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                 }
             }
+        }
+
+        override fun onCleared() {
             super.onCleared()
+            saveListModeAndSelection()
             playerControllerModel.close()
         }
     }
@@ -423,9 +438,10 @@ class PlayerActivity : UtMortalActivity() {
     private val viewModel by viewModels<PlayerViewModel>()
     lateinit var controls: ActivityPlayerBinding
     val binder = Binder()
-    val gestureInterpreter:UtGestureInterpreter by lazy { UtGestureInterpreter(this@PlayerActivity, enableScaleEvent = true) }
 
-//    val server = TcServer(5001)
+    // Manipulation Handling
+    private val gestureInterpreter: UtGestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
+    private val manipulator: ManipulationTarget by lazy { ManipulationTarget() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -469,7 +485,7 @@ class PlayerActivity : UtMortalActivity() {
             .visibilityBinding(controls.photoViewer, viewModel.playlist.isPhoto)
 //            .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
 //            .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
-            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map {it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
+            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map { it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
                 straightGone(controls.collapseButton)
                 inverseGone(controls.expandButton)
             }
@@ -599,10 +615,14 @@ class PlayerActivity : UtMortalActivity() {
             onScale(manipulator::onScale)
             onTap(manipulator::onTap)
             onDoubleTap(manipulator::onDoubleTap)
+            onLongTap { _ -> setSecureMode() }
             onFlickVertical(manipulator::onFlick)
         }
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON  // スリープしない
+            or WindowManager.LayoutParams.FLAG_SECURE  // キャプチャーを禁止（タスクマネージャで見えないようにする）
+        )
 
         ensureVisible()
 
@@ -638,11 +658,6 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-//        server.close()
-    }
-
     fun ensureVisible() {
         val index = viewModel.currentIndex
         if(index>=0) {
@@ -672,7 +687,12 @@ class PlayerActivity : UtMortalActivity() {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
                     ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
                     ItemDialog.ItemViewModel.NextAction.RemoveLocal -> MetaDB.removeUploadedFile(item)
-                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> MetaDB.restoreFromCloud(item)
+                    ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
+                        if(viewModel.playlist.isVideo.value) {
+                            viewModel.playlist.select(null,true)
+                        }
+                        MetaDB.restoreFromCloud(item)
+                    }
                     else -> {}
                 }
             }
@@ -681,6 +701,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private suspend fun UtImmortalSimpleTask.editItem(item:ItemEx) {
+        viewModel.saveListModeAndSelection()
         viewModel.playlist.select(null)
         viewModel.playerControllerModel.playerModel.killPlayer()
         controls.videoViewer.dissociatePlayer()
@@ -696,38 +717,23 @@ class PlayerActivity : UtMortalActivity() {
 //        (getActivity() as? PlayerActivity)?.itemUpdated(item.name)
 //    }
 
-    inner class ViewerManipulator : IUtManipulationTarget {
+    inner class ManipulationTarget : IUtManipulationTarget {
         val agent = UtManipulationAgent(this)
         fun onScroll(event: UtGestureInterpreter.IScrollEvent) {
             agent.onScroll(event)
-//            controls.imageView.translationX  -= event.dx
-//            controls.imageView.translationY  -= event.dy
         }
 
         fun onScale(event: UtGestureInterpreter.IScaleEvent) {
             agent.onScale(event)
-//            val newScale = (controls.imageView.scaleX * event.scale).run {
-//                max(1f, min(10f, this))
-//            }
-//            controls.imageView.scaleX = newScale
-//            controls.imageView.scaleY = newScale
         }
-        fun onTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
+        fun onTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
             if(viewModel.playlist.isVideo.value) {
                 viewModel.playerControllerModel.playerModel.togglePlay()
             }
         }
-        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event:UtGestureInterpreter.IPositionalEvent) {
-            contentView.translationX = 0f
-            contentView.translationY = 0f
-            contentView.scaleX = 1f
-            contentView.scaleY = 1f
+        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
+            agent.resetScrollAndScale()
         }
-//        fun onLongTap() {
-//            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-//                viewModel.playerControllerModel.showControlPanel.toggle()
-//            }
-//        }
 
         fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
             if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
@@ -746,7 +752,7 @@ class PlayerActivity : UtMortalActivity() {
             get() = 0f
         override val pageOrientation:EnumSet<Orientation> = EnumSet.of(Orientation.Horizontal)
         override fun changePage(orientation: Orientation, dir: Direction): Boolean {
-            return if(orientation==Orientation.Horizontal) {
+            return if(orientation== Orientation.Horizontal) {
                 when(dir) {
                     Direction.Start-> viewModel.playlist.hasPrevious.value.onTrue { viewModel.playlist.previous() }
                     Direction.End-> viewModel.playlist.hasNext.value.onTrue { viewModel.playlist.next() }
@@ -755,7 +761,7 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         override fun hasNextPage(orientation: Orientation, dir: Direction): Boolean {
-            return if(orientation==Orientation.Horizontal) {
+            return if(orientation== Orientation.Horizontal) {
                 when(dir) {
                     Direction.Start-> viewModel.playlist.hasPrevious.value
                     Direction.End-> viewModel.playlist.hasNext.value
@@ -763,8 +769,7 @@ class PlayerActivity : UtMortalActivity() {
             } else false
         }
     }
-    val manipulator: ViewerManipulator by lazy { ViewerManipulator() }
-    
+
     private fun onDeletingItem(item:ItemEx): RecyclerViewBinding.IPendingDeletion {
         if(item == viewModel.playlist.currentSelection.value) {
             viewModel.playlist.select(null)
@@ -836,13 +841,42 @@ class PlayerActivity : UtMortalActivity() {
 //        controls.imageView.scaleY = newScale
 //        return true
 //    }
+
+    private fun setSecureMode() {
+        val current = (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+        UtImmortalSimpleTask.run("setSecureMode") {
+            val next = showDialog(taskName) { UtRadioSelectionBox.create("Secure Mode", arrayOf("Allow Capture", "Disallow Capture"), if(current) 1 else 0) }.selectedIndex == 1
+            if(current!=next) {
+                if(next) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+            true
+        }
+    }
+
+
+    override fun onPause() {
+//        controls.videoViewer.visibility = View.INVISIBLE
+//        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+//        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
+//        controls.videoViewer.visibility = View.VISIBLE
         if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
             controls.videoViewer.associatePlayer()
             lifecycleScope.launch { viewModel.playlist.refreshList() }
         }
     }
+
+//    override fun onDestroy() {
+//        super.onDestroy()
+//    }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         // return super.handleKeyEvent(keyCode, event)

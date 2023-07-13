@@ -20,7 +20,7 @@ object NetClient {
             .readTimeout(30, TimeUnit.SECONDS)
 //            .writeTimeout(120, TimeUnit.SECONDS)
             .build()
-    val logger = UtLog("NetClient",null,this::class.java)
+    val logger = UtLog("Net",null,this::class.java)
 
     suspend fun executeAsync(req: Request, canceller: Canceller?=null): Response {
         logger.debug("${req.url}")

@@ -103,7 +103,7 @@ class TcServer(val port:Int) : AutoCloseable {
                     else->PlayerActivity.ListMode.VIDEO
                 }
                 val backup = (p["backup"]?:"").toBoolean()
-                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud == 0 }
+                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud != CloudStatus.Cloud.v }
 
                 val list = runBlocking {
                     MetaDB.list(type).filter(predicate).fold(JSONArray()) { array, item ->
@@ -113,7 +113,7 @@ class TcServer(val port:Int) : AutoCloseable {
                             put("size", item.size)
                             put("date", "${item.date}")
                             put("duration", item.duration)
-                            put("type", item.type)
+                            put("type", if(item.type==0) "jpg" else "mp4")
                             put("cloud", item.cloud)
                         })
                     }
@@ -139,11 +139,24 @@ class TcServer(val port:Int) : AutoCloseable {
                 if(ownerId != Settings.SecureArchive.clientId) {
                     return@Route HttpErrorResponse.badRequest()
                 }
-                val id = json.optInt("id")
+                val id = json.optInt("id", -1)
+                val ids = json.optJSONArray("ids")
                 val status = json.optBoolean("status")
                 logger.debug("Backup id=$id done: $status")
                 if(status) {
-                    CoroutineScope(Dispatchers.IO).launch { MetaDB.updateCloud(id, CloudStatus.Uploaded) }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        if(id>=0) {
+                            MetaDB.updateCloud(id, CloudStatus.Uploaded)
+                        }
+                        if(ids!=null) {
+                            for(i in 0 until ids.length()) {
+                                val d = ids.optInt(i, -1)
+                                if(d>=0) {
+                                    MetaDB.updateCloud(d, CloudStatus.Uploaded)
+                                }
+                            }
+                        }
+                    }
                 }
                 TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
             }

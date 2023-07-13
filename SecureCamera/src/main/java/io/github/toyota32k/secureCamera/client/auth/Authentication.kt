@@ -4,8 +4,10 @@ import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,6 +17,7 @@ import okhttp3.Response
 import org.json.JSONObject
 
 object Authentication {
+    private val logger = UtLog("Auth", TcClient.logger, this::class.java)
     const val PWD_SEED = "y6c46S/PBqd1zGFwghK2AFqvSDbdjl+YL/DKXgn/pkECj0x2fic5hxntizw5"
 
     var authToken:String? = null
@@ -51,13 +54,18 @@ object Authentication {
     fun authUrlWithToken(token:String):String
         = "$authUrl/$token"
 
-    private suspend fun getChallenge():String {
+    private suspend fun getChallenge():String? {
         val req = Request.Builder()
             .url(authUrlWithToken(""))
             .get()
             .build()
-        return NetClient.executeAsync(req).use { res ->
-            challengeFromResponse(res)
+        return try {
+            NetClient.executeAsync(req).use { res ->
+                challengeFromResponse(res)
+            }
+        } catch (e:Throwable) {
+            logger.error(e)
+            null
         }
     }
 
@@ -68,26 +76,31 @@ object Authentication {
 
     suspend fun authWithPassword(password:String) : Boolean {
         return withContext(Dispatchers.IO) {
-            val challenge = challenge ?: getChallenge()
+            val challenge = challenge ?: getChallenge() ?: return@withContext false
             val passPhrase = getPassPhrase(password, challenge)
             val req = Request.Builder()
                 .url(authUrl)
                 .put(passPhrase.toRequestBody("text/plain".toMediaType()))
                 .build()
-            NetClient.executeAsync(req).use { res ->
-                if (res.code == 200) {
-                    // OK
-                    authTokenFromResponse(res)
-                    true
-                } else {
-                    val c = challengeFromResponse(res)
-                    if (c != challenge) {
-                        null// to be retried.
+            try {
+                NetClient.executeAsync(req).use { res ->
+                    if (res.code == 200) {
+                        // OK
+                        authTokenFromResponse(res)
+                        true
                     } else {
-                        false
+                        val c = challengeFromResponse(res)
+                        if (c != challenge) {
+                            null// to be retried.
+                        } else {
+                            false
+                        }
                     }
-                }
-            } ?: authWithPassword(password)
+                } ?: authWithPassword(password)
+            } catch (e:Throwable) {
+                logger.error(e)
+                false
+            }
         }
     }
 
@@ -98,14 +111,19 @@ object Authentication {
                 .url(authUrlWithToken(token))
                 .get()
                 .build()
-            NetClient.executeAsync(req).use { res ->
-                if (res.code == 200) {
-                    // OK
-                    true
-                } else {
-                    challengeFromResponse(res)
-                    false
+            try {
+                NetClient.executeAsync(req).use { res ->
+                    if (res.code == 200) {
+                        // OK
+                        true
+                    } else {
+                        challengeFromResponse(res)
+                        false
+                    }
                 }
+            } catch(e:Throwable) {
+                logger.error(e)
+                false
             }
         }
 

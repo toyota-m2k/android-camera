@@ -6,9 +6,9 @@
     <declare-styleable name="ControlPanel">
         <attr name="controlPanelColor" format="color"/>
         <attr name="iconColor" format="color"/>
+        <attr name="noRecIconColor" format="color"/>
         <attr name="recIconColor" format="color"/>
         <attr name="stopIconColor" format="color"/>
-        <attr name="pauseIconColor" format="color"/>
     </declare-styleable>
 
 <!--    <declare-styleable name="ExoPlayerHost">-->

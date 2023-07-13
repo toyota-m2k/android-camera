@@ -52,6 +52,10 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     val nameForDisplay:String
         get() = name.substringAfter("-").substringBeforeLast(".").replace("-", "  ")
 
+    val creationDate:Long by lazy {
+        filename2date(name)?.time ?: 0L
+    }
+
     val uri:String
         get() {
             return if(cloud.isFileInLocal) {
@@ -60,6 +64,17 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
                 "http://${Settings.SecureArchive.address}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
             }
         }
+
+    companion object {
+        fun filename2date(filename:String): Date? {
+            val dateString = when {
+                filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
+                filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
+                else -> return null
+            }
+            return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
+        }
+    }
 }
 
 object MetaDB {
@@ -103,14 +118,6 @@ object MetaDB {
         }
     }
 
-    private fun filename2date(filename:String): Date? {
-        val dateString = when {
-            filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
-            filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
-            else -> return null
-        }
-        return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
-    }
     private fun filename2type(filename:String): Int? {
         return when {
             filename.startsWith(ScDef.PHOTO_PREFIX)-> 0
@@ -176,7 +183,7 @@ object MetaDB {
             val type = filename2type(name) ?: return@withContext null
             val file = File(application.filesDir, name)
             val size = file.length()
-            val date = filename2date(name)?.time ?: 0L
+            val date = file.lastModified() //.filename2date(name)?.time ?: 0L
             val duration = if (type == 1) {
                 VideoUtil.getDuration(file, allowRetry)
             } else 0L
@@ -385,28 +392,36 @@ object MetaDB {
 
     // region Cloud Operation
 
-    fun backupToCloud(item: ItemEx) {
+    suspend fun backupToCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Local) {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
-            return
+            return true
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        return withContext(Dispatchers.IO) {
             if (TcClient.uploadToSecureArchive(item)) {
+                logger.debug("uploaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
+                true
+            } else {
+                logger.debug("upload error: ${item.name}")
+                false
             }
         }
     }
 
-    fun restoreFromCloud(item: ItemEx) {
+    suspend fun restoreFromCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
+            return true
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        return withContext(Dispatchers.IO) {
             if (TcClient.downloadFromSecureArchive(item)) {
                 logger.debug("downloaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
+                true
             } else {
-                logger.debug("download error.")
+                logger.debug("download error: ${item.name}")
+                false
             }
         }
     }
