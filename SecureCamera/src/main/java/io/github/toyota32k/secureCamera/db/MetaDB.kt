@@ -429,7 +429,7 @@ object MetaDB {
     /**
      * アップロード済みのローカルファイルを削除して、Cloudステータスを Cloud に変更する。
      */
-    fun removeUploadedFile(item:ItemEx) {
+    fun purgeLocalFile(item:ItemEx) {
         if(item.cloud != CloudStatus.Uploaded) return
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -438,6 +438,20 @@ object MetaDB {
             } catch (_: Throwable) {
             }
         }
+    }
+
+    suspend fun purgeAllLocalFiles() {
+        withContext(Dispatchers.IO) {
+            val items = listEx(PlayerActivity.ListMode.ALL).filter { it.cloud == CloudStatus.Uploaded }
+            for(item in items) {
+                try {
+                    item.data.file.delete()
+                    updateCloud(item, CloudStatus.Cloud)
+                } catch (_: Throwable) {
+                }
+            }
+        }
+
     }
 
     // endregion Operation

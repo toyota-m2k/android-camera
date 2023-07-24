@@ -36,7 +36,6 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
-import io.github.toyota32k.dialog.UtMessageBox
 import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -686,7 +685,7 @@ class PlayerActivity : UtMortalActivity() {
                 when(vm.nextAction) {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
                     ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
-                    ItemDialog.ItemViewModel.NextAction.RemoveLocal -> MetaDB.removeUploadedFile(item)
+                    ItemDialog.ItemViewModel.NextAction.PurgeLocal -> MetaDB.purgeLocalFile(item)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
                         if(viewModel.playlist.isVideo.value) {
                             viewModel.playlist.select(null,true)

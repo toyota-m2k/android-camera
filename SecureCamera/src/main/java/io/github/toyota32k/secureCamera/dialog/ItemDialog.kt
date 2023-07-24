@@ -7,14 +7,12 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
-import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -33,7 +31,7 @@ class ItemDialog : UtDialogEx() {
             None,
             EditItem,
             BackupItem,
-            RemoveLocal,
+            PurgeLocal,
             RestoreLocal,
         }
 
@@ -98,7 +96,7 @@ class ItemDialog : UtDialogEx() {
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.actionCommand, controls.editVideoButton, ItemViewModel.NextAction.EditItem)
             .bindCommand(viewModel.actionCommand, controls.backupButton, ItemViewModel.NextAction.BackupItem)
-            .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.RemoveLocal)
+            .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.PurgeLocal)
             .bindCommand(viewModel.actionCommand, controls.restoreLocalButton, ItemViewModel.NextAction.RestoreLocal)
             .bindCommand(viewModel.completeCommand, ::onPositive)
         return controls.root

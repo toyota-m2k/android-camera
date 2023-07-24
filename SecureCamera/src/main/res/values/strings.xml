@@ -60,4 +60,5 @@
     <string name="address_hint">SecureArchive Server Address</string>
     <string name="restore_title">Restore</string>
     <string name="purge_title">Purge</string>
+    <string name="purge">Purge</string>
 </resources>
