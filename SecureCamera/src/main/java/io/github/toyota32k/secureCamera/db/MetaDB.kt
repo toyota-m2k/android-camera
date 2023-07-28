@@ -74,6 +74,10 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             }
             return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
         }
+
+        fun creationDate(item:MetaData): Long {
+            return filename2date(item.name)?.time ?: 0L
+        }
     }
 }
 

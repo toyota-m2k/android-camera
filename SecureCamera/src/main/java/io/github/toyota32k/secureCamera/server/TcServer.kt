@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera.server
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.db.CloudStatus
+import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -112,6 +113,7 @@ class TcServer(val port:Int) : AutoCloseable {
                             put("name", item.name)
                             put("size", item.size)
                             put("date", "${item.date}")
+                            put("creationDate", "${ItemEx.creationDate(item)}")
                             put("duration", item.duration)
                             put("type", if(item.type==0) "jpg" else "mp4")
                             put("cloud", item.cloud)
