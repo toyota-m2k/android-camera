@@ -34,7 +34,7 @@ dependencies {
     implementation "androidx.core:core-ktx:$core_ktx_version"
     implementation "androidx.appcompat:appcompat:$app_compat_version"
     implementation "com.google.android.material:material:$material_version"
-    implementation "androidx.preference:preference:1.2.0"
+    implementation 'androidx.preference:preference:1.2.1'
     implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     implementation "com.github.toyota-m2k:android-utilities:$m2k_utilities_version"
 
