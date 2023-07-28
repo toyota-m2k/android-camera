@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
-import io.github.toyota32k.secureCamera.client.NetClient.logger
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -33,8 +32,9 @@ object TcClient {
     }
 
     suspend fun registerOwnerToSecureArchive():Boolean {
-        val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return false
+//        val address = Settings.SecureArchive.address
+//        if(address.isEmpty()) return false
+        if(!Authentication.authenticateAndMessage()) return false
 
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
@@ -42,7 +42,7 @@ object TcClient {
             .put("type", "SecureCamera")
             .toString()
         val request = Request.Builder()
-            .url("http://$address/owner")
+            .url("http://${Authentication.activeHostAddress}/owner")
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return try {
@@ -57,9 +57,9 @@ object TcClient {
 
     suspend fun getPhoto(item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        if(!Authentication.authentication()) return null
-        val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return null
+        if(!Authentication.authenticateAndMessage()) return null
+//        val address = Settings.SecureArchive.address
+//        if(address.isEmpty()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url(item.uri)
@@ -86,9 +86,9 @@ object TcClient {
 
     suspend fun downloadFromSecureArchive(item: ItemEx):Boolean {
         return UtImmortalSimpleTask.runAsync("downloading item") {
-            if(!Authentication.authentication()) return@runAsync false
-            val address = Settings.SecureArchive.address
-            if(address.isEmpty()) return@runAsync false
+            if(!Authentication.authenticateAndMessage()) return@runAsync false
+//            val address = Settings.SecureArchive.address
+//            if(address.isEmpty()) return@runAsync false
 
             val canceller = Canceller()
             val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
@@ -163,8 +163,7 @@ object TcClient {
     }
 
     suspend fun uploadToSecureArchive(item:ItemEx):Boolean {
-        val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return false
+        if(!Authentication.authenticateAndMessage()) return false
 
         return UtImmortalSimpleTask.runAsync("upload item") {
             val canceller = Canceller()
@@ -184,9 +183,7 @@ object TcClient {
     }
 
     private suspend fun uploadToSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:(current:Long, total:Long)->Unit):Boolean {
-        val address = Settings.SecureArchive.address
-        if(address.isEmpty()) return false
-
+        if(!Authentication.authenticateAndMessage()) return false
         val contentType = if(item.type==0) "image/png" else "video/mp4"
         val body = ProgressRequestBody(item.file.asRequestBody(contentType.toMediaType()), progress)
         val multipartBody = MultipartBody.Builder()
@@ -198,7 +195,7 @@ object TcClient {
             .addFormDataPart("File", item.name, body)
             .build()
         val request = Request.Builder()
-            .url("http://${address}/upload")
+            .url("http://${Authentication.activeHostAddress}/upload")
             .post(multipartBody)
             .build()
         try {

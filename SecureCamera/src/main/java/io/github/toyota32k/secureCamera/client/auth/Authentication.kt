@@ -1,8 +1,9 @@
 package io.github.toyota32k.secureCamera.client.auth
 
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
@@ -24,6 +25,9 @@ object Authentication {
         private set
     var challenge:String? = null
         private set
+    var activeHostAddress:String? = null
+        private set
+
 
     fun reset() {
         authToken = null
@@ -49,7 +53,7 @@ object Authentication {
     }
 
     val authUrl:String
-        get() = "http://${Settings.SecureArchive.address}/auth"
+        get() = "http://$activeHostAddress/auth"
 
     fun authUrlWithToken(token:String):String
         = "$authUrl/$token"
@@ -129,8 +133,65 @@ object Authentication {
 
     }
 
-    suspend fun authentication(force:Boolean=false):Boolean {
-        if(!force && checkAuthToken()) return true
-        return PasswordDialog.authenticate()
+    enum class Result(val msg:String, val succeeded:Boolean=false) {
+        OK("ok",true),
+        NO_HOST("No host is registered."),
+        NO_ACTIVE_HOST("No active host is found."),
+        CANCELLED("Cancelled by user.")
+    }
+
+    private var lastCheckTime:Long = 0L
+
+    private suspend fun checkHost():Result {
+        var empty = true
+
+        suspend fun checkOne(host:String):Boolean {
+            val url = "http://$host/nop"
+            val req = Request.Builder().url(url).get().build()
+            val result = NetClient.shortCallAsync(req)
+            return result?.isSuccessful == true
+        }
+        val currentHost = activeHostAddress
+        if(currentHost!=null) {
+            if(System.currentTimeMillis() - lastCheckTime < 5000) {
+                // 5秒以内の連続呼び出しならチェックしない。
+                return Result.OK
+            }
+            if(checkOne(currentHost)) {
+                return Result.OK
+            }
+        }
+
+        for(host in Settings.SecureArchive.hosts) {
+            if(currentHost!=host && checkOne(host)) {
+                activeHostAddress = host
+                lastCheckTime = System.currentTimeMillis()
+                return Result.OK
+            }
+            empty = false
+        }
+        return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
+    }
+
+    private suspend fun authenticate():Result {
+        checkHost().let { if(!it.succeeded) return it }
+        if(checkAuthToken()) return Result.OK
+        return if(PasswordDialog.authenticate()) Result.OK else Result.CANCELLED
+    }
+
+    suspend fun authenticateAndMessage():Boolean {
+        suspend fun showMessage(msg:String):Boolean {
+            UtImmortalSimpleTask.runAsync {
+                showConfirmMessageBox(null, msg)
+                true
+            }
+            return false
+        }
+        return when(authenticate()) {
+            Result.OK -> true
+            Result.NO_HOST -> showMessage("No hosts are registered.")
+            Result.NO_ACTIVE_HOST -> showMessage("No hosts are active.")
+            Result.CANCELLED -> false
+        }
     }
 }

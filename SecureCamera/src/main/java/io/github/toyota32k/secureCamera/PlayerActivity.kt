@@ -255,7 +255,7 @@ class PlayerActivity : UtMortalActivity() {
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
                     if(!item.cloud.isFileInLocal) {
                         viewModelScope.launch {
-                            if(Authentication.authentication()) {
+                            if(Authentication.authenticateAndMessage()) {
                                 currentSource.value = VideoSource(item)
                             }
                         }

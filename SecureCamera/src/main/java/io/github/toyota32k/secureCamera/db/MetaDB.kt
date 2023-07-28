@@ -61,7 +61,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             return if(cloud.isFileInLocal) {
                 file.toUri().toString()
             } else {
-                "http://${Settings.SecureArchive.address}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+                "http://${Authentication.activeHostAddress}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
             }
         }
 

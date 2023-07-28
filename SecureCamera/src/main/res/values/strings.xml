@@ -46,7 +46,8 @@
     <string name="cancel">Cancel</string>
     <string name="server">Server</string>
     <string name="close">Close</string>
-    <string name="secure_archive_address">Host Address</string>
+    <string name="secure_archive_address">Primary Host:</string>
+    <string name="secure_archive_2nd_address">Secondary Host:</string>
     <string name="sa_title">Secure Archive</string>
     <string name="backup">backup</string>
     <string name="rating_label">Rating</string>
@@ -56,7 +57,7 @@
     <string name="rating_desc">Grouping</string>
     <string name="backup_title">Backup</string>
     <string name="remove_title">Remove Local</string>
-    <string name="device_name_title">Device Name</string>
+    <string name="device_name_title">Device Name:</string>
     <string name="address_hint">SecureArchive Server Address</string>
     <string name="restore_title">Restore</string>
     <string name="purge_title">Purge</string>

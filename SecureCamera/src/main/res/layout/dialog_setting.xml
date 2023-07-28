@@ -44,10 +44,8 @@
             android:layout_weight="1"
             android:text="@string/password_not_set"/>
         <com.google.android.material.button.MaterialButton
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
+            style="@style/SettingDlgIconButton"
             android:id="@+id/change_pwd_button"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
             app:icon="@drawable/ic_edit"
             />
     </LinearLayout>
@@ -88,17 +86,13 @@
             tools:text="Allow Wrong Password 3 times"
             />
         <com.google.android.material.button.MaterialButton
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
+            style="@style/SettingDlgIconButton"
             android:id="@+id/allow_error_minus"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
             app:icon="@drawable/ic_minus"
             />
         <com.google.android.material.button.MaterialButton
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
+            style="@style/SettingDlgIconButton"
             android:id="@+id/allow_error_plus"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
             app:icon="@drawable/ic_plus"
             />
     </LinearLayout>
@@ -196,19 +190,11 @@
             android:text="@string/skip_forward_by"
             android:layout_gravity="center_vertical"
             />
-        <io.github.toyota32k.viewex.library.Viewbox
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            >
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/skip_forward_minus"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:icon="@drawable/ic_minus"
-                />
-        </io.github.toyota32k.viewex.library.Viewbox>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/skip_forward_minus"
+            style="@style/SettingDlgIconButton"
+            app:icon="@drawable/ic_minus"
+            />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/slider_skip_forward"
@@ -220,19 +206,11 @@
             android:stepSize="0.1"
             />
 
-        <io.github.toyota32k.viewex.library.Viewbox
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            >
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/skip_forward_plus"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:icon="@drawable/ic_plus"
-                />
-        </io.github.toyota32k.viewex.library.Viewbox>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/skip_forward_plus"
+            style="@style/SettingDlgIconButton"
+            app:icon="@drawable/ic_plus"
+            />
 
     </LinearLayout>
 
@@ -303,37 +281,76 @@
         android:orientation="horizontal"
         >
         <TextView
-            android:id="@+id/secure_archive_address_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/device_name_title"
+            />
+        <TextView
+            android:id="@+id/device_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/secure_archive_address"
+            android:text=""
+            android:textAlignment="textEnd"
+            android:layout_marginEnd="8dp"
             />
         <com.google.android.material.button.MaterialButton
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
-            android:id="@+id/edit_secure_archive_address_button"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_device_name_button"
             app:icon="@drawable/ic_edit"
             />
     </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         >
         <TextView
-            android:id="@+id/device_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/secure_archive_address"
+            />
+        <TextView
+            android:id="@+id/secure_archive_address_text"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/device_name_title"
+            android:text=""
+            android:textAlignment="textEnd"
+            tools:text="192.168.0.151:6001"
+            android:layout_marginEnd="8dp"
             />
         <com.google.android.material.button.MaterialButton
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
-            android:id="@+id/edit_device_name_button"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_secure_archive_address_button"
+            app:icon="@drawable/ic_edit"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/secure_archive_2nd_address"
+            />
+        <TextView
+            android:id="@+id/secure_archive_2nd_address_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:textAlignment="textEnd"
+            tools:text="192.168.0.151:6001"
+            android:layout_marginEnd="8dp"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_secure_archive_2nd_address_button"
             app:icon="@drawable/ic_edit"
             />
     </LinearLayout>

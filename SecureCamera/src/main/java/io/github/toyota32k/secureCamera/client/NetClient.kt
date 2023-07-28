@@ -9,6 +9,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -25,6 +26,16 @@ object NetClient {
     suspend fun executeAsync(req: Request, canceller: Canceller?=null): Response {
         logger.debug("${req.url}")
         return motherClient.newCall(req).executeAsync(canceller)
+    }
+
+    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().readTimeout(3, TimeUnit.SECONDS).writeTimeout(3, TimeUnit.SECONDS).build()}
+    suspend fun shortCallAsync(req:Request): Response? {
+        return try {
+            shortClient.newCall(req).executeAsync(null)
+        } catch(e:Throwable) {
+            logger.error(e)
+            null
+        }
     }
 
     suspend fun executeAndGetJsonAsync(req: Request): JSONObject {

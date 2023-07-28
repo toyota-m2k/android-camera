@@ -87,15 +87,17 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
         val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
 
-        val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.address)
-        val secureArchiveAddressForDisplay = secureArchiveAddress.map { if(it.isNotEmpty()) it else "(u/a)" }
+        val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.primaryAddress)
+        val secureArchive2ndAddress = MutableStateFlow(Settings.SecureArchive.secondaryAddress)
+        val secureArchiveAddressForDisplay = secureArchiveAddress.map { it.ifEmpty { "(n/a)" } }
+        val secureArchive2ndAddressForDisplay = secureArchive2ndAddress.map { it.ifEmpty { "(n/a)" } }
 
         val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
 
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
         val commandSkipBackward = LiteCommand(this::updateSkipBackwardSpan)
-        val commandEditAddress = LiteUnitCommand(this::editAddress)
+        val commandEditAddress = LiteCommand(this::editAddress)
         val commandDeviceName = LiteUnitCommand(this::editDeviceName)
 
         private fun updateNip(diff:Int) {
@@ -116,11 +118,12 @@ class SettingDialog : UtDialogEx() {
             playerSpanOfSkipBackward.value = max(0.1f, min(30f, v))
         }
 
-        private fun editAddress() {
+        private fun editAddress(n:Int) {
             viewModelScope.launch {
-                val address = AddressDialog.show(secureArchiveAddress.value)
+                val saa = if(n==0) secureArchiveAddress else secureArchive2ndAddress
+                val address = AddressDialog.show(saa.value)
                 if(address!=null) {
-                    secureArchiveAddress.value = address
+                    saa.value = address
                 }
             }
         }
@@ -144,7 +147,8 @@ class SettingDialog : UtDialogEx() {
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
                 Settings.Security.numberOfIncorrectPassword = securityNumberOfIncorrectPassword.value
-                Settings.SecureArchive.address = secureArchiveAddress.value
+                Settings.SecureArchive.primaryAddress = secureArchiveAddress.value
+                Settings.SecureArchive.secondaryAddress = secureArchive2ndAddress.value
                 Settings.SecureArchive.deviceName = deviceName.value
             }
             UtImmortalSimpleTask.run { TcClient.registerOwnerToSecureArchive() }
@@ -189,6 +193,7 @@ class SettingDialog : UtDialogEx() {
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                     .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
                     .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
+                    .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchive2ndAddressForDisplay)
                     .textBinding(controls.deviceName, viewModel.deviceName)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
@@ -196,7 +201,8 @@ class SettingDialog : UtDialogEx() {
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardMinus, -0.1f)
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +0.1f)
                     .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
-                    .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton)
+                    .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton, 0)
+                    .bindCommand(viewModel.commandEditAddress, controls.editSecureArchive2ndAddressButton, 1)
                     .bindCommand(viewModel.commandDeviceName, controls.editDeviceNameButton)
                     .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
                         SettingViewModel.CameraTapAction.TapActionResolver

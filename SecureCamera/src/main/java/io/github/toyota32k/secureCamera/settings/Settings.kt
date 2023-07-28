@@ -1,7 +1,6 @@
 package io.github.toyota32k.secureCamera.settings
 
 import android.app.Application
-import android.content.Context
 import android.os.Build
 import io.github.toyota32k.shared.SharedPreferenceDelegate
 import java.util.UUID
@@ -53,10 +52,20 @@ object Settings {
 
     object SecureArchive {
         var clientId:String by spd.pref("")
-        var address:String by spd.pref("")
+        var primaryAddress:String by spd.pref("")
+        var secondaryAddress:String by spd.pref("")
         var myPort by spd.pref(5001)
         var deviceName by spd.pref(Build.MODEL)
-        val isConfigured:Boolean get() = address.isNotEmpty()
+        val isConfigured:Boolean get() = primaryAddress.isNotEmpty()
+
+        val hosts:Iterator<String> get() = iterator<String> {
+            if(primaryAddress.isNotEmpty()) {
+                yield(primaryAddress)
+            }
+            if(secondaryAddress.isNotEmpty()) {
+                yield(secondaryAddress)
+            }
+        }
     }
 
     fun reset() {
@@ -69,6 +78,6 @@ object Settings {
         Security.clearAllOnPasswordError = Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
         Security.numberOfIncorrectPassword = Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         Security.incorrectCount = 0
-        SecureArchive.address = ""
+        SecureArchive.primaryAddress = ""
     }
 }
