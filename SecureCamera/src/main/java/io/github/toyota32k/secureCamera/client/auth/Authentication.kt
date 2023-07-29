@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera.client.auth
 
+import android.util.Log
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
@@ -170,6 +171,7 @@ object Authentication {
             }
             empty = false
         }
+        activeHostAddress = null
         return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
     }
 
@@ -187,11 +189,13 @@ object Authentication {
             }
             return false
         }
-        return when(authenticate()) {
-            Result.OK -> true
-            Result.NO_HOST -> showMessage("No hosts are registered.")
-            Result.NO_ACTIVE_HOST -> showMessage("No hosts are active.")
-            Result.CANCELLED -> false
+        return logger.chronos(level = Log.INFO) {
+            when(authenticate()) {
+                Result.OK -> true
+                Result.NO_HOST -> showMessage("No hosts are registered.")
+                Result.NO_ACTIVE_HOST -> showMessage("No hosts are active.")
+                Result.CANCELLED -> false
+            }
         }
     }
 }

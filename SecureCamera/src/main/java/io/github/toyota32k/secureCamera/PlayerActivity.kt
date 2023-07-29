@@ -254,6 +254,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
                     if(!item.cloud.isFileInLocal) {
+                        currentSource.value = null
                         viewModelScope.launch {
                             if(Authentication.authenticateAndMessage()) {
                                 currentSource.value = VideoSource(item)
@@ -267,6 +268,7 @@ class PlayerActivity : UtMortalActivity() {
                     currentSource.value = null
                     photoRotation.mutable.value = 0
                     if(!item.cloud.isFileInLocal) {
+                        photoBitmap.mutable.value = null
                         viewModelScope.launch {
                             photoBitmap.mutable.value = TcClient.getPhoto(item)
                         }

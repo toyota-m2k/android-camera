@@ -16,6 +16,7 @@ import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
@@ -32,7 +33,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-class ServerActivity : AppCompatActivity() {
+class ServerActivity : UtMortalActivity() {
     companion object {
         val logger = UtLog("SERVER")
     }
