@@ -43,10 +43,10 @@ class TcServer(val port:Int) : AutoCloseable {
         var authToken: String = generateToken()
         val regRange = Regex("bytes=(?<start>\\d+)(?:-(?<end>\\d+))?");
 
-        private fun videoDownloadProc(route: Route, request: HttpRequest):IHttpResponse {
+        private fun videoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest):IHttpResponse {
             return downloadProcCore(request, "video/mp4")
         }
-        private fun photoDownloadProc(route: Route, request: HttpRequest): IHttpResponse {
+        private fun photoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest): IHttpResponse {
             return downloadProcCore(request, "image/jpeg")
         }
 

@@ -58,8 +58,8 @@ dependencies {
     implementation "com.github.toyota-m2k:android-binding:$m2k_binding_version"
     implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
 
-    implementation "com.google.android.exoplayer:exoplayer-core:$exoplayer_version"
-    implementation "com.google.android.exoplayer:exoplayer-ui:$exoplayer_version"
+    implementation "androidx.media3:media3-exoplayer:1.1.0"
+    implementation "androidx.media3:media3-ui:1.1.0"
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinx_serialization_json"
 
     implementation project(path: ':shared')

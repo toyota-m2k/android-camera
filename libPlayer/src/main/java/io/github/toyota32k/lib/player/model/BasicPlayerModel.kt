@@ -3,17 +3,17 @@ package io.github.toyota32k.lib.player.model
 import android.app.Application
 import android.content.Context
 import android.util.Size
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.PlaybackException
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.SeekParameters
-import com.google.android.exoplayer2.source.MediaSource
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
-import com.google.android.exoplayer2.ui.PlayerNotificationManager
-import com.google.android.exoplayer2.ui.StyledPlayerView
-import com.google.android.exoplayer2.upstream.DefaultDataSource
-import com.google.android.exoplayer2.video.VideoSize
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.ui.PlayerNotificationManager
+import androidx.media3.ui.PlayerView
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.player.lib.R
 import io.github.toyota32k.shared.UtManualIncarnateResetableValue
@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
+@androidx.media3.common.util.UnstableApi
 open class BasicPlayerModel(
     context: Context,
     coroutineScope: CoroutineScope
@@ -444,15 +445,15 @@ open class BasicPlayerModel(
 
 
     /**
-     * View （StyledPlayerView）に Playerを関連付ける
+     * View （PlayerView）に Playerを関連付ける
      */
-    override fun associatePlayerView(playerView: StyledPlayerView) {
+    override fun associatePlayerView(playerView: PlayerView) {
         withPlayer { player ->
             playerView.player = player
         }
     }
 
-    override fun dissociatePlayerView(playerView: StyledPlayerView) {
+    override fun dissociatePlayerView(playerView: PlayerView) {
         playerView.player = null
     }
 

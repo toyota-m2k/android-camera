@@ -14,8 +14,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.bindit.Binder
-import io.github.toyota32k.bindit.headlessNonnullBinding
+import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.gesture.CameraGestureManager

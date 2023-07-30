@@ -2,16 +2,13 @@ package io.github.toyota32k.monitor
 
 import android.os.Bundle
 import android.view.View
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
-import io.github.toyota32k.bindit.IIDValueResolver
-import io.github.toyota32k.bindit.headlessBinding
-import io.github.toyota32k.bindit.materialRadioButtonGroupBinding
-import io.github.toyota32k.dialog.UtDialog
+import io.github.toyota32k.binder.IIDValueResolver
+import io.github.toyota32k.binder.headlessBinding
+import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.*
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class SettingDialog : UtDialogEx() {
@@ -37,7 +34,7 @@ class SettingDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
     }
 
-    val cameraSelectorResolver:IIDValueResolver<Boolean> = object:IIDValueResolver<Boolean> {
+    val cameraSelectorResolver: IIDValueResolver<Boolean> = object:IIDValueResolver<Boolean> {
         override fun id2value(id: Int): Boolean? {
             return when(id) {
                 R.id.button_front -> true

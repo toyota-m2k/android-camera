@@ -707,7 +707,7 @@ class PlayerActivity : UtMortalActivity() {
         viewModel.playerControllerModel.playerModel.killPlayer()
         controls.videoViewer.dissociatePlayer()
         val name = editorActivityBroker.invoke(item.name)
-        (getActivity() as? PlayerActivity)?.let { activity ->
+        (getActivity() as? PlayerActivity)?.let { _ ->
             ensureSelectItem(item.name, name != null)
         }
     }

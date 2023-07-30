@@ -2,8 +2,7 @@ package io.github.toyota32k.lib.player.model
 
 import android.app.Application
 import android.util.Size
-import com.google.android.exoplayer2.ui.StyledPlayerView
-import com.google.android.exoplayer2.video.VideoSize
+import androidx.media3.ui.PlayerView
 import io.github.toyota32k.binder.command.IUnitCommand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +17,8 @@ interface IPlayerModel : AutoCloseable {
     fun seekRelative(seek: Long)
     fun seekTo(seek:Long)
 
-    fun associatePlayerView(playerView: StyledPlayerView)
-    fun dissociatePlayerView(playerView: StyledPlayerView)
+    fun associatePlayerView(playerView: PlayerView)
+    fun dissociatePlayerView(playerView: PlayerView)
 //    fun onRootViewSizeChanged(size: Size)
     fun onPlaybackCompleted()
 
