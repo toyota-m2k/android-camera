@@ -4,27 +4,34 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="@color/deep_purple_900"
-        android:pathData="M0,0h108v108h-108z" />
     <group
-        android:scaleX="3"
-        android:scaleY="3"
-        android:translateX="18"
-        android:translateY="18"
+        android:scaleX="2.25"
+        android:scaleY="2.25"
+        android:translateX="27"
+        android:translateY="27"
         >
         <path
             android:fillColor="@color/blue_gray_50"
             android:pathData="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/>
     </group>
     <group
-        android:scaleY="1.6"
-        android:scaleX="1.6"
-        android:translateX="60"
-        android:translateY="50"
+        android:scaleX="1.8"
+        android:scaleY="1.8"
+        android:translateX="56"
+        android:translateY="43"
         >
         <path
-            android:fillColor="@color/light_green_a700"
+            android:fillColor="@color/deep_purple_300"
+            android:pathData="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"/>
+    </group>
+    <group
+        android:scaleX="1.4"
+        android:scaleY="1.4"
+        android:translateX="60.7"
+        android:translateY="48"
+        >
+        <path
+            android:fillColor="@color/teal_a400"
             android:pathData="M12,12H19C18.47,16.11 15.72,19.78 12,20.92V12H5V6.3L12,3.19M12,1L3,5V11C3,16.55 6.84,21.73 12,23C17.16,21.73 21,16.55 21,11V5L12,1Z"/>
 
     </group>

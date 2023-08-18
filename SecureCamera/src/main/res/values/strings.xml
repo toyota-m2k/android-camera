@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SecureCamera</string>
+    <string name="app_name">Private Camera</string>
     <string name="desc_expand_panel">Expand Panel</string>
     <string name="desc_collapse_panel">Collapse Panel</string>
     <string name="camera">Camera</string>
