@@ -190,6 +190,7 @@ object TcClient {
             .setType(MultipartBody.FORM)
             .addFormDataPart("OwnerId", Settings.SecureArchive.clientId)
             .addFormDataPart("FileDate", "${item.date}")
+            .addFormDataPart("CreationDate", "${item.creationDate}")
             .addFormDataPart("OriginalId", "${item.id}")
             .addFormDataPart("MetaInfo", "")
             .addFormDataPart("File", item.name, body)

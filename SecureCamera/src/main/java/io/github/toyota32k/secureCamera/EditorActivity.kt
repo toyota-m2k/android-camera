@@ -182,9 +182,10 @@ class EditorActivity : UtMortalActivity() {
         gestureInterpreter.setup(this, manipulationAgent.parentView) {
             onScale(manipulationAgent::onScale)
             onScroll(manipulationAgent::onScroll)
-            onTap {
-                viewModel.playerModel.togglePlay()
-            }
+            // タップによる再生開始・停止は誤操作の原因になって逆に不便だったのでやめる。
+//            onTap {
+//                viewModel.playerModel.togglePlay()
+//            }
             onDoubleTap {
                 manipulationAgent.resetScrollAndScale()
             }
