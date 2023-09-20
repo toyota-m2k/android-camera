@@ -13,6 +13,7 @@ import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.utils.PackageUtil
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.launch
 
@@ -31,6 +32,7 @@ class MainActivity : UtMortalActivity() {
 
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
+        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
 //        setContentView(R.layout.activity_main)
 
         binder.owner(this)
