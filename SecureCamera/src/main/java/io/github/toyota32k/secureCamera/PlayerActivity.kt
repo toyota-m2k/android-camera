@@ -61,8 +61,10 @@ import io.github.toyota32k.secureCamera.db.MetaDB.toItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
+import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.*
+import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.shared.gesture.Orientation
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
@@ -164,6 +166,57 @@ class PlayerActivity : UtMortalActivity() {
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
         val ensureVisibleCommand = LiteUnitCommand()
+        val playlistSettingCommand = LiteUnitCommand {
+            viewModelScope.launch {
+                data class MinMax(var min:DPDate,var max:DPDate)
+                val list = MetaDB.listEx(ListMode.ALL)
+                val mm = list.fold(MinMax(DPDate.InvalidMax,DPDate.InvalidMin)) {acc, item->
+                    val dp = item.dpDate
+                    if(dp<acc.min) {
+                        acc.min = dp
+                    }
+                    if(dp>acc.max) {
+                        acc.max = dp
+                    }
+                    acc
+                }
+                if(PlayListSettingDialog.show(mm.min, mm.max)) {
+                    playlist.onSettingChanged()
+                }
+            }
+        }
+
+        class DateRange {
+            private var minDate:DPDate = DPDate.Invalid
+            private var maxDate:DPDate = DPDate.Invalid
+            init {
+                updateBySetting()
+            }
+            fun updateBySetting() {
+                val min = if(Settings.PlayListSetting.enableStartDate) Settings.PlayListSetting.startDate else DPDate.Invalid
+                val max = if(Settings.PlayListSetting.enableEndDate) Settings.PlayListSetting.endDate else DPDate.Invalid
+                setRange(min,max)
+            }
+            private fun setRange(min:DPDate, max:DPDate) {
+                if (min.isValid && max.isValid && min > max) {
+                    minDate = max
+                    maxDate = min
+                } else {
+                    minDate = min
+                    maxDate = max
+                }
+            }
+
+            fun contained(date:DPDate):Boolean {
+                if(minDate.isValid) {
+                    if(date<minDate) return false
+                }
+                if(maxDate.isValid) {
+                    if(date>maxDate) return false
+                }
+                return true
+            }
+        }
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
             private val file: File = item.file
@@ -182,6 +235,10 @@ class PlayerActivity : UtMortalActivity() {
                 = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
+            private var sortOrder:Int = 1
+            private fun updateSortOrderBySettings() {
+                sortOrder = if(Settings.PlayListSetting.sortOrder) -1 else 1
+            }
             val collection = ObservableList<ItemEx>()
             val sorter = UtSorter(
                 collection,
@@ -195,7 +252,7 @@ class PlayerActivity : UtMortalActivity() {
 //                TpLib.logger.debug("compare: $ta with $tb = ${ta-tb} (${(ta-tb).toInt()}")
 //                ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt()
                 val d = ta - tb
-                if(d<0) -1 else if(d>0) 1 else 0
+                sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
             }
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
@@ -215,7 +272,20 @@ class PlayerActivity : UtMortalActivity() {
 //            val commandPrev = LiteUnitCommand(::previous)
             val photoRotation : StateFlow<Int> = MutableStateFlow(0)
 
+            var dateRange = DateRange()
+            private fun List<ItemEx>.filterByDateRange():List<ItemEx> {
+                return this.filter { dateRange.contained(it.dpDate) }
+            }
+
+            suspend fun onSettingChanged() {
+                updateSortOrderBySettings()
+                dateRange.updateBySetting()
+                refreshList()
+            }
+
+
             init {
+                updateSortOrderBySettings()
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
             fun select(item_:ItemEx?, force:Boolean=true) {
@@ -253,7 +323,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoRotation.mutable.value = 0
                     photoBitmap.mutable.value = null
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    if(!item.cloud.isFileInLocal) {
+                    if(item.cloud.loadFromCloud) {
                         currentSource.value = null
                         viewModelScope.launch {
                             if(Authentication.authenticateAndMessage()) {
@@ -267,7 +337,7 @@ class PlayerActivity : UtMortalActivity() {
                     photoSelection = item
                     currentSource.value = null
                     photoRotation.mutable.value = 0
-                    if(!item.cloud.isFileInLocal) {
+                    if(item.cloud.loadFromCloud) {
                         photoBitmap.mutable.value = null
                         viewModelScope.launch {
                             photoBitmap.mutable.value = TcClient.getPhoto(item)
@@ -317,7 +387,7 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private suspend fun setListMode(mode:ListMode) {
-                val newList = MetaDB.listEx(mode)
+                val newList = MetaDB.listEx(mode).filterByDateRange()
                 setFileList(newList, mode)
             }
 
@@ -513,6 +583,7 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
+            .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
             }
@@ -587,7 +658,7 @@ class PlayerActivity : UtMortalActivity() {
                         startEditing(item)
                     }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
-                        logger.debug("${item.name} isSelected = $hit")
+//                        logger.debug("${item.name} isSelected = $hit")
                         views.background = if(hit) selectedColor else normalColor
 
 //                        iconView.isSelected = hit

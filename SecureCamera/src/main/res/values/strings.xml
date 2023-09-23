@@ -62,4 +62,12 @@
     <string name="restore_title">Restore</string>
     <string name="purge_title">Purge</string>
     <string name="purge">Purge</string>
+    <string name="start_date">Start Date</string>
+    <string name="end_date">End Date</string>
+    <string name="order_by_date">Order By Date</string>
+    <string name="order_by_date_asc">Oldest first</string>
+    <string name="order_by_date_desc">Newest first</string>
+    <string name="from">From</string>
+    <string name="cloud_test_mode">Cloud Test Mode</string>
+    <string name="playlist_setting_title">Settings of Player</string>
 </resources>
