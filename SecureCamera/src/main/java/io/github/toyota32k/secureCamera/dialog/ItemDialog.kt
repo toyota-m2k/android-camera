@@ -88,7 +88,7 @@ class ItemDialog : UtDialogEx() {
         controls = DialogItemBinding.inflate(inflater.layoutInflater)
         binder
             .textBinding(controls.itemName, ConstantLiveData(viewModel.item.nameForDisplay))
-            .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo && viewModel.item.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo && viewModel.item.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.backupButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Local), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.removeLocalButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Uploaded), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Cloud), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
