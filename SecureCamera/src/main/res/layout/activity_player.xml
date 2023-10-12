@@ -63,6 +63,7 @@
             android:layout_gravity="center_vertical"
             android:src="@drawable/ic_sort"
             android:background="?attr/selectableItemBackground"
+            android:tint="?attr/colorPrimaryVariant"
             />
         </LinearLayout>
         <androidx.recyclerview.widget.RecyclerView
