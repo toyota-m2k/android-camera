@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    >
+
+    <TextView
+        android:id="@+id/label_order_by_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/order_by_date"
+        />
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/sort_order_selector"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        android:gravity="center_horizontal"
+        >
+        <Button
+            android:id="@+id/radio_asc"
+            android:text="@string/order_by_date_asc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="?attr/materialButtonOutlinedStyle"
+            />
+        <Button
+            android:id="@+id/radio_desc"
+            android:text="@string/order_by_date_desc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="?attr/materialButtonOutlinedStyle"
+            />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <CheckBox
+        android:id="@+id/check_start_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/start_date"
+        />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="-30dp"
+        >
+        <TextView
+            android:id="@+id/start_date_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            tools:text="2023/08/01"
+            android:layout_weight="1"
+            android:layout_gravity="bottom"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_start_date_button"
+            app:icon="@drawable/ic_edit"
+            />
+
+    </LinearLayout>
+
+    <DatePicker
+        android:id="@+id/start_date_picker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:datePickerMode="calendar"
+        android:visibility="gone"
+        />
+
+    <CheckBox
+        android:id="@+id/check_end_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/end_date"
+        android:layout_marginTop="12dp"
+        />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="-30dp"
+        >
+        <TextView
+            android:id="@+id/end_date_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            tools:text="2023/09/30"
+            android:layout_weight="1"
+            android:layout_gravity="bottom"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_end_date_button"
+            app:icon="@drawable/ic_edit"
+            />
+
+    </LinearLayout>
+
+    <DatePicker
+        android:id="@+id/end_date_picker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:datePickerMode="calendar"
+        android:visibility="gone"
+        />
+
+    <CheckBox
+        android:id="@+id/check_cloud_test_mode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/cloud_test_mode"
+        android:layout_marginTop="12dp"
+        />
+
+</LinearLayout>

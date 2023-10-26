@@ -12,20 +12,27 @@
 
     <LinearLayout
         android:id="@+id/list_panel"
-        android:layout_width="300dp"
+        android:layout_width="320dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:layout_marginEnd="1dp"
         android:background="?attr/colorSurface"
         >
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="8dp"
+            >
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/list_mode"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             app:singleSelection="true"
             app:selectionRequired="true"
-            android:gravity="center_horizontal"
+            android:layout_weight="1"
             >
             <Button
                 android:id="@+id/radio_all"
@@ -49,6 +56,16 @@
                 style="?attr/materialButtonOutlinedStyle"
                 />
         </com.google.android.material.button.MaterialButtonToggleGroup>
+        <ImageButton
+            android:id="@+id/list_setting_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            android:src="@drawable/ic_sort"
+            android:background="?attr/selectableItemBackground"
+            android:tint="?attr/colorPrimaryVariant"
+            />
+        </LinearLayout>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/list_view"
             android:layout_width="match_parent"

@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.settings
 
 import android.app.Application
 import android.os.Build
+import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.shared.SharedPreferenceDelegate
 import java.util.UUID
 
@@ -79,5 +80,28 @@ object Settings {
         Security.numberOfIncorrectPassword = Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         Security.incorrectCount = 0
         SecureArchive.primaryAddress = ""
+    }
+
+    object PlayListSetting {
+        var sortOrder by spd.pref(false)    // 日付昇順がデフォルト
+        var enableStartDate by spd.pref(false)
+        var enableEndDate by spd.pref(false)
+        var startDateInt by spd.pref(0)
+        var endDateInt by spd.pref(0)
+        var cloudTestMode by spd.pref(false)
+
+        var startDate:DPDate
+            get() = DPDate.fromInt(startDateInt)
+            set(v) { startDateInt = v.intValue }
+        var endDate:DPDate
+            get() = DPDate.fromInt(endDateInt)
+            set(v) { endDateInt = v.intValue }
+
+        fun reset() {
+            sortOrder = false
+            enableStartDate = false
+            enableEndDate = false
+            cloudTestMode = false
+        }
     }
 }

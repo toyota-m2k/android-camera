@@ -13,6 +13,7 @@ import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
+import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,12 +57,19 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         filename2date(name)?.time ?: 0L
     }
 
+    val dpDate: DPDate by lazy {
+//        val dp = filename2dpDate(name) ?: DPDate.Invalid
+//        MetaDB.logger.debug("$name - $dp")
+//        dp
+        filename2dpDate(name) ?: DPDate.Invalid
+    }
+
     val uri:String
         get() {
-            return if(cloud.isFileInLocal) {
-                file.toUri().toString()
-            } else {
+            return if(cloud.loadFromCloud) {
                 "http://${Authentication.activeHostAddress}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+            } else {
+                file.toUri().toString()
             }
         }
 
@@ -74,6 +82,23 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             }
             return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
         }
+
+        // "yyyy.MM.dd-HH:mm:ss"
+        private val regex4dpDate = Regex("""(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})""")
+        fun filename2dpDate(filename:String): DPDate? {
+            val dateString = when {
+                filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
+                filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
+                else -> return null
+            }
+            val matchResult = regex4dpDate.matchEntire(dateString)?: return null
+            return try {
+                DPDate(matchResult.groupValues[1].toInt(), matchResult.groupValues[2].toInt()-1, matchResult.groupValues[3].toInt())
+            } catch (_:Throwable) {
+                null
+            }
+        }
+
 
         fun creationDate(item:MetaData): Long {
             return filename2date(item.name)?.time ?: 0L
