@@ -127,7 +127,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                     val file = newVideoFile()
                     videoCapture.takeVideoInFile(file) {
                         CoroutineScope(Dispatchers.IO).launch {
+                            delay(1000)
+                            val len = file.length()
                             MetaDB.register(file.name)
+                            if(len != file.length()) {
+                                MetaDB.register(file.name)
+                            }
                         }
                     }
                 }

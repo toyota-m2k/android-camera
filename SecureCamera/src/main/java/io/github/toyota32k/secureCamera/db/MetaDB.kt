@@ -15,6 +15,8 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.utAssert
+import io.github.toyota32k.utils.utTenderAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -266,16 +268,34 @@ object MetaDB {
     // region CREATION
 
     private suspend fun makeAll() {
+        val isNeedUpdate = {m:MetaData->
+            when {
+                m.isVideo && m.duration == 0L->true
+                CloudStatus.valueOf(m.cloud).isFileInLocal && m.size != m.file.length() -> {
+                    logger.info("length mismatch: ${m.name} db=${m.size} file=${m.file.length()}")
+                    true
+                }
+                else -> false
+            }
+        }
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
             application.fileList()?.forEach {
                 logger.debug(it)
                 val m = meta.getDataOf(it)
-                if (m == null||(m.isVideo&&m.duration==0L)) {
+                if(m==null) {
+                    // DB未登録のデータを登録
                     val mn = metaDataFromName(0, it, allowRetry = 0)
                     if (mn != null) {
                         meta.insert(mn)
                     }
+                } else if (isNeedUpdate(m)) {
+                    // サイズが違う、durationが未登録のデータがあれば更新
+                    val mn = metaDataFromName(m.id, m.name, m.group, m.mark, m.rating, m.cloud, allowRetry = 0)
+                    if (mn != null) {
+                        meta.update(mn)
+                    }
+
                 }
             }
         }
@@ -413,6 +433,10 @@ object MetaDB {
             withContext(Dispatchers.IO) {
                 db.metaDataTable().update(newData)
                 DBChange.update(data.id)
+//                val afterData = db.metaDataTable().getDataOf(data.name)
+//                if(data.id != newData.id || data.id != afterData?.id) {
+//                    logger.error("ID Mismatch")
+//                }
             }
         }
     }

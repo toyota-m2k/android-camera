@@ -50,7 +50,7 @@ open class SharedPreferenceDelegate(application: Context) {
                 is Boolean -> putBoolean(key, value)
                 is Set<*> -> putStringSet(key, value.map { it as String }.toSet())
                 null -> remove(key)
-                else -> throw IllegalArgumentException("unsupported type ${value!!::class.java}}")
+                else -> throw IllegalArgumentException("unsupported type $value")
             }
         }
     }

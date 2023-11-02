@@ -362,7 +362,7 @@ class UtGestureInterpreter(
         }
 
         override fun onScroll(
-            e1: MotionEvent,
+            e1: MotionEvent?,
             e2: MotionEvent,
             distanceX: Float,
             distanceY: Float
@@ -372,7 +372,7 @@ class UtGestureInterpreter(
         }
 
         override fun onFling(
-            e1: MotionEvent,
+            e1: MotionEvent?,
             e2: MotionEvent,
             velocityX: Float,
             velocityY: Float
@@ -383,8 +383,8 @@ class UtGestureInterpreter(
             logger.debug("$e2")
 
             return try {
-                val diffY = e2.y - e1.y
-                val diffX = e2.x - e1.x
+                val diffY = e2.y - (e1?.y ?: e2.y)
+                val diffX = e2.x - (e1?.x ?: e2.x)
                 if (Math.abs(diffX) > Math.abs(diffY)) {
                     if (hasFlickHorizontalListeners && Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                         if (diffX > 0) {

@@ -110,10 +110,9 @@ class ChapterView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     private val hideChapterViewIfEmpty by lazy { (model as? IChapterHandler)?.hideChapterViewIfEmpty == true }
 
-    override fun onDraw(canvas: Canvas?) {
+    override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        if(canvas==null) return
         if(mWidth==0||mHeight==0) return
         if(!this::model.isInitialized) return
         if(duration<=0L) return

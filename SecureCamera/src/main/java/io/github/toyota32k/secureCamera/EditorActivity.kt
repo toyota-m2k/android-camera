@@ -9,6 +9,7 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
+import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +35,7 @@ import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
+import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
@@ -233,7 +235,8 @@ class EditorActivity : UtMortalActivity() {
         val targetItem = viewModel.targetItem
         if(!targetItem.cloud.isFileInLocal) return
         val srcFile = targetItem.file
-        val dstFile = File(application.cacheDir ?: return, "trimming")
+        val trimFile = File(application.cacheDir ?: return, "trimming")
+        val optFile = File(application.cacheDir ?: return, "optimized")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
 
         UtImmortalSimpleTask.run("trimming") {
@@ -242,7 +245,7 @@ class EditorActivity : UtMortalActivity() {
             val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
             val converter = Converter.Factory()
                 .input(srcFile)
-                .output(dstFile)
+                .output(trimFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
                 .videoStrategy(PresetVideoStrategies.HEVC1080Profile)
                 .rotate(rotation)
@@ -256,6 +259,17 @@ class EditorActivity : UtMortalActivity() {
             vm.cancelCommand.bindForever { awaiter.cancel() }
             CoroutineScope(Dispatchers.IO).launch {
                 val r = awaiter.await()
+                vm.message.value = "Optimizing Now..."
+                val dstFile:File = if(FastStart.process(trimFile.toUri(), optFile.toUri(), applicationContext) {
+                    vm.progress.value = it.percentage
+                    vm.progressText.value = it.format()
+                }) {
+                    safeDelete(trimFile)
+                    optFile
+                } else {
+                    safeDelete(optFile)
+                    trimFile
+                }
                 try {
                     val srcLen = srcFile.length()
                     val dstLen = dstFile.length()
@@ -291,7 +305,7 @@ class EditorActivity : UtMortalActivity() {
                         true
                     }
                 } finally {
-                    safeDelete(dstFile)
+                    safeDelete(trimFile)
                 }
 
                 withContext(Dispatchers.Main) { vm.closeCommand.invoke(r.succeeded) }
