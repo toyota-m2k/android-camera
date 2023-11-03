@@ -19,7 +19,8 @@
     <string name="msg_confirm">Are you OK?</string>
     <string name="security_title">Security</string>
     <string name="enable_pwd_label">Protection by Password</string>
-    <string name="password">Password.</string>
+    <string name="password">Password</string>
+    <string name="authentication">Authentication</string>
     <string name="password_hint">Input Your Password.</string>
     <string name="password_hint_new">Input New Password.</string>
     <string name="password_hint_confirm">Input again to confirm.</string>
