@@ -51,6 +51,8 @@ class MainActivity : UtMortalActivity() {
         lifecycleScope.launch {
             if(PasswordDialog.checkPassword()) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
+            } else {
+                logger.error("Incorrect Password")
             }
         }
     }

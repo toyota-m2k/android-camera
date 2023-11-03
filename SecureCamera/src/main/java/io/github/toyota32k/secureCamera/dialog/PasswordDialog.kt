@@ -5,6 +5,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.ReliableUnitCommand
@@ -22,6 +23,8 @@ import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class PasswordDialog : UtDialogEx() {
     class PasswordViewModel : ViewModel(), IUtImmortalTaskMutableContextSource {
@@ -38,7 +41,7 @@ class PasswordDialog : UtDialogEx() {
         val password = MutableStateFlow("")
         val passwordConf = MutableStateFlow("")
         val message = MutableStateFlow("")
-        val completeCommand = ReliableUnitCommand()
+//        val completeCommand = ReliableUnitCommand()
 
         enum class CheckPasswordResult {
             OK,
@@ -66,14 +69,18 @@ class PasswordDialog : UtDialogEx() {
             return HashGenerator.hash(password.value)
         }
 
-        fun authenticate() {
-            UtImmortalSimpleTask.run("remote execute") {
-                if(password.value.isEmpty()) return@run false
-                if(Authentication.authWithPassword(password.value)) {
-                    completeCommand.invoke()
-                    true
-                } else false
-            }
+//        fun authenticate() {
+//            UtImmortalSimpleTask.run("remote execute") {
+//                if(password.value.isEmpty()) return@run false
+//                if(Authentication.authWithPassword(password.value)) {
+//                    completeCommand.invoke()
+//                    true
+//                } else false
+//            }
+//        }
+        suspend fun authenticate():Boolean {
+            if(password.value.isEmpty()) return false
+            return Authentication.authWithPassword(password.value)
         }
 
         companion object {
@@ -105,7 +112,7 @@ class PasswordDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
         setLimitWidth(400)
         heightOption = HeightOption.COMPACT
-        title = requireActivity().getString(R.string.password)
+        title = requireActivity().getString(if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) R.string.authentication else R.string.password)
         enableFocusManagement()
             .setInitialFocus(R.id.password)
             .register(R.id.password)
@@ -136,33 +143,50 @@ class PasswordDialog : UtDialogEx() {
                 .dialogRightButtonEnable(viewModel.ready)
                 .bindCommand(commandDone, controls.password)
                 .bindCommand(commandDone, controls.passwordConfirm)
-                .bindCommand(viewModel.completeCommand, ::onPositive)
+//                .bindCommand(viewModel.completeCommand, ::onPositive)
         }
     }
 
+    private val busy = AtomicBoolean(false)
     private fun action() {
-        if(viewModel.password.value.isEmpty()) {
-            controls.password.requestFocus()
+        if(busy.getAndSet(true)) {
             return
         }
-        when(viewModel.mode) {
-            PasswordViewModel.Mode.NEW_PASSWORD-> {
-                if(!viewModel.ready.value) {
-                    controls.passwordConfirm.requestFocus()
-                    return
+        lifecycleScope.launch {
+            try {
+                if (viewModel.password.value.isEmpty()) {
+                    controls.password.requestFocus()
+                    return@launch
                 }
-            }
-            PasswordViewModel.Mode.CHECK_PASSWORD-> {
-                if(!checkPassword()) {
-                    return
+                when (viewModel.mode) {
+                    PasswordViewModel.Mode.NEW_PASSWORD -> {
+                        if (!viewModel.ready.value) {
+                            controls.passwordConfirm.requestFocus()
+                            return@launch
+                        }
+                    }
+
+                    PasswordViewModel.Mode.CHECK_PASSWORD -> {
+                        if (!checkPassword()) {
+                            return@launch
+                        }
+                    }
+
+                    PasswordViewModel.Mode.SA_AUTH -> {
+                        if(!viewModel.authenticate()) {
+                            return@launch
+                        }
+                    }
                 }
+            } finally {
+                busy.set(false)
             }
-            PasswordViewModel.Mode.SA_AUTH-> {
-                viewModel.authenticate()
-                return
-            }
+            super.onPositive()
         }
-        onPositive()
+    }
+
+    override fun onPositive() {
+        action()
     }
 
     private fun checkPassword():Boolean {
