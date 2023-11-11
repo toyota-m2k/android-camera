@@ -70,8 +70,9 @@ class TcCameraManager() {
 
     // region QualitySelector
 
-    fun supportedQualitySelectorForCamera(cameraInfo:CameraInfo?):List<Quality> {
-        return QualitySelector.getSupportedQualities(cameraInfo ?: return emptyList() )
+    fun supportedQualitySelectorForCamera(cameraInfo:CameraInfo?, dr:DynamicRange=DynamicRange.SDR):List<Quality> {
+//        return QualitySelector.getSupportedQualities(cameraInfo ?: return emptyList() )
+        return Recorder.getVideoCapabilities(cameraInfo!!).getSupportedQualities(dr)
     }
     fun unionList():List<Quality> {
         val f = supportedQualitySelectorForCamera(getCameraInfo(true))
