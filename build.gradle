@@ -16,16 +16,16 @@ buildscript {
     // Utilities > Binding > Dialog の依存関係があるので、
     // たとえば、BindingをLOCALにするときはDialogもLOCALにする必要がある。
 
-    ext.m2k_utilities_version = "1.0.5"
-    ext.m2k_binding_version = "1.0.5"
-    ext.m2k_android_dialog_version = "3.6.5"
+    ext.m2k_utilities_version = "1.0.6"
+    ext.m2k_binding_version = "1.0.6"
+    ext.m2k_android_dialog_version = "3.6.6"
 
 //    ext.m2k_utilities_version = "LOCAL"
 //    ext.m2k_binding_version = "LOCAL"
 //    ext.m2k_android_dialog_version = "LOCAL"
 
     ext.m2k_android_server_version = "1.0.0"
-    ext.m2k_viewex_version = "1.0.2"
+    ext.m2k_viewex_version = "1.0.3"
 
     dependencies {
 //        classpath 'com.google.android.gms:oss-licenses-plugin:0.10.6'
