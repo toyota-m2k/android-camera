@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.core.net.toUri
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
@@ -15,8 +17,6 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.utAssert
-import io.github.toyota32k.utils.utTenderAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -113,17 +113,34 @@ object MetaDB {
     lateinit var application:Application
     val logger = UtLog("DB", null, MetaDB::class.java)
 
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            //カラム追加
+            db.execSQL("alter table t_meta add attr_date INTEGER")
+        }
+    }
+
+
     fun initialize(context: Context) {
         if(!this::db.isInitialized) {
             application = context.applicationContext as Application
 
             db = Room.databaseBuilder(this.application, Database::class.java, "meta.db")
-//                .addMigrations(migration1_2)
+                .addMigrations(MIGRATION_1_2)
                 .build()
             CoroutineScope(Dispatchers.IO).launch {
                 val s = db.kvTable().getAt("INIT")
                 if (s == null) {
                     db.kvTable().insert(KeyValueEntry("INIT", "1"))
+                } else if(s.value.toInt()==1) {
+                    db.kvTable().update(KeyValueEntry("INIT", "2"))
+                    val tbl = db.metaDataTable()
+                    val now = Date().time
+                    listEx(PlayerActivity.ListMode.ALL).forEach {
+                        if(it.data.rating!=0 || it.data.mark!=0 || it.data.group!=0 || !it.chapterList.isNullOrEmpty()) {
+                            tbl.update(MetaData.modifiedEntry(it.data, attr_date = now))
+                        }
+                    }
                 }
                 makeAll()
                 deleteTestFile()
@@ -209,7 +226,16 @@ object MetaDB {
 
 //    }
 
-    private suspend fun metaDataFromName(id:Int, name:String, group: Int=0, mark:Int=0, rating:Int=0, cloud: Int=CloudStatus.Local.v, allowRetry:Int=0):MetaData? {
+    private suspend fun metaDataFromName(
+        org:MetaData?,
+        name:String,
+//        group: Int=org?.group?:0,
+//        mark:Int=org?.mark?:0,
+//        rating:Int=org?.rating?:0,
+//        cloud: Int=org?.cloud?:CloudStatus.Local.v,
+        allowRetry:Int=0,
+        updateAttrDate:Boolean=false
+        ):MetaData? {
         return withContext(Dispatchers.IO) {
             val type = filename2type(name) ?: return@withContext null
             val file = File(application.filesDir, name)
@@ -218,7 +244,14 @@ object MetaDB {
             val duration = if (type == 1) {
                 VideoUtil.getDuration(file, allowRetry)
             } else 0L
-            MetaData(id, name, group, mark, type, date, size, duration, rating, cloud)
+            val attrDate = if (updateAttrDate) Date().time else org?.attr_date ?: 0L
+            if(org==null) {
+                // 新規
+                MetaData.newEntry(name, type, date, size, duration)
+            } else {
+                // 更新
+                MetaData.modifiedEntry(org, type = type, date = date, size = size, duration = duration, attr_date = attrDate)
+            }
         }
     }
 
@@ -280,18 +313,18 @@ object MetaDB {
         }
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
-            application.fileList()?.forEach {
-                logger.debug(it)
-                val m = meta.getDataOf(it)
+            application.fileList()?.forEach {filename->
+                logger.debug(filename)
+                val m = meta.getDataOf(filename)
                 if(m==null) {
                     // DB未登録のデータを登録
-                    val mn = metaDataFromName(0, it, allowRetry = 0)
+                    val mn = metaDataFromName(null, filename, allowRetry = 0)
                     if (mn != null) {
                         meta.insert(mn)
                     }
                 } else if (isNeedUpdate(m)) {
                     // サイズが違う、durationが未登録のデータがあれば更新
-                    val mn = metaDataFromName(m.id, m.name, m.group, m.mark, m.rating, m.cloud, allowRetry = 0)
+                    val mn = metaDataFromName(m, m.name, allowRetry = 0)
                     if (mn != null) {
                         meta.update(mn)
                     }
@@ -308,7 +341,7 @@ object MetaDB {
                 updateFile(exist, null)
                 exist
             } else {
-                metaDataFromName(0, name, 0, 0, 0, allowRetry = 10)?.apply {
+                metaDataFromName(null, name, allowRetry = 10)?.apply {
                     db.metaDataTable().insert(this)
                 }
                 itemOf(name)?.apply {
@@ -381,7 +414,7 @@ object MetaDB {
     private suspend fun updateMarkRating(data:MetaData, mark:Mark?,rating: Rating?):MetaData {
         if(mark==null && rating==null) return data
         return withContext(Dispatchers.IO) {
-            MetaData(data.id, data.name, data.group, mark?.v?:data.mark, data.type, data.date, data.size, data.duration,rating?.v?:data.rating, data.cloud).apply {
+            MetaData.modifiedEntry(data, mark =mark?.v?:data.mark, rating = rating?.v?:data.rating, attr_date = Date().time).apply {
                 db.metaDataTable().update(this)
                 DBChange.update(data.id)
             }
@@ -426,10 +459,12 @@ object MetaDB {
     }
 
     suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
+        var updateAttr = false
         if(chapterList!=null) {
             setChaptersFor(data, chapterList)
+            updateAttr = true
         }
-        return metaDataFromName(data.id, data.name, 0, data.mark, data.rating,  allowRetry = 10)!!.also { newData ->
+        return metaDataFromName(data, data.name, allowRetry = 10, updateAttrDate = updateAttr)!!.also { newData ->
             withContext(Dispatchers.IO) {
                 db.metaDataTable().update(newData)
                 DBChange.update(data.id)

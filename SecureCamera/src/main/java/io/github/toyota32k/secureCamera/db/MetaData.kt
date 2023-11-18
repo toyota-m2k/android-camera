@@ -1,10 +1,8 @@
 package io.github.toyota32k.secureCamera.db
 
-import android.content.Context
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Entity
-import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -32,7 +30,36 @@ data class MetaData(
     val cloud:Int = 0,      // 0: Local
     val flag: Int = 0,
     val ext: String? = null,
+    val attr_date: Long = 0,
 ) {
+    companion object {
+        fun newEntry(
+            name:String,
+            type:Int,      // 0:Image / 1:Video
+            date:Long,
+            size:Long,
+            duration:Long,
+        ): MetaData = MetaData(0, name, 0,0,type, date, size,duration,0,0,0,null,0)
+
+        fun modifiedEntry(
+            src:MetaData,
+            id:Int = src.id,
+            name:String = src.name,
+            group:Int = src.group,      // groupId
+            mark:Int = src.mark,
+            type:Int = src.type,      // 0:Image / 1:Video
+            date:Long = src.date,
+            size:Long = src.size,
+            duration:Long = src.duration,
+            rating:Int = src.rating,
+            cloud:Int = src.cloud,      // 0: Local
+            flag: Int = src.flag,
+            ext: String? = src.ext,
+            attr_date: Long = src.attr_date,
+        ):MetaData = MetaData(id,name,group,mark,type,date,size,duration,rating,cloud,flag,ext, attr_date)
+
+    }
+
     val isVideo:Boolean
         get() = type == 1
     val isPhoto:Boolean
