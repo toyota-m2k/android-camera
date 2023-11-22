@@ -9,8 +9,9 @@
     <string name="desc_video_rec">Start Recording</string>
     <string name="desc_hide_panel">Hide Panel</string>
     <string name="desc_flip_camera">Flip front/back camera</string>
-    <string name="desc_video_stop">Stop Recording</string>
-    <string name="desc_video_pause">Pause Recording</string>
+    <string name="desc_video_stop">Stop</string>
+    <string name="desc_video_pause">Pause</string>
+    <string name="desc_video_resume">Resume</string>
     <string name="list_videos">Video</string>
     <string name="list_photos">Photo</string>
     <string name="list_all">All</string>
@@ -71,4 +72,5 @@
     <string name="from">From</string>
     <string name="cloud_test_mode">Cloud Test Mode</string>
     <string name="playlist_setting_title">Settings of Player</string>
+    <string name="selfie_label">Selfie Button</string>
 </resources>
