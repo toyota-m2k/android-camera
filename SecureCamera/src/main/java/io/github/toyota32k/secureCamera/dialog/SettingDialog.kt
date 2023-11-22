@@ -57,10 +57,10 @@ class SettingDialog : UtDialogEx() {
                 return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
             }
         }
-        enum class CameraTapAction(val value:Int, @IdRes val id:Int) {
-            NONE(Settings.Camera.TAP_NONE, R.id.radio_camera_action_none),
-            VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_camera_action_video),
-            PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_camera_action_photo)
+        enum class CameraTapAction(val value:Int, @IdRes val id:Int, @IdRes val selfieId:Int) {
+            NONE(Settings.Camera.TAP_NONE, R.id.radio_camera_action_none, R.id.radio_selfie_action_none),
+            VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_camera_action_video, R.id.radio_selfie_action_video),
+            PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_camera_action_photo, R.id.radio_selfie_action_photo)
             ;
             object TapActionResolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
@@ -71,9 +71,19 @@ class SettingDialog : UtDialogEx() {
                     return enumValues<CameraTapAction>().find { it.value==v }?.id ?: NONE.id
                 }
             }
+            object SelfieActionResolver : IIDValueResolver<Int> {
+                override fun id2value(id: Int): Int? {
+                    return enumValues<CameraTapAction>().find { it.selfieId==id }?.value
+                }
+
+                override fun value2id(v: Int): Int {
+                    return enumValues<CameraTapAction>().find { it.value==v }?.selfieId ?: NONE.selfieId
+                }
+            }
         }
 
         val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
+        val selfieAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.selfieAction)
         val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
         val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipForward.toFloat()/1000f)
         val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipBackward.toFloat()/1000f)
@@ -140,6 +150,7 @@ class SettingDialog : UtDialogEx() {
         fun save() {
             Settings.apply {
                 Settings.Camera.tapAction = cameraTapAction.value
+                Settings.Camera.selfieAction = selfieAction.value
                 Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
                 Settings.Player.spanOfSkipForward = (playerSpanOfSkipForward.value*1000).toLong()
                 Settings.Player.spanOfSkipBackward = (playerSpanOfSkipBackward.value*1000).toLong()
@@ -155,6 +166,7 @@ class SettingDialog : UtDialogEx() {
         }
         fun reset() {
             cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
+            selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
             cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
             playerSpanOfSkipForward.value = Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat()/1000f
             playerSpanOfSkipBackward.value = Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat()/1000f
@@ -207,6 +219,10 @@ class SettingDialog : UtDialogEx() {
                     .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
                         SettingViewModel.CameraTapAction.TapActionResolver
                     )
+                    .materialRadioButtonGroupBinding(controls.radioSelfieAction, viewModel.selfieAction,
+                        SettingViewModel.CameraTapAction.SelfieActionResolver
+                    )
+
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {
                             setPassword()

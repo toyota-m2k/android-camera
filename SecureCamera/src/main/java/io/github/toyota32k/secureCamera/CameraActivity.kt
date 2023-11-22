@@ -44,6 +44,7 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
+import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -180,14 +181,15 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            .multiVisibilityBinding(arrayOf(controls.flipCameraButton, controls.closeButton), combine(viewModel.fullControlPanel,viewModel.recordingState) {full,state-> full && state== TcVideoCapture.RecordingState.NONE}, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .visibilityBinding(controls.expandButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> !full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
 //            .visibilityBinding(controls.collapseButton, combine(viewModel.fullControlPanel,viewModel.recordingState) {full, state-> full && state== TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it== TcVideoCapture.RecordingState.STARTED}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it!= TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoRecButton, viewModel.recordingState.map { it == TcVideoCapture.RecordingState.NONE }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoStopButton, viewModel.recordingState.map { it != TcVideoCapture.RecordingState.NONE}, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoPauseButton, viewModel.recordingState.map { it == TcVideoCapture.RecordingState.STARTED }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.videoResumeButton, viewModel.recordingState.map { it == TcVideoCapture.RecordingState.PAUSING }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
 //            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
 //            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
 //            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
             .bindCommand(viewModel.takePictureCommand, controls.photoButton) { takePicture() }
-            .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton)
+            .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton, controls.videoResumeButton)
             .bindCommand(viewModel.finalizeVideoCommand, controls.videoStopButton)
             .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
 
@@ -284,15 +286,16 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //                        }
                         onTap {
                             if(!viewModel.showControlPanel.value) {
-                                when(Settings.Camera.tapAction) {
-                                    Settings.Camera.TAP_PHOTO -> {
-                                        takePicture(it.x, it.y)
-                                    }
-                                    Settings.Camera.TAP_VIDEO -> {
-                                        viewModel.takeVideoCommand.invoke()
-                                    }
-                                    else -> {}
-                                }
+                                execCameraAction(false, it.x, it.y)
+//                                when(Settings.Camera.tapAction) {
+//                                    Settings.Camera.TAP_PHOTO -> {
+//                                        takePicture(it.x, it.y)
+//                                    }
+//                                    Settings.Camera.TAP_VIDEO -> {
+//                                        viewModel.takeVideoCommand.invoke()
+//                                    }
+//                                    else -> {}
+//                                }
                             }
                         }
                     }
@@ -301,6 +304,18 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
         } catch (e: Throwable) {
             logger.error(e)
+        }
+    }
+
+    private fun execCameraAction(selfie:Boolean, x:Float=-1f, y:Float=-1f ) {
+        when(Settings.Camera.tapAction) {
+            Settings.Camera.TAP_PHOTO -> {
+                takePicture(x, y)
+            }
+            Settings.Camera.TAP_VIDEO -> {
+                viewModel.takeVideoCommand.invoke()
+            }
+            else -> {}
         }
     }
 
@@ -319,7 +334,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode==KeyEvent.KEYCODE_VOLUME_UP && event?.action==KeyEvent.ACTION_DOWN) {
-            takePicture()
+            execCameraAction(selfie = true)
             return true
         }
         return super.handleKeyEvent(keyCode, event)

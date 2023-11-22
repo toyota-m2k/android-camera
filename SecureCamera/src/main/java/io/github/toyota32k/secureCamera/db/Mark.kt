@@ -1,19 +1,13 @@
 package io.github.toyota32k.secureCamera.db
 
-import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.drawable.Drawable
 import android.view.View
-import androidx.annotation.ColorInt
-import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.annotation.IdRes
-import androidx.core.content.ContextCompat
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
 enum class Mark(val v:Int, @DrawableRes val iconId:Int, @IdRes val id:Int) {
-    None(0, R.drawable.ic_video_stop, View.NO_ID),
+    None(0, R.drawable.ic_none, View.NO_ID),
     Star(1, R.drawable.ic_mark_star, R.id.tg_mark_star),
     Flag(2, R.drawable.ic_mark_flag, R.id.tg_mark_flag),
     Check(3, R.drawable.ic_mark_check, R.id.tg_mark_check),
