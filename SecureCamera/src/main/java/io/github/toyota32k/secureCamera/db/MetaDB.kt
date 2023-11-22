@@ -116,7 +116,7 @@ object MetaDB {
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             //カラム追加
-            db.execSQL("alter table t_meta add attr_date INTEGER")
+            db.execSQL("alter table t_meta add attr_date INTEGER default 0 not null")
         }
     }
 
@@ -142,6 +142,11 @@ object MetaDB {
                         }
                     }
                 }
+
+                db.metaDataTable().getAll().filter { it.attr_date!=0L }.forEach {
+                    logger.debug("${it.name} : ${it.attr_date}")
+                }
+
                 makeAll()
                 deleteTestFile()
             }
