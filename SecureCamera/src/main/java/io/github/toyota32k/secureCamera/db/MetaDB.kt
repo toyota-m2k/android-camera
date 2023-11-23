@@ -77,6 +77,19 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             }
         }
 
+    val encodedChapters:String
+        get() {
+            return chapterList?.fold(JSONArray()){ acc, chapter->
+                acc.apply {
+                    put(JSONObject().apply {
+                        put("position", chapter.position)
+                        put("label", chapter.label)
+                        put("skip", chapter.skip)
+                    })
+                }
+            }?.toString() ?: ""
+        }
+
     val attrDataJson : JSONObject
         get() = JSONObject()
                 .put("cmd", "extension")
@@ -86,15 +99,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
                 .put("mark", "${mark.v}")
                 .put("label", data.label?:"")
                 .put("category", data.category?:"")
-                .put("chapters", chapterList?.fold(JSONArray()){ acc, chapter->
-                    acc.apply {
-                        put(JSONObject().apply {
-                            put("position", chapter.position)
-                            put("label", chapter.label)
-                            put("skip", chapter.skip)
-                        })
-                    }
-                }?: JSONArray())
+                .put("chapters", encodedChapters)
 
     companion object {
         fun filename2date(filename:String): Date? {
