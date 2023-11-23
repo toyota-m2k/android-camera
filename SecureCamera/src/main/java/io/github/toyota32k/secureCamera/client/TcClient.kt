@@ -193,6 +193,7 @@ object TcClient {
             .addFormDataPart("CreationDate", "${item.creationDate}")
             .addFormDataPart("OriginalId", "${item.id}")
             .addFormDataPart("MetaInfo", "")
+            .addFormDataPart("ExtAttr", "${item.attrDataJson}")
             .addFormDataPart("File", item.name, body)
             .build()
         val request = Request.Builder()

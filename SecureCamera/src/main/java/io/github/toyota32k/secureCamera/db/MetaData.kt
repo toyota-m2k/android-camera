@@ -31,6 +31,8 @@ data class MetaData(
     val flag: Int = 0,
     val ext: String? = null,
     val attr_date: Long = 0,
+    val label: String? = null,
+    val category:String? = null,
 ) {
     companion object {
         fun newEntry(
@@ -39,7 +41,7 @@ data class MetaData(
             date:Long,
             size:Long,
             duration:Long,
-        ): MetaData = MetaData(0, name, 0,0,type, date, size,duration,0,0,0,null,0)
+        ): MetaData = MetaData(0, name, 0,0,type, date, size,duration,0,0,0,null,0, null, null)
 
         fun modifiedEntry(
             src:MetaData,
@@ -56,7 +58,9 @@ data class MetaData(
             flag: Int = src.flag,
             ext: String? = src.ext,
             attr_date: Long = src.attr_date,
-        ):MetaData = MetaData(id,name,group,mark,type,date,size,duration,rating,cloud,flag,ext, attr_date)
+            label: String? = src.label,
+            category: String? = src.category,
+        ):MetaData = MetaData(id,name,group,mark,type,date,size,duration,rating,cloud,flag,ext, attr_date, label, category)
 
     }
 

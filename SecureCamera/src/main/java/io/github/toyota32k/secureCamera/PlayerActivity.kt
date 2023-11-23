@@ -946,9 +946,12 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-//    override fun onDestroy() {
-//        super.onDestroy()
-//    }
+    override fun onDestroy() {
+        super.onDestroy()
+        if(isFinishing) {
+            MetaDB.close()
+        }
+    }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         // return super.handleKeyEvent(keyCode, event)

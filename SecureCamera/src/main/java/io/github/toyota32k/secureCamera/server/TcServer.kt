@@ -93,7 +93,7 @@ class TcServer(val port:Int) : AutoCloseable {
                         // .put("challenge", ) todo
                 )
             },
-            Route("list", HttpMethod.GET, Regex("/list(\\?.+)*")) { _, request ->
+            Route("List", HttpMethod.GET, Regex("/list(\\?.+)*")) { _, request ->
                 val p = QueryParams.parse(request.url)
                 if(p["auth"]!= authToken) {
                     return@Route HttpErrorResponse.unauthorized();
@@ -103,11 +103,11 @@ class TcServer(val port:Int) : AutoCloseable {
                     "photo"->PlayerActivity.ListMode.PHOTO
                     else->PlayerActivity.ListMode.VIDEO
                 }
-//                val backup = (p["backup"]?:"").toBoolean()
-//                val predicate:(item: MetaData)->Boolean = if(!backup) { _-> true } else { item->item.cloud != CloudStatus.Cloud.v }
+                val backup = (p["backup"]?:"").toBoolean()
+                val predicate:(item: MetaData)->Boolean = if(backup) { _-> true } else { item->item.cloud != CloudStatus.Cloud.v }
 
                 val list = runBlocking {
-                    MetaDB.list(type)/*.filter(predicate)*/.fold(JSONArray()) { array, item ->
+                    MetaDB.list(type).filter(predicate).fold(JSONArray()) { array, item ->
                         val size = if(CloudStatus.valueOf(item.cloud).isFileInLocal) {
                             item.file.length()
                         } else item.size
@@ -120,6 +120,7 @@ class TcServer(val port:Int) : AutoCloseable {
                             put("duration", item.duration)
                             put("type", if(item.type==0) "jpg" else "mp4")
                             put("cloud", item.cloud)
+                            put("attrDate", "${item.attr_date}")
                         })
                     }
                 }
@@ -133,6 +134,39 @@ class TcServer(val port:Int) : AutoCloseable {
             },
             Route("Video", HttpMethod.GET,"/video\\?.+", ::videoDownloadProc),
             Route("Photo", HttpMethod.GET,"/photo\\?.+", ::photoDownloadProc),
+            Route("Chapter", HttpMethod.GET, "/chapter\\?.+") { _, request->
+                val p = QueryParams.parse(request.url)
+                val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is required.")
+                val item = runBlocking {
+                    MetaDB.itemExAt(id)
+                } ?: return@Route HttpErrorResponse.notFound()
+                TextHttpResponse(
+                    StatusCode.Ok,
+                    JSONObject()
+                        .put("cmd", "chapter")
+                        .put("id", "$id")
+                        .put("chapters", item.chapterList?.fold(JSONArray()){acc,chapter->
+                            acc.apply {
+                                put(JSONObject().apply {
+                                    put("position", chapter.position)
+                                    put("label", chapter.label)
+                                    put("skip", chapter.skip)
+                                })
+                            }
+                        }?:JSONArray())
+                )
+            },
+            Route("Extra Attributes", HttpMethod.GET, "/extension\\?.+") { _, request ->
+                val p = QueryParams.parse(request.url)
+                val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is required.")
+                val item = runBlocking {
+                    MetaDB.itemExAt(id)
+                } ?: return@Route HttpErrorResponse.notFound()
+                TextHttpResponse(
+                    StatusCode.Ok,
+                    item.attrDataJson.put("cmd","extension")
+                )
+            },
             Route("1 file backup finished", HttpMethod.PUT, "/backup/done") {_, request->
                 val content = request.contentAsString()
                 val json = JSONObject(content)

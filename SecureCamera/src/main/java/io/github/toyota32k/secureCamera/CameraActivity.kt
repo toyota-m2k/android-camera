@@ -225,6 +225,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if(isFinishing) {
             cameraManager.unbind()
+            MetaDB.close()
         }
     }
 

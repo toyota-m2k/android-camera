@@ -325,7 +325,20 @@ class EditorActivity : UtMortalActivity() {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
                 UtImmortalSimpleTask.run {
                     if(viewModel.chapterList.isDirty) {
-                        MetaDB.setChaptersFor(viewModel.videoSource.item.data, viewModel.chapterList.chapters)
+                        val list = viewModel.chapterList.defrag().run {
+                            // 先頭の不要なチャプターは削除する
+                            if(count()==1) {
+                                val c = this[0]
+                                if(c.position==0L && !c.skip && c.label.isEmpty()) {
+                                    emptyList()
+                                } else {
+                                    this
+                                }
+                            } else {
+                                this
+                            }
+                        }
+                        MetaDB.setChaptersFor(viewModel.videoSource.item.data, list)
                     }
                     setResultAndFinish(true, viewModel.targetItem)
                     true

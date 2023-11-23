@@ -21,6 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.util.Date
 
@@ -75,6 +77,25 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             }
         }
 
+    val attrDataJson : JSONObject
+        get() = JSONObject()
+                .put("cmd", "extension")
+                .put("id", "$id")
+                .put("attrDate", "${data.attr_date}")
+                .put("rating", "${rating.v}")
+                .put("mark", "${mark.v}")
+                .put("label", data.label?:"")
+                .put("category", data.category?:"")
+                .put("chapters", chapterList?.fold(JSONArray()){ acc, chapter->
+                    acc.apply {
+                        put(JSONObject().apply {
+                            put("position", chapter.position)
+                            put("label", chapter.label)
+                            put("skip", chapter.skip)
+                        })
+                    }
+                }?: JSONArray())
+
     companion object {
         fun filename2date(filename:String): Date? {
             val dateString = when {
@@ -109,48 +130,68 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
 }
 
 object MetaDB {
-    private lateinit var db:Database
+    private var dbInstance:Database? = null
+    private val db:Database
+        get() = synchronized(this) {
+                    dbInstance ?: Room.databaseBuilder(this.application, Database::class.java, "meta.db")
+//                      .addMigrations(MIGRATION_1_2)
+                        .build()
+                        .apply { dbInstance = this }
+        }
+
+    fun close() {
+        synchronized(this) {
+            dbInstance?.close()
+            dbInstance = null
+        }
+    }
+
+//    private lateinit var db:Database
     lateinit var application:Application
     val logger = UtLog("DB", null, MetaDB::class.java)
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             //カラム追加
-            db.execSQL("alter table t_meta add attr_date INTEGER default 0 not null")
+            db.execSQL("ALTER TABLE t_meta ADD attr_date INTEGER default 0 not null")
+            db.execSQL("ALTER TABLE t_meta ADD label TEXT")
+            db.execSQL("ALTER TABLE t_meta ADD category TEXT")
         }
     }
 
+    /**
+     * DBを初期化する（Applicationクラスの onCreateから呼ぶ）
+     */
+    fun initialize(application: Application) {
+        this.application = application
 
-    fun initialize(context: Context) {
-        if(!this::db.isInitialized) {
-            application = context.applicationContext as Application
+        val db = Room.databaseBuilder(this.application, Database::class.java, "meta.db")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
-            db = Room.databaseBuilder(this.application, Database::class.java, "meta.db")
-                .addMigrations(MIGRATION_1_2)
-                .build()
-            CoroutineScope(Dispatchers.IO).launch {
-                val s = db.kvTable().getAt("INIT")
-                if (s == null) {
-                    db.kvTable().insert(KeyValueEntry("INIT", "1"))
-                } else if(s.value.toInt()==1) {
-                    db.kvTable().update(KeyValueEntry("INIT", "2"))
-                    val tbl = db.metaDataTable()
-                    val now = Date().time
-                    listEx(PlayerActivity.ListMode.ALL).forEach {
-                        if(it.data.rating!=0 || it.data.mark!=0 || it.data.group!=0 || !it.chapterList.isNullOrEmpty()) {
-                            tbl.update(MetaData.modifiedEntry(it.data, attr_date = now))
-                        }
+        CoroutineScope(Dispatchers.IO).launch {
+            val s = db.kvTable().getAt("INIT")
+            if (s == null) {
+                db.kvTable().insert(KeyValueEntry("INIT", "1"))
+            } else if (s.value.toInt() == 1) {
+                db.kvTable().update(KeyValueEntry("INIT", "2"))
+                val tbl = db.metaDataTable()
+                val now = Date().time
+                listEx(PlayerActivity.ListMode.ALL).forEach {
+                    if (it.data.rating != 0 || it.data.mark != 0 || it.data.group != 0 || !it.chapterList.isNullOrEmpty()) {
+                        tbl.update(MetaData.modifiedEntry(it.data, attr_date = now))
                     }
                 }
-
-                db.metaDataTable().getAll().filter { it.attr_date!=0L }.forEach {
-                    logger.debug("${it.name} : ${it.attr_date}")
-                }
-
-                makeAll()
-                deleteTestFile()
             }
+
+            db.metaDataTable().getAll().filter { it.attr_date != 0L }.forEach {
+                logger.debug("${it.name} : ${it.attr_date}")
+            }
+
+            makeAll()
+            deleteTestFile()
         }
+        db.close()
     }
 
     object KV {
@@ -297,7 +338,12 @@ object MetaDB {
 
     suspend fun itemExOf(name:String):ItemEx? {
         return withContext(Dispatchers.IO) {
-            itemOf(name)?.run {toItemEx() }
+            itemOf(name)?.toItemEx()
+        }
+    }
+    suspend fun itemExAt(id:Int):ItemEx? {
+        return withContext(Dispatchers.IO) {
+            itemAt(id)?.toItemEx()
         }
     }
 
@@ -407,6 +453,7 @@ object MetaDB {
     suspend fun setChaptersFor(data: MetaData, chapters:List<IChapter>?) {
         return withContext(Dispatchers.IO) {
             db.chapterDataTable().setForOwner(data.id, chapters?.map {ChapterData(0,data.id, it.position, it.label, it.skip)})
+            db.metaDataTable().update(MetaData.modifiedEntry(data, attr_date = Date().time))
         }
     }
     // endregion Chapter
