@@ -325,15 +325,10 @@ class EditorActivity : UtMortalActivity() {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
                 UtImmortalSimpleTask.run {
                     if(viewModel.chapterList.isDirty) {
-                        val list = viewModel.chapterList.defrag().run {
+                        val list = viewModel.chapterList.chapters.run {
                             // 先頭の不要なチャプターは削除する
-                            if(count()==1) {
-                                val c = this[0]
-                                if(c.position==0L && !c.skip && c.label.isEmpty()) {
-                                    emptyList()
-                                } else {
-                                    this
-                                }
+                            if (size == 1 && this[0].run {position == 0L && !skip && label.isEmpty()}) {
+                                emptyList()
                             } else {
                                 this
                             }

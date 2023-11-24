@@ -79,15 +79,17 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
 
     val encodedChapters:String
         get() {
-            return chapterList?.fold(JSONArray()){ acc, chapter->
-                acc.apply {
-                    put(JSONObject().apply {
-                        put("position", chapter.position)
-                        put("label", chapter.label)
-                        put("skip", chapter.skip)
-                    })
-                }
-            }?.toString() ?: ""
+            return if(isVideo) {
+                chapterList?.fold(JSONArray()) { acc, chapter ->
+                    acc.apply {
+                        put(JSONObject().apply {
+                            put("position", chapter.position)
+                            put("label", chapter.label)
+                            put("skip", chapter.skip)
+                        })
+                    }
+                }?.toString() ?: ""
+            } else ""
         }
 
     val attrDataJson : JSONObject
@@ -138,10 +140,11 @@ object MetaDB {
     private var dbInstance:Database? = null
     private val db:Database
         get() = synchronized(this) {
-                    dbInstance ?: Room.databaseBuilder(this.application, Database::class.java, "meta.db")
-//                      .addMigrations(MIGRATION_1_2)
-                        .build()
-                        .apply { dbInstance = this }
+            dbInstance ?:
+            Room.databaseBuilder(this.application, Database::class.java, "meta.db")
+//              .addMigrations(MIGRATION_1_2)       // initialize() で実行済み
+                .build()
+                .apply { dbInstance = this }
         }
 
     fun close() {
