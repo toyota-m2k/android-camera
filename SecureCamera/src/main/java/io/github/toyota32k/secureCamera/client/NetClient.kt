@@ -28,7 +28,7 @@ object NetClient {
         return motherClient.newCall(req).executeAsync(canceller)
     }
 
-    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().readTimeout(3, TimeUnit.SECONDS).writeTimeout(3, TimeUnit.SECONDS).build()}
+    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().readTimeout(1500, TimeUnit.MILLISECONDS).writeTimeout(3, TimeUnit.SECONDS).build()}
     suspend fun shortCallAsync(req:Request): Response? {
         return try {
             shortClient.newCall(req).executeAsync(null)

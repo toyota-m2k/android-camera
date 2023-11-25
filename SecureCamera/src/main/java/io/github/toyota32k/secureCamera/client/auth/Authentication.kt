@@ -143,28 +143,35 @@ object Authentication {
 
     private var lastCheckTime:Long = 0L
 
+    /**
+     * 指定されたホストがアクセス可能かチェックする。
+     */
+    private suspend fun checkOneHost(host:String):Boolean {
+        val url = "http://$host/nop"
+        val req = Request.Builder().url(url).get().build()
+        val result = NetClient.shortCallAsync(req)
+        return result?.isSuccessful == true
+    }
+
+    /**
+     * アクセス可能なホストを primary, secondary の順にチェックし、最初に見つかったホストを activeHostAddress に設定する。
+     */
     private suspend fun checkHost():Result {
         var empty = true
 
-        suspend fun checkOne(host:String):Boolean {
-            val url = "http://$host/nop"
-            val req = Request.Builder().url(url).get().build()
-            val result = NetClient.shortCallAsync(req)
-            return result?.isSuccessful == true
-        }
         val currentHost = activeHostAddress
         if(currentHost!=null) {
             if(System.currentTimeMillis() - lastCheckTime < 5000) {
                 // 5秒以内の連続呼び出しならチェックしない。
                 return Result.OK
             }
-            if(checkOne(currentHost)) {
+            if(checkOneHost(currentHost)) {
                 return Result.OK
             }
         }
 
         for(host in Settings.SecureArchive.hosts) {
-            if(currentHost!=host && checkOne(host)) {
+            if(currentHost!=host && checkOneHost(host)) {
                 activeHostAddress = host
                 lastCheckTime = System.currentTimeMillis()
                 return Result.OK
@@ -175,10 +182,35 @@ object Authentication {
         return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
     }
 
+    val activeHostLabel:String
+        get() = when (activeHostAddress) {
+                Settings.SecureArchive.primaryAddress -> "Primary $activeHostAddress"
+                Settings.SecureArchive.secondaryAddress -> "Secondary $activeHostAddress"
+                else -> "NO HOST"
+            }
+    val isPrimaryActive:Boolean
+        get() = activeHostAddress == Settings.SecureArchive.primaryAddress
+
+//    /**
+//     * アクセス可能なホストのリストを返す。
+//     */
+//    suspend fun enumerateHosts():List<String> {
+//        val list = mutableListOf<String>()
+//        for(host in Settings.SecureArchive.hosts) {
+//            if(checkOneHost(host)) {
+//                list.add(host)
+//            }
+//        }
+//        return list
+//    }
+
+    /**
+     * アクセス可能なホストを見つけて認証する。
+     */
     private suspend fun authenticate():Result {
         checkHost().let { if(!it.succeeded) return it }
         if(checkAuthToken()) return Result.OK
-        return if(PasswordDialog.authenticate()) Result.OK else Result.CANCELLED
+        return if(PasswordDialog.authenticate(activeHostLabel)) Result.OK else Result.CANCELLED
     }
 
     suspend fun authenticateAndMessage():Boolean {

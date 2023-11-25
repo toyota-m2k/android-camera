@@ -16,7 +16,10 @@ import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtMessageBox
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
@@ -72,6 +75,18 @@ class ServerActivity : UtMortalActivity() {
                 if(!Authentication.authenticateAndMessage()) {
                     return@launch
                 }
+                val decision = UtImmortalSimpleTask.runAsync {
+                    showOkCancelMessageBox(
+                        "Backup",
+                        "Backup to ${Authentication.activeHostLabel}",
+                        "OK",
+                        "Cancel"
+                    )
+                }
+                if(!decision) {
+                    return@launch
+                }
+
                 val json = JSONObject()
                     .put("id", Settings.SecureArchive.clientId)
                     .put("name", Build.MODEL)
