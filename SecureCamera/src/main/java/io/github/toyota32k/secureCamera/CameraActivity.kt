@@ -309,7 +309,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     }
 
     private fun execCameraAction(selfie:Boolean, x:Float=-1f, y:Float=-1f ) {
-        when(Settings.Camera.tapAction) {
+        val action = if( selfie ) Settings.Camera.selfieAction else Settings.Camera.tapAction
+        when(action) {
             Settings.Camera.TAP_PHOTO -> {
                 takePicture(x, y)
             }
