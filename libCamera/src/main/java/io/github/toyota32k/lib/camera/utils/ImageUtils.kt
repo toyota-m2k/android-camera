@@ -13,8 +13,8 @@ object ImageUtils {
     // ImageProxy → Bitmap
     fun imageToBitmap(image: ImageProxy, rotationDegrees: Float): Bitmap? {
         return try {
-            val data = imageToByteArray(image)
-            val bitmap = BitmapFactory.decodeByteArray(data, 0, data!!.size)
+            val data = imageToByteArray(image) ?: throw IllegalStateException("cannot convert image to byte array.")
+            val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
             if (rotationDegrees == 0f) {
                 bitmap
             } else {
@@ -27,7 +27,7 @@ object ImageUtils {
     }
 
     // Bitmapの回転
-    private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Float): Bitmap? {
+    private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Float): Bitmap {
         val mat = Matrix()
         mat.postRotate(rotationDegrees)
         return Bitmap.createBitmap(

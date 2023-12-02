@@ -27,13 +27,13 @@ class TcCameraExtensions(val applicationContext: Context, val cameraProvider:Cam
     }
 
     fun capabilitiesOf(cameraSelector:CameraSelector):List<Mode> {
-        return Mode.values().filter {
+        return Mode.entries.filter {
             extensionsManager.isExtensionAvailable(cameraSelector, it.mode)
         }
     }
 
-    fun capabilitiesOf(front:Boolean):List<Mode> {
-        return capabilitiesOf(if(front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
+    fun capabilitiesOf(isFront:Boolean):List<Mode> {
+        return capabilitiesOf(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
     }
 
     fun applyExtensionTo(mode: Mode, cameraSelector:CameraSelector) : CameraSelector {

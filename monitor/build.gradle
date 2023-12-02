@@ -17,6 +17,9 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
     buildTypes {
         release {
             minifyEnabled false
@@ -40,7 +43,7 @@ dependencies {
     implementation "androidx.activity:activity-ktx:$activity_ktx_version"
     implementation "androidx.appcompat:appcompat:$app_compat_version"
     implementation "com.google.android.material:material:$material_version"
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation "androidx.constraintlayout:constraintlayout:$constraint_layout_version"
 
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_ktx_version"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_ktx_version"

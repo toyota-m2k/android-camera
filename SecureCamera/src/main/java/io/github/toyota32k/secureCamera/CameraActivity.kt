@@ -44,7 +44,6 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.secureCamera.utils.hideActionBar
 import io.github.toyota32k.secureCamera.utils.hideStatusBar
-import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -210,6 +209,25 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                     .add(Manifest.permission.RECORD_AUDIO)
                     .execute()) {
                 cameraManager.prepare()
+
+                logger.debug("Supported Qualities ------------------------------------")
+                cameraManager.supportedQualitySelector(isFront = true).forEach {
+                    logger.debug("FRONT: $it")
+                }
+                cameraManager.supportedQualitySelector(isFront = false).forEach {
+                    logger.debug("BACK: $it")
+                }
+
+                logger.debug("Supported Modes ------------------------------------")
+                cameraManager.cameraExtensions.capabilitiesOf( isFront=true).forEach {
+                    logger.debug("FRONT: $it")
+                }
+                cameraManager.cameraExtensions.capabilitiesOf( isFront=false).forEach {
+                    logger.debug("BACK: $it")
+                }
+
+
+
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? CameraActivity ?: return@launch
                 me.startCamera(viewModel.frontCameraSelected.value)
             }

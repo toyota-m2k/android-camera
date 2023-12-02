@@ -80,8 +80,8 @@ class TcCameraManager() {
         return f.union(b).toList()
 
     }
-    fun supportedQualitySelector(isFrontOrBack:Boolean?=null):List<Quality> {
-        val supported = when(isFrontOrBack) {
+    fun supportedQualitySelector(isFront:Boolean?=null):List<Quality> {
+        val supported = when(isFront) {
             true-> {supportedQualitySelectorForCamera(getCameraInfo(true)).toSet() }
             false-> {supportedQualitySelectorForCamera(getCameraInfo(false)).toSet() }
             null->{supportedQualitySelectorForCamera(getCameraInfo(false)).intersect(supportedQualitySelectorForCamera(getCameraInfo(true)))}
