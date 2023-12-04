@@ -321,20 +321,33 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
+    override fun onDestroy() {
+        saveChapters()
+        super.onDestroy()
+        logger.debug()
+    }
+
+    private fun saveChapters() {
+        if(viewModel.chapterList.isDirty) {
+            val list = viewModel.chapterList.chapters.run {
+                // 先頭の不要なチャプターは削除する
+                if (size == 1 && this[0].run {position == 0L && !skip && label.isEmpty()}) {
+                    emptyList()
+                } else {
+                    this
+                }
+            }
+            val target = viewModel.videoSource.item.data
+            CoroutineScope(Dispatchers.IO).launch {
+                MetaDB.setChaptersFor(target, list)
+            }
+        }
+    }
+
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
                 UtImmortalSimpleTask.run {
-                    if(viewModel.chapterList.isDirty) {
-                        val list = viewModel.chapterList.chapters.run {
-                            // 先頭の不要なチャプターは削除する
-                            if (size == 1 && this[0].run {position == 0L && !skip && label.isEmpty()}) {
-                                emptyList()
-                            } else {
-                                this
-                            }
-                        }
-                        MetaDB.setChaptersFor(viewModel.videoSource.item.data, list)
-                    }
+//                    saveChapters()
                     setResultAndFinish(true, viewModel.targetItem)
                     true
                 }
