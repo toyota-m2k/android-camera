@@ -151,7 +151,7 @@ class ExoPlayerHost @JvmOverloads constructor(context: Context, attrs: Attribute
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if(!this::model.isInitialized) return
+//        if(!this::model.isInitialized) return
         if(w>0 && h>0) {
             logger.debug("width=$w (${context.px2dp(w)}dp), height=$h (${context.px2dp(h)}dp)")
 //            model.playerModel.onRootViewSizeChanged(Size(w, h))

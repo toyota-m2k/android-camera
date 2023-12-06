@@ -18,6 +18,7 @@ interface IChapterEditor : IMutableChapterList {
     val canUndo: Flow<Boolean>
     val canRedo: Flow<Boolean>
     val isDirty:Boolean
+    fun clearDirty()
 }
 
 /**
@@ -31,6 +32,7 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
 
     private val history = mutableListOf<IOperation>()
     private val current = MutableStateFlow<Int>(0)     // 次回挿入位置を指している（undoされていなければ buffer.size と等しい）
+    private var dirtyMark = 0   // 編集開始時はゼロ、編集後保存すると、保存時の"current" の値となる。current.value == dirtyMark なら編集ナシと判断する。
 
     inner class AddOperation(private val position:Long, private val label:String, private val skip:Boolean?):IOperation {
         override fun redo() {
@@ -67,7 +69,12 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
 
     private fun addHistory(op:IOperation) {
         if(current.value<history.size) {
+            // undo されているときは、current位置より後ろの履歴を削除してから、新しい履歴(op)を追加する。
             history.subList(current.value,  history.size).clear()
+            if(current.value<dirtyMark) {
+                // 前回保存した位置からUndoされて、履歴が追加される --> どうやっても保存データの状態にはもどらないので、isDirty が true を返すよう、dirtyMark に無効値(-1)を入れておく。
+                dirtyMark = -1
+            }
         }
         history.add(op)
         current.value=history.size
@@ -117,7 +124,11 @@ class ChapterEditor(private val target:IMutableChapterList) : IChapterEditor, IC
     }
 
     override val isDirty: Boolean
-        get() = current.value > 0
+        get() = current.value != dirtyMark
+
+    override fun clearDirty() {
+        dirtyMark = current.value
+    }
 
     override val modifiedListener: Listeners<Unit>
         get() = target.modifiedListener

@@ -316,13 +316,13 @@ class EditorActivity : UtMortalActivity() {
 
     override fun onPause() {
         super.onPause()
+        saveChapters()  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         if(isFinishing) {
             viewModel.playerControllerModel.close()
         }
     }
 
     override fun onDestroy() {
-        saveChapters()
         super.onDestroy()
         logger.debug()
     }
@@ -338,6 +338,7 @@ class EditorActivity : UtMortalActivity() {
                 }
             }
             val target = viewModel.videoSource.item.data
+            viewModel.chapterList.clearDirty()
             CoroutineScope(Dispatchers.IO).launch {
                 MetaDB.setChaptersFor(target, list)
             }
