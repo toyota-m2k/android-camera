@@ -72,7 +72,7 @@ class EditorActivity : UtMortalActivity() {
             .enableSeekLarge(5000, 10000)
             .build()
         val playerModel get() = playerControllerModel.playerModel
-        val videoSource get() = playerModel.currentSource.value as VideoSource
+        private val videoSource get() = playerModel.currentSource.value as VideoSource
         val targetItem:ItemEx get() = videoSource.item
 
         val chapterList by lazy {
@@ -329,6 +329,8 @@ class EditorActivity : UtMortalActivity() {
 
     private fun saveChapters() {
         if(viewModel.chapterList.isDirty) {
+            val source = viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
+            val target = source.item.data
             val list = viewModel.chapterList.chapters.run {
                 // 先頭の不要なチャプターは削除する
                 if (size == 1 && this[0].run {position == 0L && !skip && label.isEmpty()}) {
@@ -337,7 +339,6 @@ class EditorActivity : UtMortalActivity() {
                     this
                 }
             }
-            val target = viewModel.videoSource.item.data
             viewModel.chapterList.clearDirty()
             CoroutineScope(Dispatchers.IO).launch {
                 MetaDB.setChaptersFor(target, list)
