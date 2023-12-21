@@ -16,4 +16,6 @@
     <string name="desc_snapshot">Snapshot</string>
     <string name="desc_rotate_left">Rotate Left</string>
     <string name="desc_rotate_right">Rotate Right</string>
+    <string name="desc_lock_slider">Lock Slider</string>
+    <string name="desc_unlock_slider">Unlick Slider</string>
 </resources>

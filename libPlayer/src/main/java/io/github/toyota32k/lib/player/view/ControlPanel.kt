@@ -122,6 +122,10 @@ class ControlPanel @JvmOverloads constructor(context: Context, attrs: AttributeS
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPlay, controls.playButton)
             .bindCommand(model.commandPause, controls.pauseButton)
+            .bindCommand(model.commandLockSlider, controls.lockSliderButton, controls.unlockSliderButton)
+            .visibilityBinding(controls.lockSliderButton, model.lockSlider.map { model.enableSliderLock && !it }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.unlockSliderButton, model.lockSlider.map { model.enableSliderLock && it }, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.sliderGuard, model.lockSlider, BoolConvert.Straight, VisibilityBinding.HiddenMode.HideByGone)
             .conditional(model.seekLarge!=null) {
                 bindCommand(model.commandSeekLarge, controls.seekBackLButton, false)
                 bindCommand(model.commandSeekLarge, controls.seekForwardLButton, true)

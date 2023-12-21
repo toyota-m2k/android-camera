@@ -29,6 +29,8 @@ open class PlayerControllerModel(
     val enableRotateRight:Boolean,
     val enableRotateLeft:Boolean,
     val showNextPreviousButton:Boolean,
+    val enableSliderLock: Boolean,
+    val initialEnableSliderLock: Boolean,
 //    var seekRelativeForward:Long,
 //    var seekRelativeBackword:Long,
     val seekSmall:RelativeSeek?,
@@ -52,6 +54,8 @@ open class PlayerControllerModel(
         private var mEnableRotateRight:Boolean = false
         private var mEnableRotateLeft:Boolean = false
         private var mShowNextPreviousButton:Boolean = false
+        private var mEnableSliderLock:Boolean = false
+        private var mInitialEnableSliderLock:Boolean = false
 //        private var mSeekForward:Long = 1000L
 //        private var mSeekBackword:Long = 500L
         private var mSeekSmall:RelativeSeek? = null
@@ -118,6 +122,12 @@ open class PlayerControllerModel(
             return this
         }
 
+        fun enableSliderLock(initial:Boolean):Builder {
+            mEnableSliderLock = true
+            mInitialEnableSliderLock = initial
+            return this
+        }
+
 //        private val scope:CoroutineScope by lazy { CoroutineScope(Dispatchers.Main+ SupervisorJob()) }
 
         fun build():PlayerControllerModel {
@@ -135,6 +145,8 @@ open class PlayerControllerModel(
                 enableRotateRight = mEnableRotateRight,
                 enableRotateLeft = mEnableRotateLeft,
                 showNextPreviousButton = mShowNextPreviousButton,
+                enableSliderLock = mEnableSliderLock,
+                initialEnableSliderLock = mInitialEnableSliderLock,
                 seekSmall = mSeekSmall,
                 seekMedium = mSeekMedium,
                 seekLarge = mSeekLarge,
@@ -172,9 +184,23 @@ open class PlayerControllerModel(
 
     private fun seekRelative(forward:Boolean, s:RelativeSeek?) {
         if(s==null) return
-        playerModel.seekRelative(if(forward) s.forward else -s.backward)
+        if(forward) {
+            if(s.forward>0L) {
+                playerModel.seekRelative(s.forward)
+            } else {
+                playerModel.seekRelativeByFrame(1)
+            }
+        } else {
+            if(s.backward>0L) {
+                playerModel.seekRelative(-s.backward)
+            } else {
+                playerModel.seekRelativeByFrame(-1)
+            }
+        }
     }
 
+    private val _lockSliderFlow = MutableStateFlow(initialEnableSliderLock)
+    val lockSlider = _lockSliderFlow.map {enableSliderLock && it}
     val commandPlay = LiteUnitCommand(playerModel::play)
     val commandPause = LiteUnitCommand(playerModel::pause)
 //    val commandTogglePlay = LiteUnitCommand { playerModel.togglePlay() }
@@ -192,6 +218,7 @@ open class PlayerControllerModel(
     val commandSnapshot = LiteUnitCommand(::snapshot)
 //    val commandPlayerTapped = if(playerTapToPlay) LiteUnitCommand { playerModel.togglePlay() } else LiteUnitCommand()
     val commandRotate = LiteCommand<Rotation> { playerModel.rotate(it) }
+    val commandLockSlider = LiteUnitCommand { _lockSliderFlow.value = !_lockSliderFlow.value }
 
     // endregion
 

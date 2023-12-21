@@ -20,6 +20,7 @@ import io.github.toyota32k.shared.UtManualIncarnateResetableValue
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.SuspendableEvent
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.UtResetableValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -109,6 +110,15 @@ open class BasicPlayerModel(
         player?.apply {
             fn()
         }
+    }
+
+    private var _frameDuration:Long = 0L
+    private val frameDuration:Long get() {
+        if(_frameDuration==0L) {
+            val rate = runOnPlayer(0L) { videoFormat?.frameRate?.toLong() ?: 24L }
+            _frameDuration = if(rate>10) 1000L/rate else 100L
+        }
+        return _frameDuration
     }
 
     /**
@@ -329,7 +339,7 @@ open class BasicPlayerModel(
         withPlayer { player ->
             val clippedPos = clipPosition(pos, if (awareTrimming) currentSource.value?.trimming else null)
             player.seekTo(clippedPos)
-            playerSeekPosition.mutable.value = clippedPos
+            playerSeekPosition.mutable.value = player.currentPosition
         }
     }
 
@@ -337,6 +347,23 @@ open class BasicPlayerModel(
         if(!isReady.value) return
         withPlayer { player ->
             clippingSeekTo(player.currentPosition + seek, true)
+        }
+    }
+
+    override fun seekRelativeByFrame(frameCount: Long) {
+        if(!isReady.value) return
+        val seek = frameCount * frameDuration
+        withPlayer { player->
+            // PREVIOUS_SYNC/NEXT_SYNC は、動画のキーフレームにシークする。
+            // ここでは、Frame単位でのシークなので、EXACT でないと、シーク量が１秒くらいになって使いづらい。
+//            val orgParams = player.seekParameters
+//            if(frameCount<0) {
+//                player.setSeekParameters(SeekParameters.PREVIOUS_SYNC)
+//            } else {
+//                player.setSeekParameters(SeekParameters.NEXT_SYNC)
+//            }
+            clippingSeekTo(player.currentPosition + seek, true)
+//            player.setSeekParameters(orgParams)
         }
     }
 
@@ -496,6 +523,7 @@ open class BasicPlayerModel(
         val pos = max(src.trimming.start, src.startPosition.getAndSet(0L))
 
         runOnPlayer {
+            _frameDuration = 0L // 次回必要になれば再取得される
             setMediaSource(makeMediaSource(src), pos)
             prepare()
         }

@@ -15,6 +15,7 @@ interface IPlayerModel : AutoCloseable {
 
     fun reset()
     fun seekRelative(seek: Long)
+    fun seekRelativeByFrame(frameCount:Long)
     fun seekTo(seek:Long)
 
     fun associatePlayerView(playerView: PlayerView)

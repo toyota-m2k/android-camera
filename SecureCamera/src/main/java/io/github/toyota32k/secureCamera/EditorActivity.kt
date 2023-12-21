@@ -67,9 +67,10 @@ class EditorActivity : UtMortalActivity() {
             .enableRotateLeft()
             .enableRotateRight()
 //            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
-            .enableSeekSmall(100,100)
+            .enableSeekSmall(0,0)
             .enableSeekMedium(1000, 3000)
             .enableSeekLarge(5000, 10000)
+            .enableSliderLock(true)
             .build()
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
@@ -81,9 +82,20 @@ class EditorActivity : UtMortalActivity() {
         val commandAddChapter = LiteUnitCommand {
             chapterList.addChapter(playerModel.currentPosition, "", null)
         }
+        val commandAddSkippingChapter = LiteUnitCommand {
+            val chapter = chapterList.getChapterAround(playerModel.currentPosition)
+            chapterList.addChapter(playerModel.currentPosition, "", null)
+            if(chapter!=null) {
+                chapterList.skipChapter(chapter, true)
+            }
+        }
         val commandRemoveChapter = LiteUnitCommand {
             val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
             chapterList.removeChapterAt(neighbor.next)
+        }
+        val commandRemoveChapterPrev = LiteUnitCommand {
+            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
+            chapterList.removeChapterAt(neighbor.prev)
         }
         val commandToggleSkip = LiteUnitCommand {
             val chapter = chapterList.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
@@ -166,7 +178,9 @@ class EditorActivity : UtMortalActivity() {
                 .enableBinding(controls.undo, viewModel.chapterList.canUndo)
                 .visibilityBinding(controls.saveVideo, ConstantLiveData(viewModel.targetItem.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .bindCommand(viewModel.commandAddChapter, controls.makeChapter)
+                .bindCommand(viewModel.commandAddSkippingChapter, controls.makeChapterAndSkip)
                 .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
+                .bindCommand(viewModel.commandRemoveChapterPrev, controls.removePrevChapter)
                 .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
                 .bindCommand(viewModel.commandSave, controls.saveVideo, callback = ::trimmingAndSave)
                 .bindCommand(viewModel.commandUndo, controls.undo)

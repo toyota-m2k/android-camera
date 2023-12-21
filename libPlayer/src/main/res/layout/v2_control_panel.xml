@@ -26,47 +26,6 @@
             android:layout_gravity="center"
             >
             <ImageButton
-                android:id="@+id/prev_video_button"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_prev"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/desc_prev_video" />
-
-            <ImageButton
-                android:id="@+id/prev_chapter_button"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_prev_chapter"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/desc_prev_chapter" />
-
-            <ImageButton
-                android:id="@+id/seek_back_l_button"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_seek_forward_l"
-                android:rotationY="180"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/desc_seek_back" />
-            <ImageButton
-                android:id="@+id/seek_back_m_button"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_seek_forward_m"
-                android:rotationY="180"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/desc_seek_back" />
-            <ImageButton
-                android:id="@+id/seek_back_s_button"
-                android:layout_width="@dimen/media_button_width"
-                android:layout_height="@dimen/media_button_height"
-                app:srcCompat="@drawable/ic_seek_forward_s"
-                android:rotationY="180"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/desc_seek_back" />
-
-            <ImageButton
                 android:id="@+id/play_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"
@@ -83,12 +42,29 @@
                 android:contentDescription="@string/desc_pause" />
 
             <ImageButton
+                android:id="@+id/seek_back_s_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_s"
+                android:rotationY="180"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
+            <ImageButton
                 android:id="@+id/seek_forward_s_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"
                 app:srcCompat="@drawable/ic_seek_forward_s"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_seek_forward" />
+
+            <ImageButton
+                android:id="@+id/seek_back_m_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_m"
+                android:rotationY="180"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
             <ImageButton
                 android:id="@+id/seek_forward_m_button"
                 android:layout_width="@dimen/media_button_width"
@@ -96,6 +72,15 @@
                 app:srcCompat="@drawable/ic_seek_forward_m"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_seek_forward" />
+
+            <ImageButton
+                android:id="@+id/seek_back_l_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_seek_forward_l"
+                android:rotationY="180"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_seek_back" />
             <ImageButton
                 android:id="@+id/seek_forward_l_button"
                 android:layout_width="@dimen/media_button_width"
@@ -105,6 +90,13 @@
                 android:contentDescription="@string/desc_seek_forward" />
 
             <ImageButton
+                android:id="@+id/prev_chapter_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_prev_chapter"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_prev_chapter" />
+            <ImageButton
                 android:id="@+id/next_chapter_button"
                 android:layout_width="@dimen/media_button_width"
                 android:layout_height="@dimen/media_button_height"
@@ -112,6 +104,13 @@
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_next_chapter" />
 
+            <ImageButton
+                android:id="@+id/prev_video_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_prev"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_prev_video" />
             <ImageButton
                 android:id="@+id/next_video_button"
                 android:layout_width="@dimen/media_button_width"
@@ -142,6 +141,22 @@
                 app:srcCompat="@drawable/ic_rotate_right"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/desc_rotate_right" />
+
+            <ImageButton
+                android:id="@+id/lock_slider_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_unlocked"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_lock_slider" />
+            <ImageButton
+                android:id="@+id/unlock_slider_button"
+                android:layout_width="@dimen/media_button_width"
+                android:layout_height="@dimen/media_button_height"
+                app:srcCompat="@drawable/ic_locked"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/desc_unlock_slider" />
+
 
             <ImageButton
                 android:id="@+id/pinp_button"
@@ -229,6 +244,7 @@
                 app:thumbColor="#4000"
                 app:thumbStrokeColor="#222"
                 app:thumbStrokeWidth="1dp"
+
                 />
 
         </FrameLayout>
@@ -243,5 +259,20 @@
             />
 
     </LinearLayout>
+    <FrameLayout
+        android:id="@+id/slider_guard"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="@+id/slider_panel"
+        app:layout_constraintBottom_toBottomOf="@+id/slider_panel"
+        app:layout_constraintStart_toStartOf="@+id/slider_panel"
+        app:layout_constraintEnd_toEndOf="@+id/slider_panel"
+        android:background="#0000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        />
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
