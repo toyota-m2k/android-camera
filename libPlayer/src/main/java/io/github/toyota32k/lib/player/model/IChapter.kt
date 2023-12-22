@@ -12,6 +12,19 @@ data class NeighborChapter(val prev:Int, val hit:Int, val next:Int) {
     companion object {
         val empty = NeighborChapter(-1,-1,-1)
     }
+    private fun getChapterAt(index:Int, chapters:List<IChapter>):IChapter? {
+        if(index<0||chapters.size<=index) return null
+        return chapters[index]
+    }
+    fun getPrevChapter(chapterList:IChapterList):IChapter? {
+        return getChapterAt(prev, chapterList.chapters)
+    }
+    fun getHitChapter(chapterList:IChapterList) :IChapter? {
+        return getChapterAt(hit, chapterList.chapters)
+    }
+    fun getNextChapter(chapterList:IChapterList):IChapter? {
+        return getChapterAt(next, chapterList.chapters)
+    }
 }
 
 interface IChapterList {

@@ -14,6 +14,7 @@ import kotlin.coroutines.suspendCoroutine
 object NetworkUtils {
     suspend fun getIpAddress(context:Context) : String {
         return suspendCoroutine<String> { cont->
+            var unregister:(()->Unit)? = null
             val networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onLinkPropertiesChanged(
                     network: Network,
@@ -21,6 +22,7 @@ object NetworkUtils {
                 ) {
                     super.onLinkPropertiesChanged(network, linkProperties)
                     cont.resume(linkProperties.linkAddresses.filter { it.address is Inet4Address }[0].toString())
+                    unregister?.invoke()
                 }
             }
             val request = NetworkRequest.Builder()
@@ -28,6 +30,9 @@ object NetworkUtils {
                 .build()
 
             val manager: ConnectivityManager = context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+            unregister = {
+                manager.unregisterNetworkCallback(networkCallback)
+            }
             manager.registerNetworkCallback(request, networkCallback)
         }
     }

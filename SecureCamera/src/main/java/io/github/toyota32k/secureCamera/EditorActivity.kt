@@ -83,10 +83,17 @@ class EditorActivity : UtMortalActivity() {
             chapterList.addChapter(playerModel.currentPosition, "", null)
         }
         val commandAddSkippingChapter = LiteUnitCommand {
-            val chapter = chapterList.getChapterAround(playerModel.currentPosition)
-            chapterList.addChapter(playerModel.currentPosition, "", null)
-            if(chapter!=null) {
-                chapterList.skipChapter(chapter, true)
+            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
+            val prev = neighbor.getPrevChapter(chapterList)
+            if(neighbor.hit<0) {
+                // 現在位置にチャプターがなければ追加する
+                if(!chapterList.addChapter(playerModel.currentPosition, "", null)) {
+                    return@LiteUnitCommand
+                }
+            }
+            // ひとつ前のチャプターを無効化する
+            if(prev!=null) {
+                chapterList.skipChapter(prev, true)
             }
         }
         val commandRemoveChapter = LiteUnitCommand {
