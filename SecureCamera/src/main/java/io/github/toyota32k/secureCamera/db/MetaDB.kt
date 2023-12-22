@@ -286,7 +286,7 @@ object MetaDB {
 //        group: Int=org?.group?:0,
 //        mark:Int=org?.mark?:0,
 //        rating:Int=org?.rating?:0,
-//        cloud: Int=org?.cloud?:CloudStatus.Local.v,
+        cloud: Int=org?.cloud?:CloudStatus.Local.v,
         allowRetry:Int=0,
         updateAttrDate:Boolean=false
         ):MetaData? {
@@ -304,7 +304,7 @@ object MetaDB {
                 MetaData.newEntry(name, type, date, size, duration)
             } else {
                 // 更新
-                MetaData.modifiedEntry(org, type = type, date = date, size = size, duration = duration, attr_date = attrDate)
+                MetaData.modifiedEntry(org, type = type, date = date, size = size, duration = duration, cloud = cloud, attr_date = attrDate)
             }
         }
     }
@@ -524,7 +524,7 @@ object MetaDB {
             setChaptersFor(data, chapterList)
             updateAttr = true
         }
-        return metaDataFromName(data, data.name, allowRetry = 10, updateAttrDate = updateAttr)!!.also { newData ->
+        return metaDataFromName(data, data.name, cloud = CloudStatus.Local.v, allowRetry = 10, updateAttrDate = updateAttr)!!.also { newData ->
             withContext(Dispatchers.IO) {
                 db.metaDataTable().update(newData)
                 DBChange.update(data.id)
