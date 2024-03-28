@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.Calendar
 import java.util.Date
 
+// io.github.toyota32k.binder に移行
+
 /**
  * DatePicker が返してくる日付情報を１つにまとめるためのデータクラス
  */

@@ -9,10 +9,13 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.view.PreviewView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -158,10 +161,17 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.camera)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideActionBar()
         hideStatusBar()
 

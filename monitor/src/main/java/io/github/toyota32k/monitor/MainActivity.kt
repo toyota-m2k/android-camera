@@ -5,9 +5,11 @@ import android.Manifest
 import android.content.Context
 import android.os.Bundle
 import android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.camera.core.Camera
 import androidx.camera.view.PreviewView
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -46,8 +48,18 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
+
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
+
+        // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
         hideActionBar()
         hideStatusBar()
 //        controls.previewView.apply {

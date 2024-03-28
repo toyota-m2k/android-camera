@@ -12,8 +12,11 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -516,10 +519,18 @@ class PlayerActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         Settings.initialize(application)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.player)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
         hideActionBar()
+        hideStatusBar()
 
         val normalColor: Drawable
 //        val normalTextColor: Int
@@ -881,12 +892,12 @@ class PlayerActivity : UtMortalActivity() {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
-                hideStatusBar()
+//                hideStatusBar()
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
-                showStatusBar()
+//                showStatusBar()
             }
         }
     }

@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
 import io.github.toyota32k.dialog.task.IUtImmortalTaskMutableContextSource
 
+// io.github.toyota32k.dialog.task に移動
+
 open class  UtImmortalViewModel:ViewModel(), IUtImmortalTaskMutableContextSource {
     override lateinit var immortalTaskContext: IUtImmortalTaskContext
 }

@@ -12,6 +12,8 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.headlessNonnullBinding
 import kotlinx.coroutines.flow.Flow
 
+// io.github.toyota32k.utils.ActivityExt に移行
+
 fun FragmentActivity.hideStatusBar() {
     WindowCompat.setDecorFitsSystemWindows(window, false)
     WindowInsetsControllerCompat(window, window.decorView.rootView).let { controller ->
@@ -89,6 +91,8 @@ class ActivityOptions(
                 = ActivityOptions(showActionBar, showStatusBar, orientation)
     }
 }
+
+// io.github.toyota32k.binder に移行
 
 /**
  * Boolean値とStatusBar表示状態のバインディング

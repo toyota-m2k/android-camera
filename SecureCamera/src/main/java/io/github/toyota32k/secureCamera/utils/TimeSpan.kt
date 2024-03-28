@@ -1,5 +1,7 @@
 package io.github.toyota32k.secureCamera.utils
 
+// io.github.toyota32k.utils に移行
+
 class TimeSpan (private val ms : Long) {
     val milliseconds: Long
         get() = ms % 1000

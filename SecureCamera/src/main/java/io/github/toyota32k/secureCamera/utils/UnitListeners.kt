@@ -4,6 +4,7 @@ import androidx.lifecycle.LifecycleOwner
 import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.Listeners
 
+@Deprecated("use io.github.toyota32k.utils.UnitListeners")
 class UnitListeners(private val listeners:Listeners<Unit> = Listeners<Unit>()) {
     val count:Int
         get() = listeners.count

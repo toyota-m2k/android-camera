@@ -2,7 +2,10 @@ package io.github.toyota32k.secureCamera
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
@@ -29,9 +32,18 @@ class MainActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
+
+        // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
         this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
 //        setContentView(R.layout.activity_main)
 

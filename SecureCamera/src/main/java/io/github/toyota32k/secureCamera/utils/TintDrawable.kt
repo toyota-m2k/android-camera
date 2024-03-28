@@ -8,6 +8,8 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 
+// io.github.toyota32k.utils に移行
+
 object TintDrawable {
     fun tint(src: Drawable, @ColorInt color:Int, tintMode: PorterDuff.Mode= PorterDuff.Mode.SRC_IN):Drawable {
         return DrawableCompat.wrap(src.mutate()).apply {
