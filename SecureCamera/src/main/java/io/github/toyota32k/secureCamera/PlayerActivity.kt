@@ -23,6 +23,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.RecyclerViewBinding
 import io.github.toyota32k.binder.VisibilityBinding
@@ -48,7 +49,13 @@ import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
-import io.github.toyota32k.lib.player.model.*
+import io.github.toyota32k.lib.player.model.IChapterList
+import io.github.toyota32k.lib.player.model.IMediaFeed
+import io.github.toyota32k.lib.player.model.IMediaSource
+import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
+import io.github.toyota32k.lib.player.model.PlayerControllerModel
+import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.Rotation
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
@@ -66,25 +73,32 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.secureCamera.utils.*
-import io.github.toyota32k.secureCamera.utils.binding.DPDate
+import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.shared.gesture.Direction
+import io.github.toyota32k.shared.gesture.IUtManipulationTarget
 import io.github.toyota32k.shared.gesture.Orientation
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
-import io.github.toyota32k.shared.UtSorter
-import io.github.toyota32k.shared.gesture.IUtManipulationTarget
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
+import io.github.toyota32k.utils.hideActionBar
+import io.github.toyota32k.utils.hideStatusBar
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.*
+import java.util.Date
+import java.util.EnumSet
 import java.util.concurrent.atomic.AtomicLong
 
 
@@ -104,7 +118,7 @@ class PlayerActivity : UtMortalActivity() {
         }
         companion object {
             fun valueOf(resId: Int, def: ListMode = PHOTO): ListMode {
-                return values().find { it.resId == resId } ?: def
+                return entries.find { it.resId == resId } ?: def
             }
             fun valueOf(name:String?):ListMode? {
                 if(name==null) return null
@@ -173,7 +187,7 @@ class PlayerActivity : UtMortalActivity() {
             viewModelScope.launch {
                 data class MinMax(var min:DPDate,var max:DPDate)
                 val list = MetaDB.listEx(ListMode.ALL)
-                val mm = list.fold(MinMax(DPDate.InvalidMax,DPDate.InvalidMin)) {acc, item->
+                val mm = list.fold(MinMax(DPDate.InvalidMax, DPDate.InvalidMin)) { acc, item->
                     val dp = item.dpDate
                     if(dp<acc.min) {
                         acc.min = dp

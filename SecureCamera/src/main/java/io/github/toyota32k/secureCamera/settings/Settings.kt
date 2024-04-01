@@ -2,7 +2,7 @@ package io.github.toyota32k.secureCamera.settings
 
 import android.app.Application
 import android.os.Build
-import io.github.toyota32k.secureCamera.utils.binding.DPDate
+import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.shared.SharedPreferenceDelegate
 import java.util.UUID
 
@@ -93,7 +93,7 @@ object Settings {
         var endDateInt by spd.pref(0)
         var cloudTestMode by spd.pref(false)
 
-        var startDate:DPDate
+        var startDate: DPDate
             get() = DPDate.fromInt(startDateInt)
             set(v) { startDateInt = v.intValue }
         var endDate:DPDate

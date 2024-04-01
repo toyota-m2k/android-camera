@@ -9,8 +9,8 @@ import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
-import io.github.toyota32k.shared.WeakReferenceDelegate
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.WeakReferenceDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max

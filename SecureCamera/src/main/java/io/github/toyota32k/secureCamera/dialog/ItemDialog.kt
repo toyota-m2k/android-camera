@@ -12,6 +12,7 @@ import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.IUtImmortalTask
+import io.github.toyota32k.dialog.task.UtImmortalViewModel
 import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
@@ -19,7 +20,6 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
-import io.github.toyota32k.secureCamera.utils.UtImmortalViewModel
 import io.github.toyota32k.utils.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -37,7 +37,7 @@ class ItemDialog : UtDialogEx() {
 
         var nextAction = NextAction.None
             private set
-        val actionCommand = LiteCommand<NextAction>() {action->
+        val actionCommand = LiteCommand<NextAction> { action->
             nextAction = action
             completeCommand.invoke()
         }

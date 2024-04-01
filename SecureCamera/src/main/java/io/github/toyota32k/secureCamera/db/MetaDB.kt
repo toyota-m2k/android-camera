@@ -1,11 +1,11 @@
 package io.github.toyota32k.secureCamera.db
 
 import android.app.Application
-import android.content.Context
 import androidx.core.net.toUri
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
@@ -15,7 +15,6 @@ import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
-import io.github.toyota32k.secureCamera.utils.binding.DPDate
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +76,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             }
         }
 
-    val encodedChapters:String
+    private val encodedChapters:String
         get() {
             return if(isVideo) {
                 chapterList?.fold(JSONArray()) { acc, chapter ->
@@ -158,7 +157,7 @@ object MetaDB {
     lateinit var application:Application
     val logger = UtLog("DB", null, MetaDB::class.java)
 
-    val MIGRATION_1_2 = object : Migration(1, 2) {
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             //カラム追加
             db.execSQL("ALTER TABLE t_meta ADD attr_date INTEGER default 0 not null")

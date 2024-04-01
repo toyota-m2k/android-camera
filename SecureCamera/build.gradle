@@ -96,7 +96,6 @@ dependencies {
     implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
     implementation "com.github.toyota-m2k:android-server:$m2k_android_server_version"
 
-    implementation project(path: ':shared')
     implementation project(path: ':libCamera')
     implementation project(path: ':libPlayer')
 

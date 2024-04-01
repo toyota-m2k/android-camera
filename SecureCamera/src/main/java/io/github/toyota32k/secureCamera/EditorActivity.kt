@@ -47,14 +47,14 @@ import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
-import io.github.toyota32k.secureCamera.utils.TimeSpan
-import io.github.toyota32k.secureCamera.utils.hideActionBar
-import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.ConstantLiveData
+import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.hideActionBar
+import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

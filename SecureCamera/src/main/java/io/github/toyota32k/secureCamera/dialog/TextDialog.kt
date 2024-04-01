@@ -9,11 +9,10 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalViewModel
 import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
 import io.github.toyota32k.secureCamera.R
-import io.github.toyota32k.secureCamera.databinding.DialogAddressBinding
 import io.github.toyota32k.secureCamera.databinding.DialogTextBinding
-import io.github.toyota32k.secureCamera.utils.UtImmortalViewModel
 import io.github.toyota32k.utils.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 

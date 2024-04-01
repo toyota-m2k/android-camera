@@ -45,9 +45,9 @@ import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.gesture.Direction
-import io.github.toyota32k.secureCamera.utils.hideActionBar
-import io.github.toyota32k.secureCamera.utils.hideStatusBar
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.hideActionBar
+import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -93,7 +93,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             videoCapture.dispose()
         }
 
-        val pictureTakingStatus = MutableStateFlow<Boolean>(false)
+        val pictureTakingStatus = MutableStateFlow(false)
         val takePictureCommand = LiteUnitCommand()
 
         fun takePicture(logger:UtLog) {
@@ -116,10 +116,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             }
         }
 
-        fun newVideoFile(): File {
+        private fun newVideoFile(): File {
             return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION))
         }
-        fun newImageFile(): File {
+        private fun newImageFile(): File {
             return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION))
         }
 
