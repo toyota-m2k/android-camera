@@ -184,7 +184,16 @@ class SettingDialog : UtDialogEx() {
         setLimitWidth(400)
         scrollable = true
         cancellable = false
-        heightOption = HeightOption.AUTO_SCROLL
+        if(isPhone) {
+            widthOption = WidthOption.FULL
+            heightOption = HeightOption.FULL
+            scrollable = true
+        } else {
+            heightOption = HeightOption.AUTO_SCROLL
+            gravityOption = GravityOption.CENTER
+            setLimitWidth(500)
+        }
+        gravityOption = GravityOption.CENTER
     }
 
     lateinit var controls:DialogSettingBinding
