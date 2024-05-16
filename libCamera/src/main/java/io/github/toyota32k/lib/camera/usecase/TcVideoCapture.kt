@@ -17,7 +17,6 @@ import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
-import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -96,17 +95,16 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
     // endregion
 
     // region Consumer<VideoRecordEvent>
-
-    override fun accept(event: VideoRecordEvent?) {
+    override fun accept(value: VideoRecordEvent) {
         val state = recordingState ?: return
-        when(event) {
+        when(value) {
             is VideoRecordEvent.Start -> state.value = RecordingState.STARTED
             is VideoRecordEvent.Pause -> state.value = RecordingState.PAUSING
             is VideoRecordEvent.Resume -> state.value = RecordingState.STARTED
             is VideoRecordEvent.Finalize -> state.value = RecordingState.NONE
             else -> return
         }
-        logger.debug("$event")
+        logger.debug("$value")
     }
 
     // endregion

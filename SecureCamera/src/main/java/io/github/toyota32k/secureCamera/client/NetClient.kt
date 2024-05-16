@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import kotlin.time.toJavaDuration
 
 object NetClient {
     private val motherClient : OkHttpClient =
@@ -28,7 +29,7 @@ object NetClient {
         return motherClient.newCall(req).executeAsync(canceller)
     }
 
-    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().readTimeout(1500, TimeUnit.MILLISECONDS).writeTimeout(3, TimeUnit.SECONDS).build()}
+    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().connectTimeout(1.seconds.toJavaDuration()).readTimeout(1.seconds.toJavaDuration()).writeTimeout(1.seconds.toJavaDuration()).build()}
     suspend fun shortCallAsync(req:Request): Response? {
         return try {
             shortClient.newCall(req).executeAsync(null)

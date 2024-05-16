@@ -4,7 +4,6 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.camera.core.FocusMeteringAction
 import androidx.concurrent.futures.await
-import androidx.core.view.GestureDetectorCompat
 import io.github.toyota32k.lib.camera.TcLib
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
@@ -67,7 +66,7 @@ class FocusGestureListener(
         }
     }
 
-    private val detector = GestureDetectorCompat(cameraOwner.context, this)
+    private val detector = GestureDetector(cameraOwner.context, this)
     fun onTouchEvent(event: MotionEvent):Boolean {
         return detector.onTouchEvent(event)
     }

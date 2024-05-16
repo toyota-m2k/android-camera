@@ -23,12 +23,13 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.headersContentLength
 import org.json.JSONObject
+import java.util.Locale
 
 object TcClient {
     val logger = UtLog("Tc", NetClient.logger, this::class.java)
 
     private fun sizeInKb(size: Long): String {
-        return String.format("%,d KB", size / 1000L)
+        return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
     suspend fun registerOwnerToSecureArchive():Boolean {
