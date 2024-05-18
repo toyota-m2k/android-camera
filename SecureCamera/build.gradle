@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "io.github.toyota32k.secureCamera"
-        minSdk 26
+        minSdk 28
         targetSdk 34
         versionCode 1
         versionName "1.7.2"
@@ -90,15 +90,15 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
     implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-    implementation "com.github.toyota-m2k:android-utilities:$m2k_utilities_version"
-    implementation "com.github.toyota-m2k:android-binding:$m2k_binding_version"
-    implementation "com.github.toyota-m2k:android-viewex:$m2k_viewex_version"
-    implementation "com.github.toyota-m2k:android-dialog:$m2k_android_dialog_version"
-    implementation "com.github.toyota-m2k:android-media-processor:$m2k_media_processor_version"
-    implementation "com.github.toyota-m2k:android-server:$m2k_android_server_version"
+    implementation "com.github.toyota-m2k:android-utilities:2.0.2"
+    implementation "com.github.toyota-m2k:android-binding:1.1.3"
+    implementation "com.github.toyota-m2k:android-viewex:1.0.7"
+    implementation "com.github.toyota-m2k:android-dialog:3.7.2"
+    implementation "com.github.toyota-m2k:android-media-processor:2.7.2"
+    implementation "com.github.toyota-m2k:android-server:1.0.1"
+    implementation "com.github.toyota-m2k:android-media-player:1.0.0"
 
     implementation project(path: ':libCamera')
-    implementation project(path: ':libPlayer')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
