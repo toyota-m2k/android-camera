@@ -27,12 +27,6 @@ android {
             keyAlias = "key0"
             keyPassword = password
         }
-        create("default") {
-            storeFile = file(keyStorePath)
-            storePassword = password
-            keyAlias = "key0"
-            keyPassword = password
-        }
     }
 
     defaultConfig {
@@ -40,10 +34,9 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.7.2"
+        versionName = "1.7.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        signingConfig = signingConfigs.getByName("default")
     }
 
     buildFeatures {
@@ -56,6 +49,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
             signingConfig = signingConfigs.getByName("release")
         }
     }
