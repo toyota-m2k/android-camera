@@ -314,7 +314,13 @@ class EditorActivity : UtMortalActivity() {
                         } else {
                             safeDelete(srcFile)
                             dstFile.renameTo(srcFile)
-                            MetaDB.updateFile(targetItem, viewModel.chapterList.defrag())
+                            val adjustedEnabledRange = r.adjustedTrimmingRangeList?.list?.map { Range(it.startUs/1000L, it.endUs/1000L) }
+                            val newChapterList = if(!adjustedEnabledRange.isNullOrEmpty()) {
+                                viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
+                            } else {
+                                viewModel.chapterList.chapters
+                            }
+                            MetaDB.updateFile(targetItem, newChapterList)
                         }
                         UtImmortalSimpleTask.run("completeMessage") {
                             showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
