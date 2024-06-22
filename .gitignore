@@ -19,3 +19,4 @@ local.properties
 camera/build
 tryCameraLib/build
 .idea/deploymentTargetDropDown.xml
+libPlayer/build
