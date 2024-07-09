@@ -1,16 +1,23 @@
 [versions]
-agp = "8.4.2"
-androidBinding = "1.1.3"
-androidDialog = "3.7.2"
+# plugins
+kotlin = "1.9.23"
+agp = "8.5.0"
+# room compiler で使用。
+# ksp のバージョンは、kotlin_version と同じ世代のものを指定する必要がある。
+# https://github.com/google/ksp/releases で確認する。
+ksp = "1.9.23-1.0.20"
+
+# libraries
+androidBinding = "1.1.4"
+androidDialog = "3.7.3"
 androidMediaProcessor = "2.8.0"
 androidServer = "1.0.1"
 androidMediaPlayer = "1.1.0"
-androidUtilitiesVersion = "2.0.2"
-androidViewex = "1.0.7"
+androidUtilitiesVersion = "2.0.7"
+androidViewex = "1.0.9"
 cameraCore = "1.3.4"
 concurrentFuturesKtx = "1.2.0"
 gridlayout = "1.0.0"
-kotlin = "2.0.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -64,7 +71,8 @@ android-utilities = { module = "com.github.toyota-m2k:android-utilities", versio
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 [plugins]
-android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+devtool-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

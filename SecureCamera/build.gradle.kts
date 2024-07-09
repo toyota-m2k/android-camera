@@ -1,9 +1,9 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")        // for room compiler
+    alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.devtool.ksp)         // for room compiler
 //    id("com.google.android.gms.oss-licenses-plugin")
 }
 
@@ -84,11 +84,7 @@ dependencies {
 //    implementation("com.google.android.gms:play-services-oss-licenses:17.0.0")
 
     implementation(libs.androidx.camera.core)
-//    implementation("androidx.camera:camera-camera2:${camerax_version}")
-//    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
-//    implementation("androidx.camera:camera-video:${camerax_version}")
     implementation(libs.androidx.camera.view)
-//    implementation("androidx.camera:camera-extensions:${camerax_version}")
 
     implementation(libs.android.utilities)
     implementation(libs.android.binding)

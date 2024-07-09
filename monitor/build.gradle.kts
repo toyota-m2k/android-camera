@@ -1,6 +1,6 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.android.application)
 }
 
 android {
@@ -48,11 +48,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.livedata.ktx)
 
     implementation(libs.androidx.camera.core)
-//    implementation("androidx.camera:camera-camera2:${camerax_version}")
-//    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
-//    implementation("androidx.camera:camera-video:${camerax_version}")
     implementation(libs.androidx.camera.view)
-//    implementation("androidx.camera:camera-extensions:${camerax_version}")
 
     implementation(libs.android.utilities)
     implementation(libs.android.binding)
