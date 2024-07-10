@@ -60,6 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
 class EditorActivity : UtMortalActivity() {
@@ -250,7 +251,7 @@ class EditorActivity : UtMortalActivity() {
     }
 
     private fun stringInKb(size: Long): String {
-        return String.format("%,d KB", size / 1000L)
+        return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
     private fun safeDelete(file:File) {

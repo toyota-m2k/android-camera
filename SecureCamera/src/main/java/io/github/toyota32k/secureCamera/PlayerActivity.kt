@@ -39,7 +39,6 @@ import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.boodroid.common.getAttrColorAsDrawable
 import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -49,6 +48,7 @@ import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
+import io.github.toyota32k.lib.player.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaSource
@@ -99,6 +99,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import java.util.EnumSet
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
 
@@ -763,7 +764,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private fun sizeInKb(size: Long): String {
-        return String.format("%,d KB", size / 1000L)
+        return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
