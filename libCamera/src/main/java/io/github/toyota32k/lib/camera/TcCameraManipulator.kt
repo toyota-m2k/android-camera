@@ -16,6 +16,22 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * CameraとPreviewViewに対するタッチジェスチャーをハンドリングするためのクラス。
+ * ジェスチャーの解釈には、UtGestureInterpreter を利用。
+ *
+ * val cameraManipulator = TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.LongTap, rapidTap = false)
+ * cameraManipulator.attachCamera(this@CameraActivity, camera, previewView) {
+ *    onTap {
+ *        takeSnapshot()    // タップで写真撮影
+ *    }
+ * }
+ *
+ *
+ * @param context       ApplicationContext可（Activityなどを渡しても、applicationContext を取得して保持するのでリークの心配は要らない）
+ * @param focusAction   フォーカス合わせにマップするタッチアクションを指定。デフォルト：（PreviewView上の）ダブルタップで、その場所にフォーカスを合わせる。
+ * @param rapidTap      true にすると、onSingleTapUp で tapEvent を発行（）。ただし、doubleTapEventは無効になる。
+ */
 class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:Boolean=false) {
     enum class FocusActionBy {
         None,
@@ -103,7 +119,17 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         }
     }
 
-    fun attachCamera(owner: LifecycleOwner, camera: Camera, previewView: PreviewView, gestureScope: CoroutineScope?=null, setupMe:IListenerBuilder.()->Unit) {
+    /**
+     * カメラ、PreviewView を TcCameraManipulatorに接続する
+     * @param owner    ライフサイクルオーナー：イベントリスナーの自動登録解除用
+     * @param camera   接続するカメラ（タッチ操作によるズームやフォーカス合わせの対象となる）
+     * @param previewView  プレビュービュー（タッチ操作の受け取りとフォーカスポイントの取得に使われる）
+     * @param gestureScope  カメラ操作(focus/zoom)用の suspend関数を呼び出すためのスコープ。null なら owner.lifecycleScope を利用する。
+     * @param setupMe   リスナー(TcCameraManipulator.IListenerBuilder)構築用関数。UtGestureInterpreter#setup()と似ているが、
+     *                   - onScaleは、ズーム操作用に予約されているため設定不可。
+     *                   - onTap/onDoubleTap/onLongTap は、focusActionBy の指定により設定が無視される場合がある。
+     */
+    fun attachCamera(owner: LifecycleOwner, camera: Camera, previewView: PreviewView, gestureScope: CoroutineScope?=null, setupMe:IListenerBuilder.()->Unit):TcCameraManipulator {
         this.camera = camera
         this.previewView = previewView
         this.gestureScope = gestureScope ?: owner.lifecycleScope
@@ -112,6 +138,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         ListenerBuilder().apply {
             setupMe()
         }.build(owner, previewView)
+        return this
     }
 
     // region Utils
@@ -161,7 +188,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         }
     }
 
-    fun focus(event: UtGestureInterpreter.IPositionalEvent) {
+    private fun focus(event: UtGestureInterpreter.IPositionalEvent) {
         val previewView = previewView ?: return
         val camera = camera ?: return
         val meteringPointFactory = previewView.meteringPointFactory

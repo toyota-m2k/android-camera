@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="36dp" android:width="36dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+<!--    <group>-->
+<!--        <path android:fillColor="#FF0000" android:pathData="M 20 11H 23V 13H 20V 11M 1 11H 4V 13H 1V 11M 13 1V 4H 11V 1H 13M 4.92 3.5L 7.05 5.64 5.63 7.05 3.5 4.93 4.92 3.5M 16.95 5.63L 19.07 3.5 20.5 4.93 18.37 7.05 16.95 5.63M 12 6A 6,6,0,0,1,18,12C 18 14.22 16.79 16.16 15 17.2V 19A 1,1,0,0,1,14,20H 10A 1,1,0,0,1,9,19V 17.2C 7.21 16.16 6 14.22 6 12A 6,6,0,0,1,12,6M 14 21V 22A 1,1,0,0,1,13,23H 11A 1,1,0,0,1,10,22V 21H 14M 11 18H 13V 15.87C 14.73 15.43 16 13.86 16 12A 4,4,0,0,0,12,8 4,4,0,0,0,8,12C 8 13.86 9.27 15.43 11 15.87V 18Z" />-->
+<!--    </group>-->
+<!--    <group>-->
+<!--        <path android:fillColor="#FFFF00" android:pathData="M 11 18H 13V 15.87C 14.73 15.43 16 13.86 16 12A 4,4,0,0,0,12,8 4,4,0,0,0,8,12C 8 13.86 9.27 15.43 11 15.87V 18Z" />-->
+<!--    </group>-->
+    <group>
+        <path android:fillColor="#FF0000" android:pathData="M 12 2A 7,7,0,0,1,19,9C 19 11.38 17.81 13.47 16 14.74V 17A 1,1,0,0,1,15,18H 9A 1,1,0,0,1,8,17V 14.74C 6.19 13.47 5 11.38 5 9A 7,7,0,0,1,12,2M 9 21V 20H 15V 21A 1,1,0,0,1,14,22H 10A 1,1,0,0,1,9,21M 12 4A 5,5,0,0,0,7,9C 7 11.05 8.23 12.81 10 13.58V 16H 14V 13.58C 15.77 12.81 17 11.05 17 9A 5,5,0,0,0,12,4Z" />
+    </group>
+    <group>
+        <path android:fillColor="#FFFF00" android:pathData="M 12 4A 5,5,0,0,0,7,9C 7 11.05 8.23 12.81 10 13.58V 16H 14V 13.58C 15.77 12.81 17 11.05 17 9A 5,5,0,0,0,12,4Z" />
+    </group>
+</vector>

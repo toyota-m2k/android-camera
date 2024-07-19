@@ -22,9 +22,12 @@ import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
+import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -180,6 +183,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            isLongClickable = true
 //        }
 
+        val torchCommand = LiteCommand<Boolean> {
+            cameraManager.torch.put(it)
+        }
         binder
             .owner(this)
             .headlessNonnullBinding(viewModel.frontCameraSelected) { changeCamera(it) }
@@ -197,10 +203,15 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            .bindCommand(viewModel.expandPanelCommand, controls.expandButton, true)
 //            .bindCommand(viewModel.expandPanelCommand, controls.collapseButton, false)
 //            .bindCommand(viewModel.showPanelCommand, controls.closeButton, false)
+            .visibilityBinding(controls.lampOnButton, cameraManager.torch.isTouchOn, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.lampOffButton, cameraManager.torch.isTouchOn, boolConvert = BoolConvert.Inverse, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .multiEnableBinding(arrayOf(controls.lampOnButton,controls.lampOffButton), cameraManager.torch.isTorchAvailable, alphaOnDisabled = 0.2f)
             .bindCommand(viewModel.takePictureCommand, controls.photoButton) { takePicture() }
             .bindCommand(viewModel.takeVideoCommand, controls.videoRecButton, controls.videoPauseButton, controls.videoResumeButton)
             .bindCommand(viewModel.finalizeVideoCommand, controls.videoStopButton)
             .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
+            .bindCommand(torchCommand, controls.lampOnButton, false)
+            .bindCommand(torchCommand, controls.lampOffButton, true)
 
 //        cameraGestureManager = CameraGestureManager.Builder()
 //            .enableFocusGesture()
@@ -221,10 +232,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 cameraManager.prepare()
 
                 logger.debug("Supported Qualities ------------------------------------")
-                cameraManager.supportedQualitySelector(isFront = true).forEach {
+                cameraManager.supportedQualityList(isFront = true).forEach {
                     logger.debug("FRONT: $it")
                 }
-                cameraManager.supportedQualitySelector(isFront = false).forEach {
+                cameraManager.supportedQualityList(isFront = false).forEach {
                     logger.debug("BACK: $it")
                 }
 
@@ -272,6 +283,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val current = currentCamera?.frontCamera ?: return
         changeCamera(!current)
     }
+
     private fun changeCamera(front:Boolean) {
         val camera = currentCamera ?: return
         if(camera.frontCamera!=front) {
@@ -294,12 +306,13 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             logger.debug(modes)
 
             @ExperimentalZeroShutterLag // region UseCases
-            currentCamera = cameraManager.CameraBuilder()
-                .frontCamera(front)
-                .standardPreview(previewView)
-                .imageCapture(viewModel.imageCapture)
-                .videoCapture(viewModel.videoCapture)
-                .build(this)
+            currentCamera = cameraManager.createCamera(this) { builder->
+                    builder
+                    .frontCamera(front)
+                    .standardPreview(previewView)
+                    .imageCapture(viewModel.imageCapture)
+                    .videoCapture(viewModel.videoCapture)
+                }
                 .apply {
                     cameraManipulator.attachCamera(this@CameraActivity, camera, controls.previewView) {
                         onFlickVertical {
@@ -329,8 +342,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         }
                     }
                 }
-
-
         } catch (e: Throwable) {
             logger.error(e)
         }

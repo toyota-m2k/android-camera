@@ -130,10 +130,11 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
             }.insert(0,"capabilities = ").toString()
             logger.debug(modes)
 
-            currentCamera = cameraManager.CameraBuilder()
+            currentCamera = cameraManager.createCamera(this) { builder->
+                builder
                 .frontCamera(front)
                 .standardPreview(controls.previewView)
-                .build(this)
+            }
 
         } catch (e: Throwable) {
             logger.error(e)

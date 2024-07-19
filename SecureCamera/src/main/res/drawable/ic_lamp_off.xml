@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="36dp" android:width="36dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+<!--    <path android:fillColor="#000000" android:pathData="M 12 6A 6,6,0,0,1,18,12C 18 14.22 16.79 16.16 15 17.2V 19A 1,1,0,0,1,14,20H 10A 1,1,0,0,1,9,19V 17.2C 7.21 16.16 6 14.22 6 12A 6,6,0,0,1,12,6M 14 21V 22A 1,1,0,0,1,13,23H 11A 1,1,0,0,1,10,22V 21H 14Z" />-->
+    <path android:fillColor="#000000" android:pathData="M 12 2A 7,7,0,0,0,5,9C 5 11.38 6.19 13.47 8 14.74V 17A 1,1,0,0,0,9,18H 15A 1,1,0,0,0,16,17V 14.74C 17.81 13.47 19 11.38 19 9A 7,7,0,0,0,12,2M 9 21A 1,1,0,0,0,10,22H 14A 1,1,0,0,0,15,21V 20H 9V 21Z" />
+</vector>

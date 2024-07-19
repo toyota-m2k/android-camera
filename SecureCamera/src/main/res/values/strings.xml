@@ -73,4 +73,6 @@
     <string name="cloud_test_mode">Cloud Test Mode</string>
     <string name="playlist_setting_title">Settings of Player</string>
     <string name="selfie_label">Selfie Button</string>
+    <string name="desc_lamp_on">Lamp on</string>
+    <string name="desc_lamp_off">Lamp off\n</string>
 </resources>

@@ -12,6 +12,7 @@ import androidx.camera.video.*
 import androidx.camera.video.OutputOptions.FILE_SIZE_UNLIMITED
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
+import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
@@ -25,10 +26,44 @@ import java.util.concurrent.Executors
 //    output.prepareRecording(context, option)
 //}
 
+/**
+ * TcVideoCaptureクラス
+ * androidx.camera.video.VideoCapture<Recorder> の構築、利用（イベントハンドリング、状態管理、動画の撮影）を簡素化するためのクラス
+ * // レコーディング状態（RecordingState）監視用フローを準備（オプショナル）
+ * val flow = MutableStateFlow<TcVideoCapture.RecordingState>(TcVideoCapture.RecordingState.NONE)
+ *
+ * // TcVideoCaptureを構築
+ * val capture = TcVideoCapture.create { builder->
+ *                  builder
+ *                  .recordingStateFlow(flow)
+ *                  .build()
+ * // カメラに接続（カメラインスタンスを構築）... TcCameraManagerを使う例は、TcCameraManager.ktを参照
+ * val cameraProvider = ProcessCameraProvider.getInstance(application).await()
+ * val camera = cameraProvider.bindToLifecycle(
+ *     lifecycleOwner,
+ *     cameraSelector,
+ *     capture
+ *     )
+ * // レコーディング開始
+ * capture.takeVideoInMediaStore("my-video") {
+ *    UtMessageBox.showMessage("recoded.")
+ * }
+ *
+ */
 class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recordingState:MutableStateFlow<RecordingState>?) : Consumer<VideoRecordEvent>,
     ITcVideoCamera, IUtPropOwner {
     companion object {
         val logger: UtLog = TcLib.logger
+        val builder:Builder get() = Builder()
+
+        fun create(setupMe:(builder:IBuilder)->Unit):TcVideoCapture {
+            return Builder().apply {
+                setupMe(this)
+            }.build()
+        }
+        fun default():TcVideoCapture {
+            return Builder().build()
+        }
     }
     private val context: Context
         get() = TcLib.applicationContext
@@ -55,8 +90,14 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
     // endregion
 
     // region Construction
+    interface IBuilder {
+        fun qualitySelector(qualitySelector: QualitySelector): IBuilder
+        fun executor(executor: Executor): IBuilder
+        fun useFixedPoolExecutor(): IBuilder
+        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder
+    }
 
-    class Builder {
+    class Builder : IBuilder {
         private val autoQualitySelector:QualitySelector
             get() = QualitySelector.fromOrderedList(
                 listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
@@ -65,27 +106,29 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         private var mQualitySelector: QualitySelector? = null
         private var mExecutor: Executor? = null
         private var mRecordingState:MutableStateFlow<RecordingState>? = null
-        fun qualitySelector(qualitySelector: QualitySelector): Builder {
+
+        override fun qualitySelector(qualitySelector: QualitySelector): Builder {
             mQualitySelector = qualitySelector
             return this
         }
-        fun executor(executor: Executor): Builder {
+        override fun executor(executor: Executor): Builder {
             mExecutor = executor
             return this
         }
-        fun useFixedPoolExecutor(): Builder {
+        override fun useFixedPoolExecutor(): Builder {
             mExecutor = Executors.newFixedThreadPool(2)
             return this
         }
 
-        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): Builder {
+        override fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): Builder {
             mRecordingState = flow
             return this
         }
 
         fun build(): TcVideoCapture {
+            val executor = mExecutor ?: Executors.newFixedThreadPool(2)
             val recorder = Recorder.Builder()
-                .apply { mExecutor?.apply { setExecutor(this) } }
+                .setExecutor(executor)
                 .setQualitySelector( mQualitySelector?: autoQualitySelector )
                 .build()
             return TcVideoCapture(VideoCapture.withOutput(recorder), mRecordingState)
@@ -123,7 +166,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         }
     }
 
-    var onFinalized: (()->Unit)? = null
+    private var onFinalized: (()->Unit)? = null
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override fun takeVideo(options:OutputOptions, onFinalized:(()->Unit)?) {
