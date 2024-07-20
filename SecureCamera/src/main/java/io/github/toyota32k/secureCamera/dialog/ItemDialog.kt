@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
+import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
@@ -22,6 +23,7 @@ import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.utils.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtImmortalViewModel() {
@@ -40,6 +42,11 @@ class ItemDialog : UtDialogEx() {
         val actionCommand = LiteCommand<NextAction> { action->
             nextAction = action
             completeCommand.invoke()
+        }
+        val backupCommand = LiteUnitCommand {
+            viewModelScope.launch {
+                MetaDB.backupToCloud(item)
+            }
         }
         val completeCommand = LiteUnitCommand()
 
@@ -95,7 +102,7 @@ class ItemDialog : UtDialogEx() {
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.actionCommand, controls.editVideoButton, ItemViewModel.NextAction.EditItem)
-            .bindCommand(viewModel.actionCommand, controls.backupButton, ItemViewModel.NextAction.BackupItem)
+            .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.PurgeLocal)
             .bindCommand(viewModel.actionCommand, controls.restoreLocalButton, ItemViewModel.NextAction.RestoreLocal)
             .bindCommand(viewModel.completeCommand, ::onPositive)

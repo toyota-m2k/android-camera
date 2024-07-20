@@ -783,7 +783,6 @@ class PlayerActivity : UtMortalActivity() {
                 vm.saveIfNeed()
                 when(vm.nextAction) {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
-                    ItemDialog.ItemViewModel.NextAction.BackupItem -> MetaDB.backupToCloud(item)
                     ItemDialog.ItemViewModel.NextAction.PurgeLocal -> MetaDB.purgeLocalFile(item)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
                         if(viewModel.playlist.isVideo.value) {
