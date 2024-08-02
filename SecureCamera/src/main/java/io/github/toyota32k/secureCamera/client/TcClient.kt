@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera.client
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -179,7 +180,7 @@ object TcClient {
                 }
                 withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(result) }
             }
-            showDialog(taskName) { ProgressDialog() }.status.ok
+            showDialog(taskName) { ProgressDialog().apply{ parentVisibilityOption = ParentVisibilityOption.NONE } }.status.ok
         }
     }
 

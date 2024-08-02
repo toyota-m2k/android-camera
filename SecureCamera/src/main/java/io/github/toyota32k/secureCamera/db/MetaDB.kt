@@ -539,19 +539,18 @@ object MetaDB {
 
     // region Cloud Operation
 
-    suspend fun backupToCloud(item: ItemEx):Boolean {
+    suspend fun backupToCloud(item: ItemEx):ItemEx {
         if(item.cloud != CloudStatus.Local) {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
-            return true
+            return item
         }
         return withContext(Dispatchers.IO) {
             if (TcClient.uploadToSecureArchive(item)) {
                 logger.debug("uploaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
-                true
             } else {
                 logger.debug("upload error: ${item.name}")
-                false
+                item
             }
         }
     }

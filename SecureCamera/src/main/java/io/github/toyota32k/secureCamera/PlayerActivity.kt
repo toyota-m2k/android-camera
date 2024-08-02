@@ -781,14 +781,15 @@ class PlayerActivity : UtMortalActivity() {
             val vm = ItemDialog.ItemViewModel.createBy(this, item)
             if(showDialog(taskName) { ItemDialog() }.status.ok) {
                 vm.saveIfNeed()
+                val item2 = vm.item.value
                 when(vm.nextAction) {
-                    ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item)
-                    ItemDialog.ItemViewModel.NextAction.PurgeLocal -> MetaDB.purgeLocalFile(item)
+                    ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item2)
+                    ItemDialog.ItemViewModel.NextAction.PurgeLocal -> MetaDB.purgeLocalFile(item2)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
                         if(viewModel.playlist.isVideo.value) {
                             viewModel.playlist.select(null,true)
                         }
-                        MetaDB.restoreFromCloud(item)
+                        MetaDB.restoreFromCloud(item2)
                     }
                     else -> {}
                 }

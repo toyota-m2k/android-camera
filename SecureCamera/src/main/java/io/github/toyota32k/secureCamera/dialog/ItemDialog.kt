@@ -23,16 +23,17 @@ import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.utils.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtImmortalViewModel() {
-        lateinit var item:ItemEx
+        lateinit var item:MutableStateFlow<ItemEx>
 
         enum class NextAction {
             None,
             EditItem,
-            BackupItem,
+//            BackupItem,
             PurgeLocal,
             RestoreLocal,
         }
@@ -45,7 +46,7 @@ class ItemDialog : UtDialogEx() {
         }
         val backupCommand = LiteUnitCommand {
             viewModelScope.launch {
-                MetaDB.backupToCloud(item)
+                item.value = MetaDB.backupToCloud(item.value)
             }
         }
         val completeCommand = LiteUnitCommand()
@@ -57,14 +58,14 @@ class ItemDialog : UtDialogEx() {
 //        val removeLocalCommand = LiteUnitCommand()
 
         fun initFor(item:ItemEx) {
-            this.item = item
+            this.item = MutableStateFlow(item)
             rating.value = item.rating
             mark.value = item.mark
         }
 
         suspend fun saveIfNeed():Boolean {
-            return if(item.rating!=rating.value || item.mark != mark.value) {
-                item = MetaDB.updateMarkRating(item, mark.value, rating.value)
+            return if(item.value.rating!=rating.value || item.value.mark != mark.value) {
+                item.value = MetaDB.updateMarkRating(item.value, mark.value, rating.value)
                 true
             } else false
         }
@@ -94,11 +95,11 @@ class ItemDialog : UtDialogEx() {
         viewModel = ItemViewModel.instanceFor(this)
         controls = DialogItemBinding.inflate(inflater.layoutInflater)
         binder
-            .textBinding(controls.itemName, ConstantLiveData(viewModel.item.nameForDisplay))
+            .textBinding(controls.itemName, viewModel.item.map { it.nameForDisplay})
 //            .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo && viewModel.item.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.backupButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Local), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.removeLocalButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Uploaded), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.restoreLocalButton, ConstantLiveData(viewModel.item.cloud == CloudStatus.Cloud), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.actionCommand, controls.editVideoButton, ItemViewModel.NextAction.EditItem)
