@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "io.github.toyota32k.monitor"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"

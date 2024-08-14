@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "io.github.toyota32k.secureCamera"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         val properties = Properties()
@@ -32,9 +32,9 @@ android {
     defaultConfig {
         applicationId = "io.github.toyota32k.secureCamera"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
-        versionName = "1.8.2"
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
