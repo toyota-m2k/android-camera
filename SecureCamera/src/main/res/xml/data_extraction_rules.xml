@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- empty : 一切のデータ持ち出しを禁止 -->
+</data-extraction-rules>

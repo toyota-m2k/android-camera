@@ -8,11 +8,12 @@
 
     <application
         android:name=".SCApplication"
-        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:theme="@style/Theme.TryCamera">
         <activity
             android:name=".ServerActivity"

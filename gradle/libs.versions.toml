@@ -1,20 +1,20 @@
 [versions]
 # plugins
-kotlin = "1.9.23"
+kotlin = "2.0.10"
 agp = "8.5.2"
 # room compiler で使用。
 # ksp のバージョンは、kotlin_version と同じ世代のものを指定する必要がある。
 # https://github.com/google/ksp/releases で確認する。
-ksp = "1.9.23-1.0.20"
+ksp = "2.0.10-1.0.24"
 
 # libraries
-androidBinding = "1.1.4"
-androidDialog = "3.7.5"
+androidBinding = "1.2.0"
+androidDialog = "3.8.0"
 androidMediaProcessor = "2.8.3"
 androidServer = "1.0.1"
-androidMediaPlayer = "1.1.2"
-androidUtilitiesVersion = "2.0.7"
-androidViewex = "1.0.9"
+androidMediaPlayer = "1.2.0"
+androidUtilitiesVersion = "2.1.0"
+androidViewex = "1.1.0"
 cameraCore = "1.3.4"
 concurrentFuturesKtx = "1.2.0"
 gridlayout = "1.0.0"
@@ -28,7 +28,7 @@ lifecycleViewmodelKtx = "2.8.4"
 material = "1.12.0"
 activity = "1.9.1"
 constraintlayout = "2.1.4"
-media3ExoplayerVersion = "1.3.1"
+media3ExoplayerVersion = "1.4.0"
 okhttp = "4.12.0"
 preferenceKtx = "1.2.1"
 roomRuntime = "2.6.1"

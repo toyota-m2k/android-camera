@@ -9,7 +9,7 @@ version="1.0"
 
 android {
     namespace = "io.github.toyota32k.camera"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26
