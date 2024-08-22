@@ -1,169 +1,179 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/player"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
     tools:context=".PlayerActivity"
     android:background="?attr/splitterColor"
     >
-
     <LinearLayout
-        android:id="@+id/list_panel"
-        android:layout_width="320dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:layout_marginEnd="1dp"
-        android:background="?attr/colorSurface"
+        android:orientation="horizontal"
+        android:baselineAligned="false"
         >
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_horizontal"
-            android:paddingHorizontal="8dp"
+            android:id="@+id/list_panel"
+            android:layout_width="320dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:layout_marginEnd="1dp"
+            android:background="?attr/colorSurface"
             >
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/list_mode"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:singleSelection="true"
-            app:selectionRequired="true"
-            android:layout_weight="1"
-            >
-            <Button
-                android:id="@+id/radio_all"
-                android:text="@string/list_all"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-            <Button
-                android:id="@+id/radio_videos"
-                android:text="@string/list_videos"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-            <Button
-                android:id="@+id/radio_photos"
-                android:text="@string/list_photos"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-        <ImageButton
-            android:id="@+id/list_setting_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_sort"
-            android:background="?attr/selectableItemBackground"
-            android:tint="?attr/colorPrimaryVariant"
-            />
-        </LinearLayout>
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/list_view"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-
-            />
-    </LinearLayout>
-    <FrameLayout
-        android:id="@+id/viewer_area"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:background="?attr/playerBackground"
-        >
-        <FrameLayout
-            android:id="@+id/photo_viewer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-            <ImageView
-                android:id="@+id/image_view"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                />
             <LinearLayout
-                android:id="@+id/photo_button_panel"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_gravity="bottom|center_horizontal"
-                android:background="?attr/panelBackgroundColor"
+                android:gravity="center_horizontal"
+                android:paddingHorizontal="8dp"
                 >
-<!--                <ImageButton-->
-<!--                    android:id="@+id/image_prev_button"-->
-<!--                    android:layout_width="@dimen/media_button_width"-->
-<!--                    android:layout_height="@dimen/media_button_height"-->
-<!--                    app:srcCompat="@drawable/ic_chevron_left"-->
-<!--                    app:tint="?attr/iconColor"-->
-<!--                    android:background="?attr/selectableItemBackground"-->
-<!--                    />-->
-<!--                <ImageButton-->
-<!--                    android:id="@+id/image_next_button"-->
-<!--                    android:layout_width="@dimen/media_button_width"-->
-<!--                    android:layout_height="@dimen/media_button_height"-->
-<!--                    app:srcCompat="@drawable/ic_chevron_right"-->
-<!--                    app:tint="?attr/iconColor"-->
-<!--                    android:background="?attr/selectableItemBackground"-->
-<!--                    />-->
-                <ImageButton
-                    android:id="@+id/image_rotate_left_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_rotate_left"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/list_mode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                android:layout_weight="1"
+                >
+                <Button
+                    android:id="@+id/radio_all"
+                    android:text="@string/list_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
                     />
-                <ImageButton
-                    android:id="@+id/image_rotate_right_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_rotate_right"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
+                <Button
+                    android:id="@+id/radio_videos"
+                    android:text="@string/list_videos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
                     />
-                <ImageButton
-                    android:id="@+id/photo_save_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_save"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
+                <Button
+                    android:id="@+id/radio_photos"
+                    android:text="@string/list_photos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
                     />
-
-                <ImageButton
-                    android:id="@+id/expand_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_fullscreen"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
-                    />
-                <ImageButton
-                    android:id="@+id/collapse_button"
-                    android:layout_width="@dimen/media_button_width"
-                    android:layout_height="@dimen/media_button_height"
-                    app:srcCompat="@drawable/ic_collapse"
-                    app:tint="?attr/iconColor"
-                    android:background="?attr/selectableItemBackground"
-                    />
-
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+            <ImageButton
+                android:id="@+id/list_setting_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:src="@drawable/ic_sort"
+                android:background="?attr/selectableItemBackground"
+                app:tint="?attr/colorPrimaryVariant" />
             </LinearLayout>
-        </FrameLayout>
-        <io.github.toyota32k.lib.player.view.VideoPlayerView
-            android:id="@+id/video_viewer"
-            android:layout_width="match_parent"
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/list_view"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+
+                />
+        </LinearLayout>
+        <FrameLayout
+            android:id="@+id/viewer_area"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            />
-    </FrameLayout>
-</LinearLayout>
+            android:layout_weight="1"
+            android:background="?attr/playerBackground"
+            >
+            <FrameLayout
+                android:id="@+id/photo_viewer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+                <ImageView
+                    android:id="@+id/image_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitCenter"
+                    />
+                <LinearLayout
+                    android:id="@+id/photo_button_panel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:background="?attr/panelBackgroundColor"
+                    >
+    <!--                <ImageButton-->
+    <!--                    android:id="@+id/image_prev_button"-->
+    <!--                    android:layout_width="@dimen/media_button_width"-->
+    <!--                    android:layout_height="@dimen/media_button_height"-->
+    <!--                    app:srcCompat="@drawable/ic_chevron_left"-->
+    <!--                    app:tint="?attr/iconColor"-->
+    <!--                    android:background="?attr/selectableItemBackground"-->
+    <!--                    />-->
+    <!--                <ImageButton-->
+    <!--                    android:id="@+id/image_next_button"-->
+    <!--                    android:layout_width="@dimen/media_button_width"-->
+    <!--                    android:layout_height="@dimen/media_button_height"-->
+    <!--                    app:srcCompat="@drawable/ic_chevron_right"-->
+    <!--                    app:tint="?attr/iconColor"-->
+    <!--                    android:background="?attr/selectableItemBackground"-->
+    <!--                    />-->
+                    <ImageButton
+                        android:id="@+id/image_rotate_left_button"
+                        android:layout_width="@dimen/media_button_width"
+                        android:layout_height="@dimen/media_button_height"
+                        app:srcCompat="@drawable/ic_rotate_left"
+                        app:tint="?attr/iconColor"
+                        android:background="?attr/selectableItemBackground"
+                        />
+                    <ImageButton
+                        android:id="@+id/image_rotate_right_button"
+                        android:layout_width="@dimen/media_button_width"
+                        android:layout_height="@dimen/media_button_height"
+                        app:srcCompat="@drawable/ic_rotate_right"
+                        app:tint="?attr/iconColor"
+                        android:background="?attr/selectableItemBackground"
+                        />
+                    <ImageButton
+                        android:id="@+id/photo_save_button"
+                        android:layout_width="@dimen/media_button_width"
+                        android:layout_height="@dimen/media_button_height"
+                        app:srcCompat="@drawable/ic_save"
+                        app:tint="?attr/iconColor"
+                        android:background="?attr/selectableItemBackground"
+                        />
+
+                    <ImageButton
+                        android:id="@+id/expand_button"
+                        android:layout_width="@dimen/media_button_width"
+                        android:layout_height="@dimen/media_button_height"
+                        app:srcCompat="@drawable/ic_fullscreen"
+                        app:tint="?attr/iconColor"
+                        android:background="?attr/selectableItemBackground"
+                        />
+                    <ImageButton
+                        android:id="@+id/collapse_button"
+                        android:layout_width="@dimen/media_button_width"
+                        android:layout_height="@dimen/media_button_height"
+                        app:srcCompat="@drawable/ic_collapse"
+                        app:tint="?attr/iconColor"
+                        android:background="?attr/selectableItemBackground"
+                        />
+
+                </LinearLayout>
+            </FrameLayout>
+            <io.github.toyota32k.lib.player.view.VideoPlayerView
+                android:id="@+id/video_viewer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                />
+        </FrameLayout>
+    </LinearLayout>
+    <FrameLayout
+        android:id="@+id/safe_guard"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        />
+</FrameLayout>

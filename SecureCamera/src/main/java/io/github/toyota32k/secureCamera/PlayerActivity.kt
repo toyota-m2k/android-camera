@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -71,6 +72,7 @@ import io.github.toyota32k.secureCamera.db.MetaDB.toItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
+import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.UtSorter
@@ -203,6 +205,9 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
+
+        val blocking = MutableStateFlow(false)
+        val playingBeforeBlocked = MutableStateFlow(false)
 
         class DateRange {
             private var minDate:DPDate = DPDate.Invalid
@@ -599,6 +604,7 @@ class PlayerActivity : UtMortalActivity() {
 //                controls.videoViewer.controls.player.layoutParams = params
 //            }
             .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
 //            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
@@ -959,6 +965,9 @@ class PlayerActivity : UtMortalActivity() {
     override fun onPause() {
 //        controls.videoViewer.visibility = View.INVISIBLE
 //        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
+        viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
+        viewModel.blocking.value = true
+        viewModel.playerControllerModel.playerModel.pause()
         super.onPause()
     }
 
@@ -966,10 +975,29 @@ class PlayerActivity : UtMortalActivity() {
         super.onResume()
 //        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
 //        controls.videoViewer.visibility = View.VISIBLE
-        if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
-            controls.videoViewer.associatePlayer()
-            lifecycleScope.launch { viewModel.playlist.refreshList() }
+        fun afterUnblocked() {
+            if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
+                controls.videoViewer.associatePlayer()
+                lifecycleScope.launch { viewModel.playlist.refreshList() }
+            } else if(viewModel.playingBeforeBlocked.value) {
+                viewModel.playingBeforeBlocked.value = false
+                viewModel.playerControllerModel.playerModel.play()
+            }
         }
+        if(viewModel.blocking.value) {
+            lifecycleScope.launch {
+                if(PasswordDialog.checkPassword()) {
+                    viewModel.blocking.value = false
+                    afterUnblocked()
+                } else {
+                    logger.error("Incorrect Password")
+                    finish()
+                }
+            }
+        } else {
+            afterUnblocked()
+        }
+
     }
 
     override fun onDestroy() {
