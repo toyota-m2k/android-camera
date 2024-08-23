@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
@@ -19,15 +20,18 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
+import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -41,12 +45,25 @@ import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
+import io.github.toyota32k.media.lib.converter.toAndroidFile
+import io.github.toyota32k.media.lib.format.BitRateMode
+import io.github.toyota32k.media.lib.format.Codec
+import io.github.toyota32k.media.lib.format.ColorFormat
+import io.github.toyota32k.media.lib.format.Level
+import io.github.toyota32k.media.lib.format.Profile
+import io.github.toyota32k.media.lib.strategy.MaxDefault
+import io.github.toyota32k.media.lib.strategy.MinDefault
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
+import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies.HD720SizeCriteria
+import io.github.toyota32k.media.lib.strategy.VideoStrategy
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
+import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
+import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
@@ -55,8 +72,10 @@ import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -75,6 +94,7 @@ class EditorActivity : UtMortalActivity() {
             .enableSeekMedium(1000, 3000)
             .enableSeekLarge(5000, 10000)
             .enableSliderLock(true)
+            .counterInMs()
             .build()
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
@@ -112,7 +132,7 @@ class EditorActivity : UtMortalActivity() {
             val chapter = chapterList.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
             chapterList.skipChapter(chapter, !chapter.skip)
         }
-        val commandSave = LiteUnitCommand()
+//        val commandSave = LiteUnitCommand()
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
             playerModel.setSource(VideoSource(item), false)
             chapterList.initChapters(chapters)
@@ -124,6 +144,7 @@ class EditorActivity : UtMortalActivity() {
         val commandRedo = LiteUnitCommand {
             chapterList.redo()
         }
+        val blocking = MutableStateFlow(false)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
@@ -168,6 +189,7 @@ class EditorActivity : UtMortalActivity() {
     private val manipulationAgent by lazy { UtManipulationAgent(UtSimpleManipulationTarget(controls.videoViewer,controls.videoViewer.controls.player)) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        logger.debug()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -199,7 +221,8 @@ class EditorActivity : UtMortalActivity() {
                 .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
                 .bindCommand(viewModel.commandRemoveChapterPrev, controls.removePrevChapter)
                 .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
-                .bindCommand(viewModel.commandSave, controls.saveVideo, callback = ::trimmingAndSave)
+                .clickBinding(controls.saveVideo) { selectQualityAndSave() }
+                .longClickBinding(controls.saveVideo) { showVideoProperties() }
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
             controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
@@ -262,13 +285,65 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
-    private fun trimmingAndSave() {
+    private fun showVideoProperties():Boolean {
+        val inFile = viewModel.targetItem.file
+        val s = Converter.analyze(inFile.toAndroidFile())
+        ReportTextDialog.show(viewModel.targetItem.name, s.toString())
+        return true
+    }
+
+    private fun selectQualityAndSave():Boolean {
+        logger.debug()
+        lifecycleScope.launch {
+            val quality = SelectQualityDialog.show() ?: return@launch
+            trimmingAndSave(quality)
+        }
+        return true
+    }
+
+    object HEVC720MiddleProfile : VideoStrategy(
+        Codec.HEVC,
+        Profile.HEVCProfileMain,
+        Level.HEVCMainTierLevel3,
+        null,
+        HD720SizeCriteria,
+        MaxDefault(5*1000*1000, 3*1000*1000),
+        MaxDefault(30),
+        MinDefault(1),
+        ColorFormat.COLOR_FormatSurface,
+        BitRateMode.VBR,
+    )
+
+    object HEVC720LowProfile : VideoStrategy(
+        Codec.HEVC,
+        Profile.HEVCProfileMain,
+        Level.HEVCMainTierLevel3,
+        null,
+        HD720SizeCriteria,
+        MaxDefault(2*1000*1000, 1*1000*1000),
+        MaxDefault(30),
+        MinDefault(1),
+        ColorFormat.COLOR_FormatSurface,
+        BitRateMode.VBR,
+    )
+
+
+    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null) {
+        val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
         if(!targetItem.cloud.isFileInLocal) return
         val srcFile = targetItem.file
         val trimFile = File(application.cacheDir ?: return, "trimming")
         val optFile = File(application.cacheDir ?: return, "optimized")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
+        val strategy = when(quality) {
+            SelectQualityDialog.VideoQuality.High -> PresetVideoStrategies.HEVC1080Profile
+            SelectQualityDialog.VideoQuality.Middle -> HEVC720MiddleProfile
+            SelectQualityDialog.VideoQuality.Low -> HEVC720LowProfile
+        }
+        val s = Converter.analyze(srcFile.toAndroidFile())
+        logger.debug("input:\n$s")
+
 
         UtImmortalSimpleTask.run("trimming") {
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
@@ -278,7 +353,7 @@ class EditorActivity : UtMortalActivity() {
                 .input(srcFile)
                 .output(trimFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
-                .videoStrategy(PresetVideoStrategies.HEVC1080Profile)
+                .videoStrategy(strategy)
                 .rotate(rotation)
                 .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
                 .setProgressHandler {
@@ -306,6 +381,16 @@ class EditorActivity : UtMortalActivity() {
                     val dstLen = dstFile.length()
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
+                        if(quality.compact) {
+//                            val s = Converter.analyze(srcFile.toAndroidFile())
+//                            logger.debug("input:\n$s")
+//                            val d = Converter.analyze(dstFile.toAndroidFile())
+//                            logger.debug("output:\n$d")
+                            if(!UtImmortalSimpleTask.runAsync("low quality") {
+                                showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
+                            }) { throw CancellationException("cancelled") }
+                        }
+
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
                         if(testOnly) {
@@ -343,6 +428,7 @@ class EditorActivity : UtMortalActivity() {
                     }
                 } finally {
                     safeDelete(trimFile)
+                    safeDelete(optFile)
                 }
 
                 withContext(Dispatchers.Main) { vm.closeCommand.invoke(r.succeeded) }
@@ -352,14 +438,33 @@ class EditorActivity : UtMortalActivity() {
     }
 
     override fun onPause() {
+        logger.debug()
         super.onPause()
+        viewModel.blocking.value = true
         saveChapters()  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         if(isFinishing) {
+            logger.debug("finishing")
             viewModel.playerControllerModel.close()
         }
     }
 
+    override fun onResume() {
+        logger.debug()
+        super.onResume()
+        if(viewModel.blocking.value) {
+            lifecycleScope.launch {
+                if(PasswordDialog.checkPassword()) {
+                    viewModel.blocking.value = false
+                } else {
+                    logger.error("Incorrect Password")
+                    finish()
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
+        logger.debug()
         super.onDestroy()
         logger.debug()
     }

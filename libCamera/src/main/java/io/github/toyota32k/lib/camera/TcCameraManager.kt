@@ -121,8 +121,8 @@ class TcCameraManager() {
      * cameraInfoで指定されたカメラがサポートしているQualityのリストを取得する。
      */
     fun supportedQualityListForCamera(cameraInfo:CameraInfo?, dr:DynamicRange=DynamicRange.SDR):List<Quality> {
-//        return QualitySelector.getSupportedQualities(cameraInfo ?: return emptyList() )
-        return Recorder.getVideoCapabilities(cameraInfo!!).getSupportedQualities(dr)
+        if(cameraInfo==null) return emptyList()
+        return Recorder.getVideoCapabilities(cameraInfo).getSupportedQualities(dr)
     }
 
     /**
@@ -169,6 +169,10 @@ class TcCameraManager() {
         }.firstOrNull()
     }
 
+    val hasFrontCamera:Boolean
+        get() = cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
+    val hasRearCamera:Boolean
+        get() = cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)
 
     // endregion
 
@@ -249,6 +253,12 @@ class TcCameraManager() {
          * 動画録画用 UseCase を設定
          */
         fun videoCapture(videoCapture: TcVideoCapture): ICameraBuilder
+
+        /**
+         * 指定したカメラが存在しないときにbuild()で例外をスローするか？
+         * デフォルトは false（適当にフォールバックする）
+         */
+        fun errorIfNotHasCamera(errorIfNotHasCamera:Boolean): ICameraBuilder
     }
     inner class CameraBuilder : ICameraBuilder {
         private var mCameraSelector: CameraSelector? = null
@@ -256,6 +266,7 @@ class TcCameraManager() {
         private var mPreview: Preview? = null
         private var mImageCapture: TcImageCapture? = null
         private var mVideoCapture: TcVideoCapture? = null
+        private var mErrorIfNotHasCamera:Boolean = false    // true: build()で例外を投げる / false: front or rear にフォールバックする
 
         override fun frontCamera(frontCamera: Boolean): CameraBuilder {
             mCameraSelector = if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
@@ -293,8 +304,22 @@ class TcCameraManager() {
             return this
         }
 
+        override fun errorIfNotHasCamera(errorIfNotHasCamera: Boolean): CameraBuilder {
+            mErrorIfNotHasCamera = errorIfNotHasCamera
+            return this
+        }
+
         fun build(lifecycleOwner: LifecycleOwner): TcCamera {
             var cameraSelector:CameraSelector = mCameraSelector ?: CameraSelector.DEFAULT_BACK_CAMERA
+            if (!cameraProvider.hasCamera(cameraSelector)) {
+                if(hasFrontCamera) {
+                    cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                } else if(hasRearCamera) {
+                    cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                } else {
+                    throw IllegalStateException("no camera.")
+                }
+            }
             if(mExtensionMode!=TcCameraExtensions.Mode.NONE) {
                 cameraSelector = cameraExtensions.applyExtensionTo(mExtensionMode, cameraSelector)
             }
