@@ -34,12 +34,15 @@ import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.LongClickUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.genericBinding
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
+import io.github.toyota32k.binder.multiEnableBinding
+import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtRadioSelectionBox
@@ -96,6 +99,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -195,6 +199,7 @@ class PlayerActivity : UtMortalActivity() {
 
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
+        val undoBitmapCommand = LiteUnitCommand(playlist::reloadBitmap)
 //        val cropBitmapCommand = LiteUnitCommand()
         val ensureVisibleCommand = LiteUnitCommand()
         val playlistSettingCommand = LiteUnitCommand {
@@ -289,7 +294,12 @@ class PlayerActivity : UtMortalActivity() {
                 sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
             }
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
-            val photoBitmap: MutableStateFlow<Bitmap?> = MutableStateFlow(null)
+            val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
+
+            fun setCroppedBitmap(bitmap: Bitmap) {
+                photoBitmap.mutable.value = bitmap
+                photoCropped.mutable.value = true
+            }
 
             val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
             var photoSelection:ItemEx? = null
@@ -305,6 +315,7 @@ class PlayerActivity : UtMortalActivity() {
 //            val commandNext = LiteUnitCommand(::next)
 //            val commandPrev = LiteUnitCommand(::previous)
             val photoRotation : StateFlow<Int> = MutableStateFlow(0)
+            val photoCropped : StateFlow<Boolean> = MutableStateFlow(false)
 
             var dateRange = DateRange()
             private fun List<ItemEx>.filterByDateRange():List<ItemEx> {
@@ -322,24 +333,43 @@ class PlayerActivity : UtMortalActivity() {
                 updateSortOrderBySettings()
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
+
+            private fun resetPhoto(bitmap: Bitmap?=null) {
+                photoRotation.mutable.value = 0
+                photoBitmap.mutable.value = bitmap
+                photoCropped.mutable.value = false
+            }
+            private fun loadPhotoFromItem(item:ItemEx?) {
+                if(item==null) {
+                    resetPhoto()
+                    return
+                }
+                if(item.cloud.loadFromCloud) {
+                    resetPhoto()
+                    viewModelScope.launch {
+                        photoBitmap.mutable.value = TcClient.getPhoto(item)
+                    }
+                } else {
+                    resetPhoto(BitmapFactory.decodeFile(item.file.path))
+                }
+            }
+
+
             fun select(item_:ItemEx?, force:Boolean=true) {
                 if(!force && item_ == currentSelection.value) return
                 if(collection.isEmpty()) {
                     hasNext.value = false
                     hasPrevious.value = false
                     currentSource.value = null
-                    photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = null
-//                    playerControllerModel.playerModel.rotate(Rotation.NONE)
                     currentSelection.mutable.value = null
+                    resetPhoto()
                     return
                 }
 
                 if(item_==null) {
                     currentSource.value = null
-                    photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = null
                     currentSelection.mutable.value = null
+                    resetPhoto()
                     return
                 }
 
@@ -354,8 +384,7 @@ class PlayerActivity : UtMortalActivity() {
                 currentSelection.mutable.value = item
                 if(item.isVideo) {
                     videoSelection = item
-                    photoRotation.mutable.value = 0
-                    photoBitmap.mutable.value = null
+                    resetPhoto()
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
                     if(item.cloud.loadFromCloud) {
                         currentSource.value = null
@@ -370,15 +399,7 @@ class PlayerActivity : UtMortalActivity() {
                 } else {
                     photoSelection = item
                     currentSource.value = null
-                    photoRotation.mutable.value = 0
-                    if(item.cloud.loadFromCloud) {
-                        photoBitmap.mutable.value = null
-                        viewModelScope.launch {
-                            photoBitmap.mutable.value = TcClient.getPhoto(item)
-                        }
-                    } else {
-                        photoBitmap.mutable.value = BitmapFactory.decodeFile(item.file.path)
-                    }
+                    loadPhotoFromItem(item)
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
@@ -481,8 +502,14 @@ class PlayerActivity : UtMortalActivity() {
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
+                    photoCropped.mutable.value = false
                     MetaDB.updateFile(item,null)
                 }
+            }
+
+            // 回転/トリミングを無効化して元に戻す
+            fun reloadBitmap() {
+                loadPhotoFromItem(currentSelection.value)
             }
         }
 
@@ -600,17 +627,14 @@ class PlayerActivity : UtMortalActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//            .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.photoSaveButton, controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .multiEnableBinding(arrayOf(controls.photoSaveButton,controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, alphaOnDisabled = 0.2f)
             .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
-//            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
             .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
-//            .bindCommand(viewModel.rotateCommand, controls.imageRotateLeftButton, Rotation.LEFT)
-//            .bindCommand(viewModel.rotateCommand, controls.imageRotateRightButton, Rotation.RIGHT)
-//            .bindCommand(viewModel.rotateCommand, this::onRotate)
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
+            .bindCommand(viewModel.undoBitmapCommand, controls.photoUndoButton)
             .clickBinding(controls.photoCropButton, ::cropBitmap)
             .longClickBinding(controls.photoCropButton, ::applyPreviousCropParams)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
@@ -627,7 +651,6 @@ class PlayerActivity : UtMortalActivity() {
             .headlessBinding(viewModel.playlist.photoRotation) {
                 manipulator.agent.resetScroll()
             }
-//            .bindCommand(viewModel.playerControllerModel.commandPlayerTapped, ::onPlayerTapped)
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
@@ -796,7 +819,7 @@ class PlayerActivity : UtMortalActivity() {
 //        val ey = max(vh.toFloat(),ty + vh - my) * bs
 
         val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
-        viewModel.playlist.photoBitmap.value = newBitmap
+        viewModel.playlist.setCroppedBitmap(newBitmap)
         manipulator.agent.resetScrollAndScale()
     }
 
