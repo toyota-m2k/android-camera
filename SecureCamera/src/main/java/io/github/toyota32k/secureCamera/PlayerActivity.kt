@@ -28,6 +28,7 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.RecyclerViewBinding
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.combinatorialVisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
@@ -37,6 +38,7 @@ import io.github.toyota32k.binder.genericBinding
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
+import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -47,6 +49,8 @@ import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
+import io.github.toyota32k.lib.player.common.FitMode
+import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.lib.player.common.getAttrColorAsDrawable
@@ -103,6 +107,9 @@ import java.util.Date
 import java.util.EnumSet
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 
 class PlayerActivity : UtMortalActivity() {
@@ -183,8 +190,12 @@ class PlayerActivity : UtMortalActivity() {
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
+        data class CropParams(val tx:Float, val ty:Float, val scale:Float)
+        var cropParams:CropParams? = null
+
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
+//        val cropBitmapCommand = LiteUnitCommand()
         val ensureVisibleCommand = LiteUnitCommand()
         val playlistSettingCommand = LiteUnitCommand {
             viewModelScope.launch {
@@ -278,7 +289,7 @@ class PlayerActivity : UtMortalActivity() {
                 sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
             }
 //            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
-            val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
+            val photoBitmap: MutableStateFlow<Bitmap?> = MutableStateFlow(null)
 
             val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
             var photoSelection:ItemEx? = null
@@ -471,9 +482,6 @@ class PlayerActivity : UtMortalActivity() {
                     }
                     photoRotation.mutable.value = 0
                     MetaDB.updateFile(item,null)
-//                    if (playlist.listMode.value != ListMode.VIDEO) {
-//                        withContext(Dispatchers.Main) { playlist.replaceItem(newItem) }
-//                    }
                 }
             }
         }
@@ -592,18 +600,7 @@ class PlayerActivity : UtMortalActivity() {
                 inverseGone(controls.expandButton)
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//            .headlessBinding(viewModel.playerControllerModel.showControlPanel) {
-//                val params = controls.videoViewer.controls.player.layoutParams as FrameLayout.LayoutParams
-//                if(it==true) {
-//                    controls.photoButtonPanel.visibility = View.VISIBLE
-//                    params.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-//                } else {
-//                    controls.photoButtonPanel.visibility = View.GONE
-//                    params.gravity = Gravity.CENTER
-//                }
-//                controls.videoViewer.controls.player.layoutParams = params
-//            }
-            .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//            .visibilityBinding(controls.photoSaveButton, viewModel.playlist.photoRotation.map { it!=0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .bindCommand(viewModel.playlist.commandNext, controls.imageNextButton)
 //            .bindCommand(viewModel.playlist.commandPrev, controls.imagePrevButton)
@@ -614,6 +611,8 @@ class PlayerActivity : UtMortalActivity() {
 //            .bindCommand(viewModel.rotateCommand, this::onRotate)
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
+            .clickBinding(controls.photoCropButton, ::cropBitmap)
+            .longClickBinding(controls.photoCropButton, ::applyPreviousCropParams)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
@@ -741,6 +740,66 @@ class PlayerActivity : UtMortalActivity() {
 //            server.start()
 //        }
     }
+
+    private fun applyPreviousCropParams(v: View): Boolean {
+        viewModel.cropParams?.apply {
+            controls.imageView.scaleX = scale
+            controls.imageView.scaleY = scale
+            controls.imageView.translationX = tx
+            controls.imageView.translationY = ty
+        } ?: return false
+        cropBitmap(v)
+        return true
+    }
+
+    private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
+        val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
+        val rtx = controls.imageView.translationX
+        val rty = controls.imageView.translationY
+        if (scale ==1f && rtx==0f && rty==0f) return
+        viewModel.cropParams = PlayerViewModel.CropParams(rtx, rty, scale)
+        val tx = rtx / scale
+        val ty = rty / scale
+
+        val bitmap = viewModel.playlist.photoBitmap.value ?: return
+        val bw = bitmap.width                               // bitmap のサイズ
+        val bh = bitmap.height
+        val vw = controls.imageView.width                   // imageView のサイズ
+        val vh = controls.imageView.height
+        val fitter = UtFitter(FitMode.Inside, vw, vh)
+        fitter.fit(bw, bh)
+        val iw = fitter.resultWidth                         // imageView内での bitmapの表示サイズ
+        val ih = fitter.resultHeight
+        val mx = (vw-iw)/2                                  // imageView と bitmap のマージン
+        val my = (vh-ih)/2
+
+        // scale: 画面中央をピボットとする拡大率
+        // translation：中心座標の移動距離 x scale
+        val sw = vw / scale                                 // scaleを補正した表示サイズ
+        val sh = vh / scale
+        val cx = vw/2f - tx                                 // 現在表示されている画面の中央の座標（scale前の元の座標系）
+        val cy = vh/2f - ty
+        val sx = max(cx - sw/2 - mx, 0f)              // 表示されている画像の座標（表示画像内の座標系）
+        val sy = max(cy - sh/2 - my, 0f)
+        val ex = min(cx + sw/2 - mx, iw)
+        val ey = min(cy + sh/2 - my, ih)
+
+        val bs = bw.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
+        val x = sx * bs
+        val y = sy * bs
+        val w = (ex - sx) * bs
+        val h = (ey - sy) * bs
+
+//        val sx = min(0f,-(tx + mx)) * bs
+//        val ex = max(vw.toFloat(), tx + vw - mx) * bs
+//        val sy = min(0f,-(ty + my)) * bs
+//        val ey = max(vh.toFloat(),ty + vh - my) * bs
+
+        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
+        viewModel.playlist.photoBitmap.value = newBitmap
+        manipulator.agent.resetScrollAndScale()
+    }
+
 
     private suspend fun onDataChanged(c:DBChange) {
         when(c.type) {
