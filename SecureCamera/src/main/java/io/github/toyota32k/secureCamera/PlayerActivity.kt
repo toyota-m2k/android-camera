@@ -1,7 +1,6 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -34,14 +33,12 @@ import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.LongClickUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.genericBinding
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
-import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -154,7 +151,6 @@ class PlayerActivity : UtMortalActivity() {
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
                     try {
-//                    val current = playlist.currentSelection.value ?: return
                         val orgDate = item.date
                         val date = Date(orgDate + pos)
                         val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
@@ -189,7 +185,6 @@ class PlayerActivity : UtMortalActivity() {
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
             .build()
-        //val playerModel get() = playerControllerModel.playerModel
 
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
@@ -269,7 +264,6 @@ class PlayerActivity : UtMortalActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-//            override val disabledRanges: List<Range> = emptyList()
             override val chapterList: IChapterList
                 = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
         }
@@ -285,15 +279,9 @@ class PlayerActivity : UtMortalActivity() {
             ) { a, b ->
                 val ta = a.creationDate // filename2date(a)?.time ?: 0L
                 val tb = b.creationDate // filename2date(b)?.time ?: 0L
-//                if(ta==tb) {
-//                    TpLib.logger.debug("same value")
-//                }
-//                TpLib.logger.debug("compare: $ta with $tb = ${ta-tb} (${(ta-tb).toInt()}")
-//                ((filename2date(a)?.time ?: 0) - (filename2date(b)?.time ?: 0)).toInt()
                 val d = ta - tb
                 sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
             }
-//            val isVideo: StateFlow<Boolean> = MutableStateFlow(false)
             val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
 
             fun setCroppedBitmap(bitmap: Bitmap) {
@@ -312,8 +300,6 @@ class PlayerActivity : UtMortalActivity() {
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
 
-//            val commandNext = LiteUnitCommand(::next)
-//            val commandPrev = LiteUnitCommand(::previous)
             val photoRotation : StateFlow<Int> = MutableStateFlow(0)
             val photoCropped : StateFlow<Boolean> = MutableStateFlow(false)
 
@@ -538,13 +524,6 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-//        fun updateItem(itemNew:ItemEx) {
-//            val index = playlist.sorter.find(itemNew)
-//            if(index>=0) {
-//                playlist.collection[index] = itemNew
-//            }
-//        }
-
         fun saveListModeAndSelection() {
             val listMode = playlist.listMode.value
             val currentItem = playlist.currentSelection.value
@@ -588,15 +567,10 @@ class PlayerActivity : UtMortalActivity() {
         hideStatusBar()
 
         val normalColor: Drawable
-//        val normalTextColor: Int
         val selectedColor: Drawable
-//        val selectedTextColor: Int
-//
         theme!!.apply {
             normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
-//            normalTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
             selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
-//            selectedTextColor = getAttrColor(com.google.android.material.R.attr.colorOnSecondary, Color.WHITE)
         }
 
 
@@ -611,17 +585,11 @@ class PlayerActivity : UtMortalActivity() {
         val icRating4 = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
         val icCloud = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
         val icCloudFull = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
-//        val icPhotoSel = TintDrawable.tint(icPhoto, selectedTextColor)
-//        val icVideoSel = TintDrawable.tint(icVideo, selectedTextColor)
-//        val icPhotoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!, selectedTextColor)
-//        val icVideoSel = TintDrawable.tint(AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!, selectedTextColor)
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
             .visibilityBinding(controls.photoViewer, viewModel.playlist.isPhoto)
-//            .enableBinding(controls.imageNextButton, viewModel.playlist.hasNext)
-//            .enableBinding(controls.imagePrevButton, viewModel.playlist.hasPrevious)
             .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map { it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
                 straightGone(controls.collapseButton)
                 inverseGone(controls.expandButton)
@@ -696,7 +664,6 @@ class PlayerActivity : UtMortalActivity() {
                     CloudStatus.Cloud->icCloudFull
                 }
                 cloudView.setImageDrawable(cloudIcon)
-//                val tint = AppCompatResources.getColorStateList(this@PlayerActivity, R.color.color_icon_primary)
 
                 itemBinder
                     .owner(this)
@@ -712,24 +679,7 @@ class PlayerActivity : UtMortalActivity() {
                         startEditing(item)
                     }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
-//                        logger.debug("${item.name} isSelected = $hit")
                         views.background = if(hit) selectedColor else normalColor
-
-//                        iconView.isSelected = hit
-//                        assert(views.tag === item)
-//                        if(views.isSelected!=hit) {
-//                            lifecycleScope.launch {
-//                                if (hit) {
-//                                    delay(10)
-//                                    views.isSelected = hit
-//                                    logger.debug("select: ${item.name}")
-//                                } else {
-//                                    delay(50)
-//                                    views.isSelected = hit
-//                                    logger.debug("unselect: ${item.name}")
-//                                }
-//                            }
-//                        }
                     }
 
             }
@@ -753,17 +703,11 @@ class PlayerActivity : UtMortalActivity() {
         ensureVisible()
 
         DBChange.observable.onEach(::onDataChanged).launchIn(lifecycleScope)
-
-//        val wm = getSystemService(WIFI_SERVICE) as WifiManager
-//        val ip = wm.connectionInfo
-
-//        lifecycleScope.launch {
-//            val ip = NetworkUtils.getIpAddress(applicationContext)
-//            logger.info(ip)
-//            server.start()
-//        }
     }
 
+    /**
+     * 前回のトリミング情報（scale/translation）を復元して、トリミングを実行する
+     */
     private fun applyPreviousCropParams(v: View): Boolean {
         viewModel.cropParams?.apply {
             controls.imageView.scaleX = scale
@@ -775,6 +719,9 @@ class PlayerActivity : UtMortalActivity() {
         return true
     }
 
+    /**
+     * 表示中のビットマップを可視範囲でトリミングする
+     */
     private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
         val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
         val rtx = controls.imageView.translationX
@@ -813,11 +760,6 @@ class PlayerActivity : UtMortalActivity() {
         val w = (ex - sx) * bs
         val h = (ey - sy) * bs
 
-//        val sx = min(0f,-(tx + mx)) * bs
-//        val ex = max(vw.toFloat(), tx + vw - mx) * bs
-//        val sy = min(0f,-(ty + my)) * bs
-//        val ey = max(vh.toFloat(),ty + vh - my) * bs
-
         val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
         viewModel.playlist.setCroppedBitmap(newBitmap)
         manipulator.agent.resetScrollAndScale()
@@ -844,7 +786,7 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    fun ensureVisible() {
+    private fun ensureVisible() {
         val index = viewModel.currentIndex
         if(index>=0) {
             controls.listView.scrollToPosition(index)
@@ -896,12 +838,6 @@ class PlayerActivity : UtMortalActivity() {
             ensureSelectItem(item.name, name != null)
         }
     }
-
-//    private suspend fun UtImmortalSimpleTask.removeLocalFile(item:ItemEx) {
-//        if(item.cloud != CloudStatus.Uploaded) return
-//        MetaDB.removeUploadedFile(item)
-//        (getActivity() as? PlayerActivity)?.itemUpdated(item.name)
-//    }
 
     inner class ManipulationTarget : IUtManipulationTarget {
         val agent = UtManipulationAgent(this)
@@ -979,54 +915,18 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-//    private fun onPlayerTapped() {
-//        when(viewModel.playerControllerModel.windowMode.value) {
-//            PlayerControllerModel.WindowMode.FULLSCREEN -> {
-//                viewModel.playerControllerModel.showControlPanel.toggle()
-//            }
-//            else -> {
-//                viewModel.playerControllerModel.playerModel.togglePlay()
-//            }
-//        }
-//    }
-
     private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
         when(mode) {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
-//                hideStatusBar()
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
-//                showStatusBar()
             }
         }
     }
-
-//    override fun onGestureFling(dir: FlingDirection): Boolean {
-//        when(dir) {
-//            FlingDirection.Left->viewModel.playlist.commandNext.invoke()
-//            FlingDirection.Right->viewModel.playlist.commandPrev.invoke()
-//            else -> return false
-//        }
-//        return true
-//    }
-//    fun onGestureSwipe(dx: Float, dy: Float, end:Boolean): Boolean {
-//        controls.imageView.translationX  -= dx
-//        controls.imageView.translationY  -= dy
-//        return true
-//    }
-//
-//    fun onGestureZoom(scale: Float, end:Boolean): Boolean {
-//        val newScale = (controls.imageView.scaleX * scale).run {
-//            max(1f, min(10f, this))
-//        }
-//        controls.imageView.scaleX = newScale
-//        controls.imageView.scaleY = newScale
-//        return true
-//    }
 
     private fun setSecureMode() {
         val current = (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
@@ -1045,8 +945,6 @@ class PlayerActivity : UtMortalActivity() {
 
 
     override fun onPause() {
-//        controls.videoViewer.visibility = View.INVISIBLE
-//        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blocking.value = true
         viewModel.playerControllerModel.playerModel.pause()
@@ -1055,8 +953,6 @@ class PlayerActivity : UtMortalActivity() {
 
     override fun onResume() {
         super.onResume()
-//        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)         // タスクマネージャに表示させない、キャプチャー禁止)
-//        controls.videoViewer.visibility = View.VISIBLE
         fun afterUnblocked() {
             if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
                 controls.videoViewer.associatePlayer()
@@ -1090,7 +986,6 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
-        // return super.handleKeyEvent(keyCode, event)
         if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
             viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
             return true
