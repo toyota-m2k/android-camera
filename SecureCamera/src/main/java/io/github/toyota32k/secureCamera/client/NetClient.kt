@@ -17,7 +17,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.time.toJavaDuration
 
 object NetClient {
-    private val motherClient : OkHttpClient =
+    val motherClient : OkHttpClient =
         OkHttpClient.Builder()
             .readTimeout(30, TimeUnit.SECONDS)
 //            .writeTimeout(120, TimeUnit.SECONDS)

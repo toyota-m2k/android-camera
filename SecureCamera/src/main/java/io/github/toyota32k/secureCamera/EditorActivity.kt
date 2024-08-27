@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
@@ -19,13 +18,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
-import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
-import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -43,6 +40,8 @@ import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
+import io.github.toyota32k.media.lib.converter.HttpFile
+import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
@@ -57,6 +56,8 @@ import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies.HD720SizeCriteria
 import io.github.toyota32k.media.lib.strategy.VideoStrategy
+import io.github.toyota32k.secureCamera.client.OkHttpInputFile
+import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -67,7 +68,6 @@ import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
-import io.github.toyota32k.utils.ConstantLiveData
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
@@ -78,6 +78,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.Closeable
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -215,7 +216,7 @@ class EditorActivity : UtMortalActivity() {
             binder
                 .enableBinding(controls.redo, viewModel.chapterList.canRedo)
                 .enableBinding(controls.undo, viewModel.chapterList.canUndo)
-                .visibilityBinding(controls.saveVideo, ConstantLiveData(viewModel.targetItem.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+//                .visibilityBinding(controls.saveVideo, ConstantLiveData(viewModel.targetItem.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .bindCommand(viewModel.commandAddChapter, controls.makeChapter)
                 .bindCommand(viewModel.commandAddSkippingChapter, controls.makeChapterAndSkip)
                 .bindCommand(viewModel.commandRemoveChapter, controls.removeNextChapter)
@@ -286,8 +287,12 @@ class EditorActivity : UtMortalActivity() {
     }
 
     private fun showVideoProperties():Boolean {
-        val inFile = viewModel.targetItem.file
-        val s = Converter.analyze(inFile.toAndroidFile())
+        val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
+            viewModel.targetItem.file.toAndroidFile()
+        } else {
+            HttpFile(viewModel.targetItem.uri)
+        }
+        val s = Converter.analyze(inFile)
         ReportTextDialog.show(viewModel.targetItem.name, s.toString())
         return true
     }
@@ -331,8 +336,8 @@ class EditorActivity : UtMortalActivity() {
     private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null) {
         val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
-        if(!targetItem.cloud.isFileInLocal) return
-        val srcFile = targetItem.file
+//        if(!targetItem.cloud.isFileInLocal) return
+//        val srcFile = targetItem.file
         val trimFile = File(application.cacheDir ?: return, "trimming")
         val optFile = File(application.cacheDir ?: return, "optimized")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
@@ -341,8 +346,16 @@ class EditorActivity : UtMortalActivity() {
             SelectQualityDialog.VideoQuality.Middle -> HEVC720MiddleProfile
             SelectQualityDialog.VideoQuality.Low -> HEVC720LowProfile
         }
-        val s = Converter.analyze(srcFile.toAndroidFile())
-        logger.debug("input:\n$s")
+        val srcFile = if(targetItem.cloud.isFileInLocal) {
+            targetItem.file.toAndroidFile()
+        } else {
+            // HttpFile(targetItem.uri)
+            // OkHttpInputFile(this, targetItem.uri)
+            HttpInputFile(this, targetItem.uri)
+            // HttpInputFile(this, OkHttpStreamSource(targetItem.uri))
+        }
+//        val s = Converter.analyze(srcFile)
+//        logger.debug("input:\n$s")
 
 
         UtImmortalSimpleTask.run("trimming") {
@@ -377,8 +390,9 @@ class EditorActivity : UtMortalActivity() {
                     trimFile
                 }
                 try {
-                    val srcLen = srcFile.length()
+                    val srcLen = srcFile.getLength().let { if(it<0) targetItem.size else it }
                     val dstLen = dstFile.length()
+                    var confirmed = false
                     if (r.succeeded && dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         if(quality.compact) {
@@ -389,6 +403,7 @@ class EditorActivity : UtMortalActivity() {
                             if(!UtImmortalSimpleTask.runAsync("low quality") {
                                 showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             }) { throw CancellationException("cancelled") }
+                            confirmed = true
                         }
 
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
@@ -398,8 +413,8 @@ class EditorActivity : UtMortalActivity() {
                                 dstFile.renameTo(testFile)
                             }
                         } else {
-                            safeDelete(srcFile)
-                            dstFile.renameTo(srcFile)
+                            safeDelete(targetItem.file)
+                            dstFile.renameTo(targetItem.file)
                             val adjustedEnabledRange = r.adjustedTrimmingRangeList?.list?.map { Range(it.startUs/1000L, it.endUs/1000L) }
                             val newChapterList = if(!adjustedEnabledRange.isNullOrEmpty()) {
                                 viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
@@ -409,7 +424,9 @@ class EditorActivity : UtMortalActivity() {
                             MetaDB.updateFile(targetItem, newChapterList)
                         }
                         UtImmortalSimpleTask.run("completeMessage") {
-                            showConfirmMessageBox("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
+                            if(!confirmed) {
+                                showConfirmMessageBox("Completed.","${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
+                            }
                             setResultAndFinish(true, targetItem)
                             true
                         }
@@ -421,14 +438,22 @@ class EditorActivity : UtMortalActivity() {
                         }
                     }
                 } catch(e:Throwable) {
-                    logger.error(e)
-                    UtImmortalSimpleTask.run("errorMessage") {
-                        showConfirmMessageBox("Something Wrong.", e.localizedMessage ?: e.message ?: "")
-                        true
+                    if(e !is CancellationException) {
+                        logger.error(e)
+                        UtImmortalSimpleTask.run("errorMessage") {
+                            showConfirmMessageBox(
+                                "Something Wrong.",
+                                e.localizedMessage ?: e.message ?: ""
+                            )
+                            true
+                        }
                     }
                 } finally {
                     safeDelete(trimFile)
                     safeDelete(optFile)
+                    if(srcFile is Closeable) {
+                        srcFile.close()
+                    }
                 }
 
                 withContext(Dispatchers.Main) { vm.closeCommand.invoke(r.succeeded) }
