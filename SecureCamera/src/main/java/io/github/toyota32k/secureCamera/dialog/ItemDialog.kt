@@ -86,8 +86,9 @@ class ItemDialog : UtDialogEx() {
 
     override fun preCreateBodyView() {
         draggable = true
+        scrollable = true
         widthOption = WidthOption.COMPACT
-        heightOption = HeightOption.COMPACT
+        heightOption = HeightOption.AUTO_SCROLL
         gravityOption = GravityOption.CENTER
         setLeftButton(BuiltInButtonType.CANCEL)
         setRightButton(BuiltInButtonType.OK)
@@ -102,6 +103,7 @@ class ItemDialog : UtDialogEx() {
             .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.actionCommand, controls.editVideoButton, ItemViewModel.NextAction.EditItem)
