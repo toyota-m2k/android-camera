@@ -38,6 +38,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import java.util.*
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
+import kotlin.math.roundToLong
 
 class SettingDialog : UtDialogEx() {
     class SettingViewModel(application: Application) : AndroidViewModel(application), IUtImmortalTaskMutableContextSource, IUtPropOwner {
@@ -82,11 +87,30 @@ class SettingDialog : UtDialogEx() {
             }
         }
 
+        // span (ms) --> log(span)
+        private fun spanToLogSpan(span:Float):Float {
+            return log10(span.toDouble()).toFloat()
+        }
+        // log(span) --> span (ms)
+        private fun logSpanToSpan(logSpan:Float):Float {
+            return 10f.pow(logSpan)
+        }
+        private fun roundSpanInMSec(span:Float):Long {
+            return (span/100).roundToLong() * 100L
+        }
+        private fun roundSpanInSec(span:Float):Float {
+            return (span/100).roundToLong() / 10f
+        }
+        fun formatSpanLabel(logSpan:Float, format:String="%.1f sec"):String {
+            return format.format(Locale.US, roundSpanInSec(logSpanToSpan(logSpan)))
+        }
+
+
         val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
         val selfieAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.selfieAction)
         val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
-        val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipForward.toFloat()/1000f)
-        val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(Settings.Player.spanOfSkipBackward.toFloat()/1000f)
+        val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipForward.toFloat()))
+        val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipBackward.toFloat()))
         val securityEnablePassword: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Security.enablePassword)
         val securityPassword: MutableStateFlow<String> = MutableStateFlow(Settings.Security.password)
         val securityNumberOfIncorrectPassword: MutableStateFlow<Int> = MutableStateFlow(Settings.Security.numberOfIncorrectPassword)
@@ -94,8 +118,8 @@ class SettingDialog : UtDialogEx() {
 
         val passwordText: Flow<String> = securityPassword.map { if(it.isBlank()) application.getString(R.string.password_not_set) else application.getString(R.string.password_set) }
         val allowWrongPasswordText: Flow<String> = securityNumberOfIncorrectPassword.map { application.getString(R.string.max_pwd_error_label).format(Locale.US, clipNumberOfIncorrectPassword(it)) }
-        val skipForwardText = playerSpanOfSkipForward.map { application.getString(R.string.skip_forward_by).format(Locale.US, it) }
-        val skipBackwardText = playerSpanOfSkipBackward.map { application.getString(R.string.skip_backward_by).format(Locale.US, it) }
+        val skipForwardText = playerSpanOfSkipForward.map { formatSpanLabel(it, application.getString(R.string.skip_forward_by)) }
+        val skipBackwardText = playerSpanOfSkipBackward.map { formatSpanLabel(it,application.getString(R.string.skip_backward_by)) }
 
         val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.primaryAddress)
         val secureArchive2ndAddress = MutableStateFlow(Settings.SecureArchive.secondaryAddress)
@@ -117,15 +141,30 @@ class SettingDialog : UtDialogEx() {
                 securityNumberOfIncorrectPassword.mutable.value = after
             }
         }
+        private fun updateSpan(currentLogSpan:Float,diff:Float):Float {
+            val current = logSpanToSpan(currentLogSpan)
+            val newValue = if(diff>0) {
+                when {
+                    current < 1000f -> current + 100f
+                    else -> ceil((current + 1000f)/1000f)*1000f
+                }
+            } else {
+                when {
+                    current <= 2000f -> current - 100f
+                    else -> floor((current - 1000f)/1000f)*1000f
+                }
+            }
+            val span = max(100f, min( 60000f, newValue))
+            return spanToLogSpan(span)
+        }
+
         private fun updateSkipForwardSpan(d:Float) {
-            val v = playerSpanOfSkipForward.value + d
-            playerSpanOfSkipForward.value = max(0.1f, min(30f, v))
+            playerSpanOfSkipForward.value = updateSpan(playerSpanOfSkipForward.value, d)
         }
 
 
         private fun updateSkipBackwardSpan(d:Float) {
-            val v = playerSpanOfSkipBackward.value + d
-            playerSpanOfSkipBackward.value = max(0.1f, min(30f, v))
+            playerSpanOfSkipBackward.value = updateSpan(playerSpanOfSkipBackward.value, d)
         }
 
         private fun editAddress(n:Int) {
@@ -152,8 +191,8 @@ class SettingDialog : UtDialogEx() {
                 Settings.Camera.tapAction = cameraTapAction.value
                 Settings.Camera.selfieAction = selfieAction.value
                 Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
-                Settings.Player.spanOfSkipForward = (playerSpanOfSkipForward.value*1000).toLong()
-                Settings.Player.spanOfSkipBackward = (playerSpanOfSkipBackward.value*1000).toLong()
+                Settings.Player.spanOfSkipForward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipForward.value))
+                Settings.Player.spanOfSkipBackward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipBackward.value))
                 Settings.Security.enablePassword = securityEnablePassword.value
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
@@ -168,8 +207,8 @@ class SettingDialog : UtDialogEx() {
             cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
             selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
             cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
-            playerSpanOfSkipForward.value = Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat()/1000f
-            playerSpanOfSkipBackward.value = Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat()/1000f
+            playerSpanOfSkipForward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat())
+            playerSpanOfSkipBackward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat())
             securityEnablePassword.value = Settings.Security.DEF_ENABLE_PASSWORD
             securityPassword.value = Settings.Security.DEF_PASSWORD
             securityClearAllOnPasswordError.value =
@@ -200,6 +239,9 @@ class SettingDialog : UtDialogEx() {
     val viewModel: SettingViewModel by lazy { SettingViewModel.instanceFor(this) }
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogSettingBinding.inflate(inflater.layoutInflater)
+        controls.sliderSkipForward.setLabelFormatter { viewModel.formatSpanLabel(it) }
+        controls.sliderSkipBackward.setLabelFormatter { viewModel.formatSpanLabel(it) }
+
         return logger.chronos { controls.root.also { _->
                 binder
                     .textBinding(controls.passwordText, viewModel.passwordText)
@@ -218,10 +260,10 @@ class SettingDialog : UtDialogEx() {
                     .textBinding(controls.deviceName, viewModel.deviceName)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
-                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +0.1f)
-                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardMinus, -0.1f)
-                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +0.1f)
-                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -0.1f)
+                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +100f)
+                    .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardMinus, -100f)
+                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardPlus, +100f)
+                    .bindCommand(viewModel.commandSkipForward, controls.skipForwardMinus, -100f)
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton, 0)
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchive2ndAddressButton, 1)
                     .bindCommand(viewModel.commandDeviceName, controls.editDeviceNameButton)

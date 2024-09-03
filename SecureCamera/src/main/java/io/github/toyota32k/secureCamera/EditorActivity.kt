@@ -38,26 +38,17 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
+import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
 import io.github.toyota32k.media.lib.converter.HttpInputFile
+import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
-import io.github.toyota32k.media.lib.format.BitRateMode
-import io.github.toyota32k.media.lib.format.Codec
-import io.github.toyota32k.media.lib.format.ColorFormat
-import io.github.toyota32k.media.lib.format.Level
-import io.github.toyota32k.media.lib.format.Profile
-import io.github.toyota32k.media.lib.strategy.MaxDefault
-import io.github.toyota32k.media.lib.strategy.MinDefault
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
-import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies.HD720SizeCriteria
-import io.github.toyota32k.media.lib.strategy.VideoStrategy
-import io.github.toyota32k.secureCamera.client.OkHttpInputFile
-import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -69,6 +60,7 @@ import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.TimeSpan
+import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
@@ -135,9 +127,27 @@ class EditorActivity : UtMortalActivity() {
         }
 //        val commandSave = LiteUnitCommand()
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
+            resetInputFile()
             playerModel.setSource(VideoSource(item), false)
             chapterList.initChapters(chapters)
         }
+
+        private val resetableInputFile: UtLazyResetableValue<IInputMediaFile> = UtLazyResetableValue {
+            if(targetItem.cloud.isFileInLocal) {
+                targetItem.file.toAndroidFile()
+            } else {
+                HttpInputFile(application, targetItem.uri).apply { addRef() }
+            }
+        }
+
+        private fun resetInputFile() {
+            resetableInputFile.reset {
+                if(it is HttpInputFile) {
+                    it.release()
+                }
+            }
+        }
+        val inputFile:IInputMediaFile get() = resetableInputFile.value
 
         val commandUndo = LiteUnitCommand {
             chapterList.undo()
@@ -158,6 +168,7 @@ class EditorActivity : UtMortalActivity() {
         override fun onCleared() {
             super.onCleared()
             logger.debug()
+            resetInputFile()
             playerControllerModel.close()
         }
 
@@ -306,33 +317,6 @@ class EditorActivity : UtMortalActivity() {
         return true
     }
 
-    object HEVC720MiddleProfile : VideoStrategy(
-        Codec.HEVC,
-        Profile.HEVCProfileMain,
-        Level.HEVCMainTierLevel3,
-        null,
-        HD720SizeCriteria,
-        MaxDefault(5*1000*1000, 3*1000*1000),
-        MaxDefault(30),
-        MinDefault(1),
-        ColorFormat.COLOR_FormatSurface,
-        BitRateMode.VBR,
-    )
-
-    object HEVC720LowProfile : VideoStrategy(
-        Codec.HEVC,
-        Profile.HEVCProfileMain,
-        Level.HEVCMainTierLevel3,
-        null,
-        HD720SizeCriteria,
-        MaxDefault(2*1000*1000, 1*1000*1000),
-        MaxDefault(30),
-        MinDefault(1),
-        ColorFormat.COLOR_FormatSurface,
-        BitRateMode.VBR,
-    )
-
-
     private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null) {
         val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
@@ -342,18 +326,12 @@ class EditorActivity : UtMortalActivity() {
         val optFile = File(application.cacheDir ?: return, "optimized")
         val ranges = viewModel.chapterList.enabledRanges(Range.empty)
         val strategy = when(quality) {
-            SelectQualityDialog.VideoQuality.High -> PresetVideoStrategies.HEVC1080Profile
-            SelectQualityDialog.VideoQuality.Middle -> HEVC720MiddleProfile
-            SelectQualityDialog.VideoQuality.Low -> HEVC720LowProfile
+            SelectQualityDialog.VideoQuality.High -> PresetVideoStrategies.HEVC1080LowProfile
+            SelectQualityDialog.VideoQuality.Middle -> PresetVideoStrategies.HEVC720Profile
+            SelectQualityDialog.VideoQuality.Low -> PresetVideoStrategies.HEVC720LowProfile
         }
-        val srcFile = if(targetItem.cloud.isFileInLocal) {
-            targetItem.file.toAndroidFile()
-        } else {
-            // HttpFile(targetItem.uri)
-            // OkHttpInputFile(this, targetItem.uri)
-            HttpInputFile(this, targetItem.uri)
-            // HttpInputFile(this, OkHttpStreamSource(targetItem.uri))
-        }
+        val srcFile = viewModel.inputFile
+
 //        val s = Converter.analyze(srcFile)
 //        logger.debug("input:\n$s")
 
@@ -451,9 +429,6 @@ class EditorActivity : UtMortalActivity() {
                 } finally {
                     safeDelete(trimFile)
                     safeDelete(optFile)
-                    if(srcFile is Closeable) {
-                        srcFile.close()
-                    }
                 }
 
                 withContext(Dispatchers.Main) { vm.closeCommand.invoke(r.succeeded) }
