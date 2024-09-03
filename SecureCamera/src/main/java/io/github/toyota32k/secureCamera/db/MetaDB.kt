@@ -67,10 +67,13 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         filename2dpDate(name) ?: DPDate.Invalid
     }
 
+    val serverUri:String
+        get() = "http://${Authentication.activeHostAddress}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+
     val uri:String
         get() {
             return if(cloud.loadFromCloud) {
-                "http://${Authentication.activeHostAddress}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+                serverUri
             } else {
                 file.toUri().toString()
             }
@@ -560,6 +563,19 @@ object MetaDB {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return true
         }
+        return withContext(Dispatchers.IO) {
+            if (TcClient.downloadFromSecureArchive(item)) {
+                logger.debug("downloaded: ${item.name}")
+                updateCloud(item, CloudStatus.Uploaded)
+                true
+            } else {
+                logger.debug("download error: ${item.name}")
+                false
+            }
+        }
+    }
+
+    suspend fun recoverFromCloud(item: ItemEx):Boolean {
         return withContext(Dispatchers.IO) {
             if (TcClient.downloadFromSecureArchive(item)) {
                 logger.debug("downloaded: ${item.name}")

@@ -821,6 +821,9 @@ class PlayerActivity : UtMortalActivity() {
                         }
                         MetaDB.restoreFromCloud(item2)
                     }
+                    ItemDialog.ItemViewModel.NextAction.Repair -> {
+                        MetaDB.recoverFromCloud(item2)
+                    }
                     else -> {}
                 }
             }

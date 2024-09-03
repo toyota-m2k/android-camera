@@ -1,0 +1,6 @@
+<!-- drawable/numeric_4_circle_outline.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp" android:width="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#000000" android:pathData="M 17.7 12L 21.7 8C 22.1 7.6 22.1 7 21.7 6.6L 17.4 2.3C 17 1.9 16.4 1.9 16 2.3L 12 6.3 8 2.3C 7.8 2.1 7.6 2 7.3 2 7 2 6.8 2.1 6.6 2.3L 2.2 6.6C 1.9 7 1.9 7.6 2.2 8L 6.2 12 2.2 16C 1.9 16.4 1.9 17 2.2 17.4L 6.6 21.8C 7 22.1 7.6 22.1 8 21.8L 12 17.8 16 21.8C 16.2 22 16.4 22 16.7 22 16.9 22 17.2 21.9 17.4 21.8L 21.7 17.4C 22.1 17 22.1 16.4 21.7 16L 17.7 12M 12 9 7.3 11L 3.7 7.3 7.3 3.7 10.9 7.3 7.3 11M 16.7 20.3L 13 16.7 16.7 13.1 20.3 16.7 16.7 20.3Z" />
+</vector>

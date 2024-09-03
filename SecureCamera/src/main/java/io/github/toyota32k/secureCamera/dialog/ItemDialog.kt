@@ -36,6 +36,7 @@ class ItemDialog : UtDialogEx() {
 //            BackupItem,
             PurgeLocal,
             RestoreLocal,
+            Repair,
         }
 
         var nextAction = NextAction.None
@@ -49,6 +50,7 @@ class ItemDialog : UtDialogEx() {
                 item.value = MetaDB.backupToCloud(item.value)
             }
         }
+
         val completeCommand = LiteUnitCommand()
 
         val rating = MutableStateFlow(Rating.RatingNone)
@@ -106,6 +108,7 @@ class ItemDialog : UtDialogEx() {
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.PurgeLocal)
             .bindCommand(viewModel.actionCommand, controls.restoreLocalButton, ItemViewModel.NextAction.RestoreLocal)
+            .bindCommand(viewModel.actionCommand, controls.repairButton, ItemViewModel.NextAction.Repair)
             .bindCommand(viewModel.completeCommand, ::onPositive)
         return controls.root
     }

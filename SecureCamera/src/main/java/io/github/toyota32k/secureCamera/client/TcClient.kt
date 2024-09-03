@@ -120,7 +120,7 @@ object TcClient {
     private suspend fun downloadFromSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:((current:Long, total:Long)->Unit)?):Boolean {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(item.uri)
+                .url(item.serverUri)
                 .build()
             try {
                 executeAsync(request, canceller).use { response ->

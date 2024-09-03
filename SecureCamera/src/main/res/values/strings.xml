@@ -79,4 +79,5 @@
     <string name="high_quality">Heigh</string>
     <string name="low_quality">Low</string>
     <string name="middle_quality">Middle</string>
+    <string name="repair_title">Repair</string>
 </resources>
