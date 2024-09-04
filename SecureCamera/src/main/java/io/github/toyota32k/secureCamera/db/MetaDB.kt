@@ -579,7 +579,7 @@ object MetaDB {
         return withContext(Dispatchers.IO) {
             if (TcClient.downloadFromSecureArchive(item)) {
                 logger.debug("downloaded: ${item.name}")
-                updateCloud(item, CloudStatus.Uploaded)
+                updateCloud(updateFile(item, null), CloudStatus.Uploaded)
                 true
             } else {
                 logger.debug("download error: ${item.name}")
