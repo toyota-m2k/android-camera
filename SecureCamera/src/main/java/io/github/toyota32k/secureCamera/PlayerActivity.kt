@@ -560,6 +560,7 @@ class PlayerActivity : UtMortalActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.player)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            logger.debug("WindowInsets:left=${systemBars.left},top=${systemBars.top},right=${systemBars.right},bottom=${systemBars.bottom}")
             insets
         }
 

@@ -1,13 +1,20 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.TryCamera.DynamicColor" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <style name="Theme.TryCamera.M3.DynamicColor" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
         <item name="panelBackgroundColor">#40FFFFFF</item>
         <item name="splitterColor">@color/gray20</item>
         <item name="playerBackground">@color/white</item>
         <item name="iconColor">?attr/colorSecondary</item>
-
     </style>
+
+    <style name="Theme.TryCamera.M2" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="panelBackgroundColor">#40FFFFFF</item>
+        <item name="splitterColor">@color/gray20</item>
+        <item name="playerBackground">@color/white</item>
+        <item name="iconColor">?attr/colorSecondary</item>
+    </style>
+
     <!-- Base application theme. -->
-    <style name="Theme.TryCamera" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.TryCamera" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorPrimaryVariant">@color/purple_700</item>
