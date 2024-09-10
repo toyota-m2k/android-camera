@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +19,8 @@ import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.hideActionBar
+import io.github.toyota32k.utils.showActionBar
 import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
@@ -44,7 +47,9 @@ class MainActivity : UtMortalActivity() {
             insets
         }
 
-        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
+//        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
+        @SuppressLint("SetTextI18n")
+        controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
 //        setContentView(R.layout.activity_main)
 
         binder.owner(this)
