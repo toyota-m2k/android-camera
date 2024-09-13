@@ -63,6 +63,11 @@ import java.io.File
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
     class CameraViewModel : ViewModel() {
+        private var dbOpened:Boolean = false
+        init {
+            dbOpened = MetaDB.open()
+        }
+
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
 //        val fullControlPanel = MutableStateFlow(true)
@@ -94,6 +99,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         override fun onCleared() {
             super.onCleared()
             videoCapture.dispose()
+            if (dbOpened) {
+                MetaDB.close()
+            }
         }
 
         val pictureTakingStatus = MutableStateFlow(false)
@@ -264,7 +272,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if(isFinishing) {
             cameraManager.unbind()
-            MetaDB.close()
         }
     }
 

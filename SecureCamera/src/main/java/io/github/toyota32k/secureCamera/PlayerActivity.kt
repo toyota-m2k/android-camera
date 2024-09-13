@@ -172,6 +172,7 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
+        private var dbOpened:Boolean = MetaDB.open()
 
         private val context: Application
             get() = getApplication()
@@ -524,7 +525,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        fun saveListModeAndSelection() {
+        fun saveListModeAndSelection(closeDb:Boolean=false) {
             val listMode = playlist.listMode.value
             val currentItem = playlist.currentSelection.value
             CoroutineScope(Dispatchers.IO).launch {
@@ -532,12 +533,15 @@ class PlayerActivity : UtMortalActivity() {
                 if(currentItem!=null) {
                     MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                 }
+                if(dbOpened && closeDb) {
+                    MetaDB.close()
+                }
             }
         }
 
         override fun onCleared() {
             super.onCleared()
-            saveListModeAndSelection()
+            saveListModeAndSelection(closeDb = true)
             playerControllerModel.close()
         }
     }
@@ -557,7 +561,7 @@ class PlayerActivity : UtMortalActivity() {
         Settings.initialize(application)
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.player)) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(controls.player) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             logger.debug("WindowInsets:left=${systemBars.left},top=${systemBars.top},right=${systemBars.right},bottom=${systemBars.bottom}")
@@ -982,12 +986,12 @@ class PlayerActivity : UtMortalActivity() {
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if(isFinishing) {
-            MetaDB.close()
-        }
-    }
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        if(isFinishing) {
+//            MetaDB.close()
+//        }
+//    }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {

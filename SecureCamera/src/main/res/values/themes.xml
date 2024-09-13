@@ -1,15 +1,15 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.TryCamera.M3.DynamicColor" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
-        <item name="panelBackgroundColor">#40FFFFFF</item>
+        <item name="panelBackgroundColor">@color/surface_50</item>
         <item name="splitterColor">@color/gray20</item>
-        <item name="playerBackground">@color/white</item>
+        <item name="playerBackground">?attr/colorSurface</item>
         <item name="iconColor">?attr/colorSecondary</item>
     </style>
 
     <style name="Theme.TryCamera.M2" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="panelBackgroundColor">#40FFFFFF</item>
+        <item name="panelBackgroundColor">@color/surface_50</item>
         <item name="splitterColor">@color/gray20</item>
-        <item name="playerBackground">@color/white</item>
+        <item name="playerBackground">?attr/colorSurface</item>
         <item name="iconColor">?attr/colorSecondary</item>
     </style>
 

@@ -44,6 +44,7 @@ class ServerActivity : UtMortalActivity() {
         val logger = UtLog("SERVER")
     }
     class ServerViewModel(application: Application) : AndroidViewModel(application) {
+        private var dbOpened:Boolean = MetaDB.open()
         val port = Settings.SecureArchive.myPort
         val server = TcServer(port)
         val ipAddress = MutableStateFlow("unknown")
@@ -65,7 +66,6 @@ class ServerActivity : UtMortalActivity() {
                     } else {
                         addr
                     }
-
                 }
             } catch(e:Throwable) {
                 statusString.value = "Error"
@@ -124,6 +124,9 @@ class ServerActivity : UtMortalActivity() {
         override fun onCleared() {
             super.onCleared()
             server.close()
+            if (dbOpened) {
+                MetaDB.close()
+            }
             logger.debug("stop server")
         }
     }
