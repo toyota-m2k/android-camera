@@ -6,6 +6,9 @@
         <item name="stopIconColor">@color/blue_a400</item>
         <item name="ampPlayerBackground">@color/black</item>"
         <item name="ampPanelBackgroundColor">@color/surface_70</item>
+        <item name="ampPanelPaddingBottom">6dp</item>
+        <item name="ampPanelPaddingStart">15dp</item>
+        <item name="ampPanelPaddingEnd">15dp</item>
     </style>
 
     <style name="Theme.TryCamera.M3.DynamicColor.NoActionBar" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
@@ -15,6 +18,7 @@
         <item name="iconColor">?attr/colorSecondary</item>
         <item name="ampPlayerBackground">@color/black</item>"
         <item name="ampPanelBackgroundColor">@color/surface_70</item>
+        <item name="ampPanelPadding">10dp</item>
     </style>
 
 </resources>
