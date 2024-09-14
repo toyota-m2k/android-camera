@@ -15,8 +15,8 @@
         android:layout_height="@dimen/icon_size_in_list"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_type_photo"
-        app:tint="@color/color_icon_primary"
+        tools:src="@drawable/ic_type_photo"
+        app:tint="@color/color_icon_accent"
         android:contentDescription="@string/file_type" />
     <ImageView
         android:id="@+id/icon_mark"
@@ -25,7 +25,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/icon_view"
         tools:src="@drawable/ic_mark_flag"
-        app:tint="@color/color_icon_accent"
+        app:tint="@color/color_icon_options"
         android:layout_marginTop="10dp"
         android:contentDescription="@string/file_type" />
 
@@ -39,6 +39,7 @@
         android:layout_marginStart="10dp"
         android:textSize="18sp"
         android:textStyle="bold"
+        android:textColor="@color/color_list_item_text"
         tools:text="mov-2023.05.01-19:20:30.mp4"
         />
     <TextView
@@ -50,6 +51,7 @@
         app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
         android:layout_marginStart="10dp"
         android:textSize="14sp"
+        android:textColor="@color/color_list_item_text_variant"
         tools:text="1.234 MB"
         />
     <ImageView
@@ -59,8 +61,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/icon_view"
         app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        app:tint="@color/color_icon_options"
         tools:src="@drawable/ic_rating_3"
-        app:tint="@color/color_icon_primary"
         android:contentDescription="@string/rating_desc" />
 
     <ImageView
@@ -72,7 +74,7 @@
         app:layout_constraintTop_toTopOf="@+id/icon_view"
         app:layout_constraintBottom_toBottomOf="@+id/icon_view"
         tools:src="@drawable/ic_cloud"
-        app:tint="@color/color_icon_secondary"
+        app:tint="@color/color_icon_options"
         android:contentDescription="@string/uploaded" />
 
     <TextView
@@ -82,6 +84,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/icon_mark"
         app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
+        android:textColor="@color/color_list_item_text_variant"
         tools:text="1.234 sec"
         />
 
