@@ -5,7 +5,7 @@
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
         <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_70</item>
+        <item name="ampPanelBackgroundColor">@color/surface_30</item>
         <item name="ampPanelPaddingBottom">6dp</item>
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>
@@ -17,8 +17,10 @@
         <item name="stopIconColor">@color/blue_a400</item>
         <item name="iconColor">?attr/colorSecondary</item>
         <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_70</item>
-        <item name="ampPanelPadding">10dp</item>
+        <item name="ampPanelBackgroundColor">@color/surface_30</item>
+        <item name="ampPanelPaddingBottom">6dp</item>
+        <item name="ampPanelPaddingStart">15dp</item>
+        <item name="ampPanelPaddingEnd">15dp</item>
     </style>
 
 </resources>

@@ -24,6 +24,7 @@
         android:orientation="horizontal"
         android:background="?attr/ampPanelBackgroundColor"
         android:layout_gravity="end|bottom"
+        android:paddingHorizontal="20dp"
         tools:visibility="invisible"
         >
 <!--        <ImageButton android:id="@+id/expand_button"-->
