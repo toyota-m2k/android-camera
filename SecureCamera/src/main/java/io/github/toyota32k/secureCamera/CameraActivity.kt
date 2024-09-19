@@ -25,7 +25,6 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -173,6 +172,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
 
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)

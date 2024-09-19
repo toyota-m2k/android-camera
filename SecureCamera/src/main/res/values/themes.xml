@@ -1,5 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.TryCamera.M3.DynamicColor" parent="Theme.Material3.DynamicColors.DayNight">
+    <!-- Main Activity 用の ActionBar有りテーマ -->
+    <style name="Theme.TryCamera.M3.DynamicColor" parent="Theme.Material3.DayNight">
         <item name="iconColor">?attr/colorSecondary</item>
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
@@ -11,7 +12,12 @@
         <item name="ampPanelPaddingEnd">15dp</item>
     </style>
 
-    <style name="Theme.TryCamera.M3.DynamicColor.NoActionBar" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <!--
+        Player/Editor/CameraActivity 用の ActionBar無しテーマ
+        どういうわけか、 ActionBar有りテーマから、hideActionBar() したときと、actionBar付近の表示が異なるので、
+        テーマを分けることにした。
+    -->
+    <style name="Theme.TryCamera.M3.DynamicColor.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>

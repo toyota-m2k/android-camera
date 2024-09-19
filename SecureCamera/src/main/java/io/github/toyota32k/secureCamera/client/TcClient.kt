@@ -139,7 +139,9 @@ object TcClient {
                                                 bytesCopied += bytes
                                                 progress.invoke(bytesCopied, totalLength)
                                                 bytes = inStream.read(buffer)
+//                                                logger.debug("downloading: $bytesCopied / $totalLength")
                                             }
+//                                            logger.debug("downloaded: $bytesCopied / $totalLength")
                                         } else {
                                             inStream.copyTo(outStream)
                                         }

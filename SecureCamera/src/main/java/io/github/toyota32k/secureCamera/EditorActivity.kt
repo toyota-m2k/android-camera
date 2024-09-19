@@ -38,7 +38,6 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
-import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
@@ -49,6 +48,7 @@ import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
+import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -70,7 +70,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.Closeable
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -136,7 +135,7 @@ class EditorActivity : UtMortalActivity() {
             if(targetItem.cloud.isFileInLocal) {
                 targetItem.file.toAndroidFile()
             } else {
-                HttpInputFile(application, targetItem.uri).apply { addRef() }
+                HttpInputFile(application, OkHttpStreamSource(targetItem.uri)).apply { addRef() }
             }
         }
 
@@ -170,6 +169,7 @@ class EditorActivity : UtMortalActivity() {
             logger.debug()
             resetInputFile()
             playerControllerModel.close()
+            HttpInputFile.deleteAllTempFile(getApplication())
         }
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
@@ -204,6 +204,8 @@ class EditorActivity : UtMortalActivity() {
         logger.debug()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -466,7 +468,6 @@ class EditorActivity : UtMortalActivity() {
     override fun onDestroy() {
         logger.debug()
         super.onDestroy()
-        logger.debug()
     }
 
     private fun saveChapters() {

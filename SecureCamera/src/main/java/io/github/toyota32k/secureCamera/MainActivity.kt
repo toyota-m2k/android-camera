@@ -12,7 +12,11 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.dialog.task.*
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getString
+import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
@@ -20,7 +24,6 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
-import io.github.toyota32k.utils.showActionBar
 import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
@@ -37,6 +40,8 @@ class MainActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
+        setTheme(R.style.Theme_TryCamera_M3_DynamicColor)
+
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
 
@@ -52,6 +57,7 @@ class MainActivity : UtMortalActivity() {
         controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
 //        setContentView(R.layout.activity_main)
 
+        hideActionBar()
         binder.owner(this)
             .bindCommand(LiteUnitCommand(::startCamera), controls.cameraButton )
             .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )

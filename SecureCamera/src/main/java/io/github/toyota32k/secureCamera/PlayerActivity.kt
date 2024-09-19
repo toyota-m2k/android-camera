@@ -3,11 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.graphics.Matrix
-import android.graphics.PorterDuff
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -80,8 +76,6 @@ import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.secureCamera.utils.getAttrColor
-import io.github.toyota32k.secureCamera.utils.getAttrColorAsDrawable
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.shared.gesture.IUtManipulationTarget
@@ -562,6 +556,9 @@ class PlayerActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
+
+        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
         ViewCompat.setOnApplyWindowInsetsListener(controls.player) { v, insets ->

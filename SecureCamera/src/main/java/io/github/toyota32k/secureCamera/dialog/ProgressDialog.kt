@@ -44,6 +44,7 @@ class ProgressDialog : UtDialogEx() {
     override fun preCreateBodyView() {
         gravityOption = GravityOption.CENTER
         noHeader = true
+        noFooter = true
         setLimitWidth(400)
         heightOption = HeightOption.COMPACT
         cancellable = false
