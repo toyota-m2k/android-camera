@@ -117,6 +117,14 @@
         />
 
     <CheckBox
+        android:id="@+id/check_only_un_backup_items"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/only_unbacked_up_items"
+        android:layout_marginTop="12dp"
+        />
+
+    <CheckBox
         android:id="@+id/check_cloud_test_mode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

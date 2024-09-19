@@ -80,4 +80,5 @@
     <string name="low_quality">Low</string>
     <string name="middle_quality">Middle</string>
     <string name="repair_title">Repair</string>
+    <string name="only_unbacked_up_items">Only Unbacked Up Items</string>
 </resources>

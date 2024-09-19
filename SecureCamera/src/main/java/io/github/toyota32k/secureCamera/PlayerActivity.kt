@@ -426,7 +426,13 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private suspend fun setListMode(mode:ListMode) {
-                val newList = MetaDB.listEx(mode).filterByDateRange()
+                val newList = MetaDB.listEx(mode).filterByDateRange().run {
+                    if(Settings.PlayListSetting.onlyUnBackedUpItems) {
+                        filter { !it.cloud.isFileInCloud }
+                    } else {
+                        this
+                    }
+                }
                 setFileList(newList, mode)
             }
 
