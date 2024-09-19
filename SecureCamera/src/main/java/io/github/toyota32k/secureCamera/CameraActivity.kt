@@ -173,7 +173,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)

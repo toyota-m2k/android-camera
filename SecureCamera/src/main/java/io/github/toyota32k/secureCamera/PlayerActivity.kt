@@ -557,7 +557,8 @@ class PlayerActivity : UtMortalActivity() {
         enableEdgeToEdge()
         Settings.initialize(application)
 
-        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
