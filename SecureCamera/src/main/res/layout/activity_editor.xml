@@ -79,6 +79,14 @@
             android:background="?attr/selectableItemBackground"
             />
         <ImageButton
+            android:id="@+id/split_mode"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_split"
+            app:tint="?attr/iconColor"
+            android:background="?attr/selectableItemBackground"
+            />
+        <ImageButton
             android:id="@+id/save_video"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"

@@ -23,6 +23,7 @@ import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
+import io.github.toyota32k.binder.observe
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -56,6 +57,8 @@ import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
+import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
+import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
@@ -154,6 +157,23 @@ class EditorActivity : UtMortalActivity() {
         val commandRedo = LiteUnitCommand {
             chapterList.redo()
         }
+        val currentSplitParams = MutableStateFlow<SplitParams?>(null)
+        val commandSplit = LiteUnitCommand {
+            UtImmortalSimpleTask.run("split") {
+                val current = currentSplitParams.value
+                val params = if(current?.duration != playerModel.naturalDuration.value) {
+                    SplitParams(false, playerModel.naturalDuration.value, 0, 0)
+                } else {
+                    current
+
+                }
+                val result = SelectRangeDialog.show(this, params)
+                if(result!=null) {
+                    currentSplitParams.value = result
+                }
+                true
+            }
+        }
         val blocking = MutableStateFlow(false)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
@@ -240,6 +260,10 @@ class EditorActivity : UtMortalActivity() {
                 .longClickBinding(controls.saveVideo) { showVideoProperties() }
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
+                .bindCommand(viewModel.commandSplit, controls.splitMode)
+                .observe(viewModel.currentSplitParams) {
+                    viewModel.playerModel.setPlayRange(it?.range)
+                }
             controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
         }
 

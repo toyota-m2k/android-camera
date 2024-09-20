@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    >
+    <CheckBox
+        android:id="@+id/check_enable_partial_mode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/enable_partial_mode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        />
+    <TextView
+        android:id="@+id/text_duration_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/check_enable_partial_mode"
+        android:text="@string/duration_label"
+        />
+    <TextView
+        android:id="@+id/text_duration_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@+id/text_duration_label"
+        app:layout_constraintTop_toBottomOf="@id/check_enable_partial_mode"
+        android:layout_marginStart="30dp"
+        tools:text="01:00:00"/>
+
+    <Space
+        android:id="@+id/space_duration"
+        android:layout_width="0dp"
+        android:layout_height="20dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_duration_value"
+        />
+
+    <TextView
+        android:id="@+id/label_count_of_parts"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/label_parts_count"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/space_duration"
+        />
+    <TextView
+        android:id="@+id/count_and_span_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/space_duration"
+        tools:text="01:00:00"
+        />
+    <com.google.android.material.slider.Slider
+        android:id="@+id/count_slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/label_count_of_parts"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:valueFrom="2"
+        android:stepSize="1"
+        />
+
+    <TextView
+        android:id="@+id/label_select_at"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/count_slider"
+        android:text="@string/label_select_at"
+        />
+    <TextView
+        android:id="@+id/select_at_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/count_slider"
+        tools:text="1/1000"
+        />
+    <com.google.android.material.slider.Slider
+        android:id="@+id/selection_slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/label_select_at"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:valueFrom="1"
+        android:stepSize="1"
+        />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

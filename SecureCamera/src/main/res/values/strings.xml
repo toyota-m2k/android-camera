@@ -81,4 +81,9 @@
     <string name="middle_quality">Middle</string>
     <string name="repair_title">Repair</string>
     <string name="only_unbacked_up_items">Only Unbacked Up Items</string>
+    <string name="duration_label">Duration</string>
+    <string name="label_part_span">Span Of A Part</string>
+    <string name="label_parts_count">Count Of Parts</string>
+    <string name="enable_partial_mode">Enable Partial Mode</string>
+    <string name="label_select_at">Select At</string>
 </resources>

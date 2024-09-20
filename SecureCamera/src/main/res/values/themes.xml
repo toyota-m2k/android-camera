@@ -1,13 +1,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Main Activity 用の ActionBar有りテーマ -->
     <style name="Theme.TryCamera.M3.DynamicColor" parent="Theme.Material3.DayNight">
-        <item name="iconColor">?attr/colorSecondary</item>
+        <item name="iconColor">?attr/colorPrimary</item>
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
         <item name="ampPlayerBackground">@color/black</item>"
         <item name="ampPanelBackgroundColor">@color/surface_30</item>
-        <item name="ampPanelPaddingBottom">6dp</item>
+        <item name="ampPanelPaddingBottom">10dp</item>
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>
     </style>
@@ -18,28 +18,18 @@
         テーマを分けることにした。
     -->
     <style name="Theme.TryCamera.M3.DynamicColor.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="iconColor">?attr/colorPrimary</item>
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
-        <item name="iconColor">?attr/colorSecondary</item>
         <item name="ampPlayerBackground">@color/black</item>"
         <item name="ampPanelBackgroundColor">@color/surface_30</item>
-        <item name="ampPanelPaddingBottom">6dp</item>
+        <item name="ampPanelPaddingBottom">10dp</item>
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>
     </style>
 
-    <style name="Theme.TryCamera.M3.Cherry" parent="Theme.Material3.Light">
-        <item name="iconColor">?attr/colorSecondary</item>
-        <item name="noRecIconColor">@color/orange_300</item>
-        <item name="recIconColor">@color/pink_a400</item>
-        <item name="stopIconColor">@color/blue_a400</item>
-        <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_30</item>
-        <item name="ampPanelPaddingBottom">6dp</item>
-        <item name="ampPanelPaddingStart">15dp</item>
-        <item name="ampPanelPaddingEnd">15dp</item>
-
+    <style name="Theme.TryCamera.M3.Cherry" parent="Theme.TryCamera.M3.DynamicColor">
         <item name="colorPrimary">@color/theme_cherry_primary</item>
         <item name="colorOnPrimary">@color/theme_cherry_onPrimary</item>
         <item name="colorPrimaryContainer">@color/theme_cherry_primaryContainer</item>
@@ -88,17 +78,7 @@
         <item name="colorSurfaceContainerHighest">@color/theme_cherry_surfaceContainerHighest</item>
     </style>
 
-    <style name="Theme.TryCamera.M3.Cherry.NoActionBar" parent="Theme.Material3.Light.NoActionBar">
-        <item name="iconColor">?attr/colorSecondary</item>
-        <item name="noRecIconColor">@color/orange_300</item>
-        <item name="recIconColor">@color/pink_a400</item>
-        <item name="stopIconColor">@color/blue_a400</item>
-        <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_30</item>
-        <item name="ampPanelPaddingBottom">6dp</item>
-        <item name="ampPanelPaddingStart">15dp</item>
-        <item name="ampPanelPaddingEnd">15dp</item>
-
+    <style name="Theme.TryCamera.M3.Cherry.NoActionBar" parent="Theme.TryCamera.M3.DynamicColor.NoActionBar">
         <item name="colorPrimary">@color/theme_cherry_primary</item>
         <item name="colorOnPrimary">@color/theme_cherry_onPrimary</item>
         <item name="colorPrimaryContainer">@color/theme_cherry_primaryContainer</item>
