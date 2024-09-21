@@ -2,8 +2,11 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
+import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.checkBinding
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.multiEnableBinding
+import io.github.toyota32k.binder.radioGroupBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
@@ -11,49 +14,85 @@ import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.UtImmortalViewModel
 import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
-import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.RangedPlayModel
+import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSelectRangeBinding
-import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog.RangeModeViewModel.Companion.MIN_PART_SPAN
 import io.github.toyota32k.utils.TimeSpan
-import io.github.toyota32k.utils.asConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
-import kotlin.math.ceil
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.time.Duration.Companion.minutes
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
-data class SplitParams(val enabled:Boolean, val duration:Long, val count:Long, val index:Int) {
-    val isValid:Boolean
-        get() = count>0 && index>=0 && duration>0
-    private val span:Long = ceil(duration.toFloat()/count.coerceAtLeast(1)).toLong()
-
-    val range: Range?
-        get() = if(isValid && enabled) Range(span*index, min(duration,span*(index+1))) else null
+data class SplitParams(
+    val enabled:Boolean,
+    val duration:Long,
+    val span:Long) {
+    companion object {
+        fun fromModel(model: RangedPlayModel): SplitParams {
+            return SplitParams(true, model.duration, model.spanLength)
+        }
+        fun create(duration: Long): SplitParams {
+            return SplitParams(true, duration, 3)
+        }
+    }
+    fun toModel(): RangedPlayModel? {
+        return if(enabled) RangedPlayModel(duration, span) else null
+    }
 }
 
 class SelectRangeDialog: UtDialogEx() {
     class RangeModeViewModel: UtImmortalViewModel() {
+        object SpanResolver : IIDValueResolver<Int> {
+            override fun id2value(id: Int): Int? {
+                return when(id) {
+                    R.id.radio_span_3min -> 3
+                    R.id.radio_span_5min -> 5
+                    R.id.radio_span_10min -> 10
+                    else -> 0
+                }
+            }
+
+            override fun value2id(v: Int): Int {
+                return when(v) {
+                    3 -> R.id.radio_span_3min
+                    5 -> R.id.radio_span_5min
+                    10 -> R.id.radio_span_10min
+                    else -> R.id.radio_span_custom
+                }
+            }
+            fun isCustom(v:Int):Boolean {
+                return value2id(v) == R.id.radio_span_custom
+            }
+        }
+
         var naturalDuration: Long = 0L
             private set
-        val maxPartCount: Long
-            get() = ceil(naturalDuration.toFloat() / MIN_PART_SPAN.inWholeMilliseconds).toLong()
-
-        val enablePartialMode = MutableStateFlow(false)
-        val countOfPart = MutableStateFlow<Float>(2f)
-        val selectedIndex = MutableStateFlow(1f)
+        val minSpan = RangedPlayModel.MIN_SPAN_LENGTH/60000
+        val maxSpan get() = ((naturalDuration - minSpan)/60000).toInt()
+        val enablePartialMode = MutableStateFlow(true)
+        val presetSpan = MutableStateFlow(3)
+        val customSpan = MutableStateFlow(1f)
 
         fun initWith(params:SplitParams) {
             naturalDuration = params.duration
             enablePartialMode.value = params.enabled
-            countOfPart.value = max(2, params.count).toFloat()
-            selectedIndex.value = params.index.toFloat()+1
+            val spanInMin = (params.span/60000f).toInt()
+            val id = SpanResolver.value2id(spanInMin)
+            if(id == R.id.radio_span_custom) {
+                customSpan.value = spanInMin.toFloat()
+            } else {
+                presetSpan.value = spanInMin.coerceIn(minSpan, maxSpan)
+            }
+        }
+
+        fun toSplitParams(): SplitParams {
+            return SplitParams(
+                enablePartialMode.value,
+                naturalDuration,
+                if(SpanResolver.isCustom(presetSpan.value)) customSpan.value.roundToLong()*60000 else presetSpan.value*60000L)
         }
 
         companion object {
-            val MIN_PART_SPAN = 2.minutes
-
             // 1 min
             fun createBy(task: IUtImmortalTask, currentParams: SplitParams): RangeModeViewModel {
                 return UtImmortalViewModelHelper.createBy(
@@ -83,36 +122,31 @@ class SelectRangeDialog: UtDialogEx() {
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         viewModel = RangeModeViewModel.instanceFor(this)
+        title = "Partial Edit -- ${TimeSpan(viewModel.naturalDuration).formatAuto()}"
         controls = DialogSelectRangeBinding.inflate(inflater.layoutInflater)
-        controls.countSlider.valueTo = viewModel.maxPartCount.toFloat()
-        controls.countSlider.setLabelFormatter {
-            "${it.toInt()}" // -- ${TimeSpan(ceil(viewModel.naturalDuration.toFloat()/it).toLong()).formatAuto()}"
+        controls.spanSlider.valueFrom = viewModel.minSpan.toFloat()
+        controls.spanSlider.valueTo = viewModel.maxSpan.toFloat()
+        controls.spanSlider.setLabelFormatter {
+            "${it.roundToInt()} min"
         }
-        controls.selectionSlider.setLabelFormatter {
-            "${it.toInt()}"
-        }
-
         binder
             .checkBinding(controls.checkEnablePartialMode, viewModel.enablePartialMode)
-            .multiEnableBinding(arrayOf(controls.selectionSlider, controls.countSlider), viewModel.enablePartialMode)
-            .textBinding(controls.textDurationValue, TimeSpan(viewModel.naturalDuration).formatAuto().asConstantLiveData())
-            .textBinding(controls.countAndSpanValue, viewModel.countOfPart.map { "${it.toInt()} -- ${TimeSpan(ceil(viewModel.naturalDuration.toFloat()/it).toLong()).formatAuto()}" })
-            .textBinding(controls.selectAtValue, combine(viewModel.selectedIndex, viewModel.countOfPart) { i,m-> "${i.toInt()}/${m.toInt()}" })
-            .sliderBinding(controls.selectionSlider, viewModel.selectedIndex, max=viewModel.countOfPart)
-            .sliderBinding(controls.countSlider, viewModel.countOfPart)
-
-
+            .multiEnableBinding(arrayOf(controls.radioSpan3min, controls.radioSpan5min, controls.radioSpan10min, controls.radioSpanCustom), viewModel.enablePartialMode)
+            .radioGroupBinding(controls.radioSpanSelection, viewModel.presetSpan, RangeModeViewModel.SpanResolver)
+            .enableBinding(controls.spanSlider, combine(viewModel.enablePartialMode, viewModel.presetSpan) { e,s-> e && s==0 })
+            .textBinding(controls.spanValue, combine(viewModel.presetSpan, viewModel.customSpan) { p,c->
+                if(p==0) "${c.roundToLong()} min" else "$p min"
+            })
+            .sliderBinding(controls.spanSlider, viewModel.customSpan)
         return controls.root
     }
-
-    data class Result(val enabled:Boolean, val span:Long, val index:Int)
 
     companion object {
         suspend fun show(task: UtImmortalTaskBase, currentParams: SplitParams): SplitParams? {
             return task.run {
                 val vm = RangeModeViewModel.createBy(this, currentParams)
                 if(showDialog(taskName) { SelectRangeDialog() }.status.ok) {
-                    SplitParams(vm.enablePartialMode.value, vm.naturalDuration, vm.countOfPart.value.toLong(), vm.selectedIndex.value.toInt()-1)
+                    vm.toSplitParams()
                 } else {
                     null
                 }

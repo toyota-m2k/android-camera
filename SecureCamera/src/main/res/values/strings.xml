@@ -86,4 +86,10 @@
     <string name="label_parts_count">Count Of Parts</string>
     <string name="enable_partial_mode">Enable Partial Mode</string>
     <string name="label_select_at">Select At</string>
+    <string name="enable_overlap">Enable Overlap</string>
+    <string name="span_1_min">1 min</string>
+    <string name="span_3_min">3 min</string>
+    <string name="span_5_min">5 min</string>
+    <string name="span_10_min">10 min</string>
+    <string name="span_custom">Custom</string>
 </resources>

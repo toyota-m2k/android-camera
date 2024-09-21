@@ -84,7 +84,6 @@ class EditorActivity : UtMortalActivity() {
             .supportSnapshot(this::onSnapshot)
             .enableRotateLeft()
             .enableRotateRight()
-//            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .enableSeekSmall(0,0)
             .enableSeekMedium(1000, 3000)
             .enableSeekLarge(5000, 10000)
@@ -157,19 +156,16 @@ class EditorActivity : UtMortalActivity() {
         val commandRedo = LiteUnitCommand {
             chapterList.redo()
         }
-        val currentSplitParams = MutableStateFlow<SplitParams?>(null)
         val commandSplit = LiteUnitCommand {
             UtImmortalSimpleTask.run("split") {
-                val current = currentSplitParams.value
-                val params = if(current?.duration != playerModel.naturalDuration.value) {
-                    SplitParams(false, playerModel.naturalDuration.value, 0, 0)
-                } else {
-                    current
-
-                }
+                val current = playerControllerModel.rangePlayModel.value
+                val params = if(current!=null) {
+                    SplitParams.fromModel(current)
+                } else
+                    SplitParams.create(playerModel.naturalDuration.value)
                 val result = SelectRangeDialog.show(this, params)
                 if(result!=null) {
-                    currentSplitParams.value = result
+                    playerControllerModel.setRangePlayModel(result.toModel())
                 }
                 true
             }
@@ -261,9 +257,6 @@ class EditorActivity : UtMortalActivity() {
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
                 .bindCommand(viewModel.commandSplit, controls.splitMode)
-                .observe(viewModel.currentSplitParams) {
-                    viewModel.playerModel.setPlayRange(it?.range)
-                }
             controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
         }
 
