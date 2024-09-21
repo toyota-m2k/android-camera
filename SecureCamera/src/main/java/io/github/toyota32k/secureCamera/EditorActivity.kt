@@ -23,6 +23,7 @@ import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
+import io.github.toyota32k.binder.observe
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -38,7 +39,6 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.skipChapter
-import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
@@ -49,6 +49,7 @@ import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
+import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -56,6 +57,8 @@ import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
+import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
+import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
@@ -70,7 +73,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.Closeable
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -82,7 +84,6 @@ class EditorActivity : UtMortalActivity() {
             .supportSnapshot(this::onSnapshot)
             .enableRotateLeft()
             .enableRotateRight()
-//            .relativeSeekDuration(Settings.Player.spanOfSkipForward, Settings.Player.spanOfSkipBackward)
             .enableSeekSmall(0,0)
             .enableSeekMedium(1000, 3000)
             .enableSeekLarge(5000, 10000)
@@ -136,7 +137,7 @@ class EditorActivity : UtMortalActivity() {
             if(targetItem.cloud.isFileInLocal) {
                 targetItem.file.toAndroidFile()
             } else {
-                HttpInputFile(application, targetItem.uri).apply { addRef() }
+                HttpInputFile(application, OkHttpStreamSource(targetItem.uri)).apply { addRef() }
             }
         }
 
@@ -155,6 +156,20 @@ class EditorActivity : UtMortalActivity() {
         val commandRedo = LiteUnitCommand {
             chapterList.redo()
         }
+        val commandSplit = LiteUnitCommand {
+            UtImmortalSimpleTask.run("split") {
+                val current = playerControllerModel.rangePlayModel.value
+                val params = if(current!=null) {
+                    SplitParams.fromModel(current)
+                } else
+                    SplitParams.create(playerModel.naturalDuration.value)
+                val result = SelectRangeDialog.show(this, params)
+                if(result!=null) {
+                    playerControllerModel.setRangePlayModel(result.toModel())
+                }
+                true
+            }
+        }
         val blocking = MutableStateFlow(false)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
@@ -170,6 +185,7 @@ class EditorActivity : UtMortalActivity() {
             logger.debug()
             resetInputFile()
             playerControllerModel.close()
+            HttpInputFile.deleteAllTempFile(getApplication())
         }
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
@@ -205,6 +221,9 @@ class EditorActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.editor)) { v, insets ->
@@ -237,6 +256,7 @@ class EditorActivity : UtMortalActivity() {
                 .longClickBinding(controls.saveVideo) { showVideoProperties() }
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
+                .bindCommand(viewModel.commandSplit, controls.splitMode)
             controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
         }
 
@@ -466,7 +486,6 @@ class EditorActivity : UtMortalActivity() {
     override fun onDestroy() {
         logger.debug()
         super.onDestroy()
-        logger.debug()
     }
 
     private fun saveChapters() {

@@ -3,9 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.graphics.Matrix
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -53,7 +51,6 @@ import io.github.toyota32k.lib.player.common.FitMode
 import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
-import io.github.toyota32k.lib.player.common.getAttrColorAsDrawable
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaSource
@@ -172,6 +169,7 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
+        private var dbOpened:Boolean = MetaDB.open()
 
         private val context: Application
             get() = getApplication()
@@ -428,7 +426,13 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private suspend fun setListMode(mode:ListMode) {
-                val newList = MetaDB.listEx(mode).filterByDateRange()
+                val newList = MetaDB.listEx(mode).filterByDateRange().run {
+                    if(Settings.PlayListSetting.onlyUnBackedUpItems) {
+                        filter { !it.cloud.isFileInCloud }
+                    } else {
+                        this
+                    }
+                }
                 setFileList(newList, mode)
             }
 
@@ -524,7 +528,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        fun saveListModeAndSelection() {
+        fun saveListModeAndSelection(closeDb:Boolean=false) {
             val listMode = playlist.listMode.value
             val currentItem = playlist.currentSelection.value
             CoroutineScope(Dispatchers.IO).launch {
@@ -532,12 +536,15 @@ class PlayerActivity : UtMortalActivity() {
                 if(currentItem!=null) {
                     MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                 }
+                if(dbOpened && closeDb) {
+                    MetaDB.close()
+                }
             }
         }
 
         override fun onCleared() {
             super.onCleared()
-            saveListModeAndSelection()
+            saveListModeAndSelection(closeDb = true)
             playerControllerModel.close()
         }
     }
@@ -555,36 +562,36 @@ class PlayerActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
+
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.player)) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(controls.player) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            logger.debug("WindowInsets:left=${systemBars.left},top=${systemBars.top},right=${systemBars.right},bottom=${systemBars.bottom}")
             insets
         }
 
         hideActionBar()
         hideStatusBar()
 
-        val normalColor: Drawable
-        val selectedColor: Drawable
-        theme!!.apply {
-            normalColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSurface, Color.WHITE)
-            selectedColor = getAttrColorAsDrawable(com.google.android.material.R.attr.colorSecondary, Color.BLUE)
-        }
+        // アイテム毎にDrawableを作る。
+        // １つのDrawableをアイテム間で共用していると、isSelected で tint を変更すると、意図せず、他のアイテムの表示も変わってしまう。
+        fun icPhoto() = AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!
+        fun icVideo() = AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!
+        fun icMarkStar() = AppCompatResources.getDrawable(this, Mark.Star.iconId)!!
+        fun icMarkFlag() = AppCompatResources.getDrawable(this, Mark.Flag.iconId)!!
+        fun icMarkCheck() = AppCompatResources.getDrawable(this, Mark.Check.iconId)!!
+        fun icRating1() = AppCompatResources.getDrawable(this, Rating.Rating1.icon)!!
+        fun icRating2() = AppCompatResources.getDrawable(this, Rating.Rating2.icon)!!
+        fun icRating3() = AppCompatResources.getDrawable(this, Rating.Rating3.icon)!!
+        fun icRating4() = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
+        fun icCloud() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
+        fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
-
-        val icPhoto = AppCompatResources.getDrawable(this, R.drawable.ic_type_photo)!!
-        val icVideo = AppCompatResources.getDrawable(this, R.drawable.ic_type_video)!!
-        val icMarkStar = AppCompatResources.getDrawable(this, Mark.Star.iconId)!!
-        val icMarkFlag = AppCompatResources.getDrawable(this, Mark.Flag.iconId)!!
-        val icMarkCheck = AppCompatResources.getDrawable(this, Mark.Check.iconId)!!
-        val icRating1 = AppCompatResources.getDrawable(this, Rating.Rating1.icon)!!
-        val icRating2 = AppCompatResources.getDrawable(this, Rating.Rating2.icon)!!
-        val icRating3 = AppCompatResources.getDrawable(this, Rating.Rating3.icon)!!
-        val icRating4 = AppCompatResources.getDrawable(this, Rating.Rating4.icon)!!
-        val icCloud = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
-        val icCloudFull = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
@@ -596,7 +603,6 @@ class PlayerActivity : UtMortalActivity() {
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.photoSaveButton, controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//            .multiEnableBinding(arrayOf(controls.photoSaveButton,controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, alphaOnDisabled = 0.2f)
             .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
             .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
@@ -641,27 +647,27 @@ class PlayerActivity : UtMortalActivity() {
                     durationView.text = formatTime(item.duration,item.duration)
                     durationView.visibility = View.VISIBLE
                 }
-                iconView.setImageDrawable(if(isVideo) icVideo else icPhoto)
+                iconView.setImageDrawable(if(isVideo) icVideo() else icPhoto())
                 val markIcon = when(item.mark) {
                     Mark.None -> null
-                    Mark.Star -> icMarkStar
-                    Mark.Flag -> icMarkFlag
-                    Mark.Check -> icMarkCheck
+                    Mark.Star -> icMarkStar()
+                    Mark.Flag -> icMarkFlag()
+                    Mark.Check -> icMarkCheck()
                 }
                 markView.setImageDrawable(markIcon)
                 val ratingIcon = when(item.rating) {
                     Rating.RatingNone -> null
-                    Rating.Rating1 -> icRating1
-                    Rating.Rating2 -> icRating2
-                    Rating.Rating3 -> icRating3
-                    Rating.Rating4 -> icRating4
+                    Rating.Rating1 -> icRating1()
+                    Rating.Rating2 -> icRating2()
+                    Rating.Rating3 -> icRating3()
+                    Rating.Rating4 -> icRating4()
                 }
                 ratingView.setImageDrawable(ratingIcon)
 
                 val cloudIcon = when(item.cloud) {
                     CloudStatus.Local-> null
-                    CloudStatus.Uploaded->icCloud
-                    CloudStatus.Cloud->icCloudFull
+                    CloudStatus.Uploaded->icCloud()
+                    CloudStatus.Cloud->icCloudFull()
                 }
                 cloudView.setImageDrawable(cloudIcon)
 
@@ -679,9 +685,8 @@ class PlayerActivity : UtMortalActivity() {
                         startEditing(item)
                     }, views )
                     .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
-                        views.background = if(hit) selectedColor else normalColor
+                        views.isSelected = hit
                     }
-
             }
 
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
@@ -981,12 +986,12 @@ class PlayerActivity : UtMortalActivity() {
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if(isFinishing) {
-            MetaDB.close()
-        }
-    }
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        if(isFinishing) {
+//            MetaDB.close()
+//        }
+//    }
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {

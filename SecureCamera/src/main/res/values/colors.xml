@@ -280,4 +280,55 @@
     
     <color name="red">@color/red_a400</color>
     <color name="translucent_white">#80FFFFFF</color>
+
+
+    <!-- theme color: Cherry -->
+    <color name="theme_cherry_primary">#8B4A61</color>
+    <color name="theme_cherry_onPrimary">#FFFFFF</color>
+    <color name="theme_cherry_primaryContainer">#FFD9E2</color>
+    <color name="theme_cherry_onPrimaryContainer">#3A071D</color>
+    <color name="theme_cherry_secondary">#536525</color>
+    <color name="theme_cherry_onSecondary">#FFFFFF</color>
+    <color name="theme_cherry_secondaryContainer">#D5EB9C</color>
+    <color name="theme_cherry_onSecondaryContainer">#151F00</color>
+    <color name="theme_cherry_tertiary">#0D6B58</color>
+    <color name="theme_cherry_onTertiary">#FFFFFF</color>
+    <color name="theme_cherry_tertiaryContainer">#A2F2DA</color>
+    <color name="theme_cherry_onTertiaryContainer">#002019</color>
+    <color name="theme_cherry_error">#BA1A1A</color>
+    <color name="theme_cherry_onError">#FFFFFF</color>
+    <color name="theme_cherry_errorContainer">#FFDAD6</color>
+    <color name="theme_cherry_onErrorContainer">#410002</color>
+    <color name="theme_cherry_background">#FFF8F8</color>
+    <color name="theme_cherry_onBackground">#22191C</color>
+    <color name="theme_cherry_surface">#FFF8F8</color>
+    <color name="theme_cherry_onSurface">#22191C</color>
+    <color name="theme_cherry_surfaceVariant">#F2DDE2</color>
+    <color name="theme_cherry_onSurfaceVariant">#514347</color>
+    <color name="theme_cherry_outline">#837377</color>
+    <color name="theme_cherry_outlineVariant">#D5C2C6</color>
+    <color name="theme_cherry_scrim">#000000</color>
+    <color name="theme_cherry_inverseSurface">#372E30</color>
+    <color name="theme_cherry_inverseOnSurface">#FDEDF0</color>
+    <color name="theme_cherry_inversePrimary">#FFB0C9</color>
+    <color name="theme_cherry_primaryFixed">#FFD9E2</color>
+    <color name="theme_cherry_onPrimaryFixed">#3A071D</color>
+    <color name="theme_cherry_primaryFixedDim">#FFB0C9</color>
+    <color name="theme_cherry_onPrimaryFixedVariant">#6F3349</color>
+    <color name="theme_cherry_secondaryFixed">#D5EB9C</color>
+    <color name="theme_cherry_onSecondaryFixed">#151F00</color>
+    <color name="theme_cherry_secondaryFixedDim">#BACF83</color>
+    <color name="theme_cherry_onSecondaryFixedVariant">#3C4D0E</color>
+    <color name="theme_cherry_tertiaryFixed">#A2F2DA</color>
+    <color name="theme_cherry_onTertiaryFixed">#002019</color>
+    <color name="theme_cherry_tertiaryFixedDim">#86D6BF</color>
+    <color name="theme_cherry_onTertiaryFixedVariant">#005142</color>
+    <color name="theme_cherry_surfaceDim">#E6D6D9</color>
+    <color name="theme_cherry_surfaceBright">#FFF8F8</color>
+    <color name="theme_cherry_surfaceContainerLowest">#FFFFFF</color>
+    <color name="theme_cherry_surfaceContainerLow">#FFF0F2</color>
+    <color name="theme_cherry_surfaceContainer">#FAEAED</color>
+    <color name="theme_cherry_surfaceContainerHigh">#F5E4E7</color>
+    <color name="theme_cherry_surfaceContainerHighest">#EFDFE1</color>
+
 </resources>

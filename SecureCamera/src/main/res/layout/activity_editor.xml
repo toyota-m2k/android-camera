@@ -18,7 +18,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
-        android:background="?attr/panelBackgroundColor"
+        android:background="?attr/ampPanelBackgroundColor"
         >
         <ImageButton
             android:id="@+id/make_chapter"
@@ -75,6 +75,14 @@
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_redo"
+            app:tint="?attr/iconColor"
+            android:background="?attr/selectableItemBackground"
+            />
+        <ImageButton
+            android:id="@+id/split_mode"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_split"
             app:tint="?attr/iconColor"
             android:background="?attr/selectableItemBackground"
             />

@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
@@ -11,13 +12,18 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.dialog.task.*
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.getString
+import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.hideActionBar
 import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
@@ -34,6 +40,9 @@ class MainActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry)
+
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
 
@@ -44,9 +53,12 @@ class MainActivity : UtMortalActivity() {
             insets
         }
 
-        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
+//        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
+        @SuppressLint("SetTextI18n")
+        controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
 //        setContentView(R.layout.activity_main)
 
+        hideActionBar()
         binder.owner(this)
             .bindCommand(LiteUnitCommand(::startCamera), controls.cameraButton )
             .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )

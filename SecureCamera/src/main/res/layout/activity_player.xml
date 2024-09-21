@@ -7,8 +7,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".PlayerActivity"
-    android:background="?attr/splitterColor"
+    android:background="?attr/colorOutline"
     >
+    <!-- Play List -->
     <LinearLayout
         android:id="@+id/list_panel"
         android:layout_width="320dp"
@@ -27,54 +28,55 @@
             android:gravity="center_horizontal"
             android:paddingHorizontal="8dp"
             >
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/list_mode"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:singleSelection="true"
-            app:selectionRequired="true"
-            android:layout_weight="1"
-            >
-            <Button
-                android:id="@+id/radio_all"
-                android:text="@string/list_all"
-                android:layout_width="wrap_content"
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/list_mode"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-            <Button
-                android:id="@+id/radio_videos"
-                android:text="@string/list_videos"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-            <Button
-                android:id="@+id/radio_photos"
-                android:text="@string/list_photos"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
-                />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-        <ImageButton
-            android:id="@+id/list_setting_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_sort"
-            android:background="?attr/selectableItemBackground"
-            app:tint="?attr/colorPrimaryVariant" />
+                android:orientation="horizontal"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                android:layout_weight="1"
+                >
+                <Button
+                    android:id="@+id/radio_all"
+                    android:text="@string/list_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
+                    />
+                <Button
+                    android:id="@+id/radio_videos"
+                    android:text="@string/list_videos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
+                    />
+                <Button
+                    android:id="@+id/radio_photos"
+                    android:text="@string/list_photos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialButtonOutlinedStyle"
+                    />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+            <ImageButton
+                android:id="@+id/list_setting_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:src="@drawable/ic_sort"
+                android:background="?attr/selectableItemBackground"
+                app:tint="?attr/colorPrimaryVariant" />
         </LinearLayout>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/list_view"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-
             />
     </LinearLayout>
+
+    <!-- Viewer -->
     <FrameLayout
         android:id="@+id/viewer_area"
         android:layout_width="0dp"
@@ -83,8 +85,9 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:background="?attr/playerBackground"
+        android:background="?attr/ampPlayerBackground"
         >
+        <!-- Photo Viewer -->
         <FrameLayout
             android:id="@+id/photo_viewer"
             android:layout_width="match_parent"
@@ -101,7 +104,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_gravity="bottom|center_horizontal"
-                android:background="?attr/panelBackgroundColor"
+                android:background="?attr/ampPanelBackgroundColor"
                 >
 <!--                <ImageButton-->
 <!--                    android:id="@+id/image_prev_button"-->
@@ -179,12 +182,16 @@
 
             </LinearLayout>
         </FrameLayout>
+
+        <!-- Video Player -->
         <io.github.toyota32k.lib.player.view.VideoPlayerView
             android:id="@+id/video_viewer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             />
     </FrameLayout>
+
+    <!-- Guard View -->
     <FrameLayout
         android:id="@+id/safe_guard"
         android:layout_width="match_parent"

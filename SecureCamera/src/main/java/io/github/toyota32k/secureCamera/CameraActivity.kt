@@ -25,7 +25,6 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -63,6 +62,11 @@ import java.io.File
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
     class CameraViewModel : ViewModel() {
+        private var dbOpened:Boolean = false
+        init {
+            dbOpened = MetaDB.open()
+        }
+
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
 //        val fullControlPanel = MutableStateFlow(true)
@@ -94,6 +98,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         override fun onCleared() {
             super.onCleared()
             videoCapture.dispose()
+            if (dbOpened) {
+                MetaDB.close()
+            }
         }
 
         val pictureTakingStatus = MutableStateFlow(false)
@@ -165,6 +172,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -264,7 +274,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if(isFinishing) {
             cameraManager.unbind()
-            MetaDB.close()
         }
     }
 

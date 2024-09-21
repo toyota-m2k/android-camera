@@ -142,17 +142,27 @@ object MetaDB {
     private var dbInstance:Database? = null
     private val db:Database
         get() = synchronized(this) {
-            dbInstance ?:
-            Room.databaseBuilder(this.application, Database::class.java, "meta.db")
-//              .addMigrations(MIGRATION_1_2)       // initialize() で実行済み
-                .build()
-                .apply { dbInstance = this }
+            dbInstance ?: throw IllegalStateException("DB not opened")
         }
+
+    private var refCount = 0
+    fun open():Boolean {
+        return synchronized(this) {
+            if (dbInstance == null) {
+                dbInstance = Room.databaseBuilder(this.application, Database::class.java, "meta.db").build()
+            }
+            refCount++
+            true
+        }
+    }
 
     fun close() {
         synchronized(this) {
-            dbInstance?.close()
-            dbInstance = null
+            refCount--
+            if(refCount==0) {
+                dbInstance?.close()
+                dbInstance = null
+            }
         }
     }
 
@@ -180,6 +190,7 @@ object MetaDB {
             .build()
 
         CoroutineScope(Dispatchers.IO).launch {
+            // Migration
             val s = db.kvTable().getAt("INIT")
             if (s == null) {
                 db.kvTable().insert(KeyValueEntry("INIT", "1"))
@@ -197,11 +208,16 @@ object MetaDB {
             db.metaDataTable().getAll().filter { it.attr_date != 0L }.forEach {
                 logger.debug("${it.name} : ${it.attr_date}")
             }
+            db.close()
 
-            makeAll()
-            deleteTestFile()
+            open()
+            try {
+                makeAll()
+                deleteTestFile()
+            } finally {
+                close()
+            }
         }
-        db.close()
     }
 
     object KV {

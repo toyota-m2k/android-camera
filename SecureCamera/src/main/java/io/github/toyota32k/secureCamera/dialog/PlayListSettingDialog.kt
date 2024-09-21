@@ -47,6 +47,7 @@ class PlayListSettingDialog : UtDialogEx() {
         val startDate = MutableStateFlow(DPDate.Today)
         val endDate = MutableStateFlow(DPDate.Today)
         val cloudTestMode = MutableStateFlow(false)
+        val onlyUnBackedUpItems = MutableStateFlow(false)
         val editingMode = MutableStateFlow(EditingMode.None)
         val showStartDatePicker: Flow<Boolean> = combine(enableStartDate,editingMode) {enabled,mode-> enabled && mode==EditingMode.EditingStart }
         val showEndDatePicker: Flow<Boolean> = combine(enableEndDate, editingMode){enabled,mode-> enabled && mode==EditingMode.EditingEnd }
@@ -66,6 +67,7 @@ class PlayListSettingDialog : UtDialogEx() {
             enableEndDate.value = false
             orderByDate.value = false
             cloudTestMode.value = false
+            onlyUnBackedUpItems.value = false
         }
 
         private fun normalizeDateRange() {
@@ -88,6 +90,7 @@ class PlayListSettingDialog : UtDialogEx() {
                 if(maxDate<Settings.PlayListSetting.endDate) maxDate else Settings.PlayListSetting.endDate
             } else maxDate
             normalizeDateRange()
+            onlyUnBackedUpItems.value = Settings.PlayListSetting.onlyUnBackedUpItems
             cloudTestMode.value = Settings.PlayListSetting.cloudTestMode
         }
 
@@ -99,6 +102,7 @@ class PlayListSettingDialog : UtDialogEx() {
             Settings.PlayListSetting.startDate = startDate.value
             Settings.PlayListSetting.endDate = endDate.value
             Settings.PlayListSetting.cloudTestMode = cloudTestMode.value
+            Settings.PlayListSetting.onlyUnBackedUpItems = onlyUnBackedUpItems.value
         }
         companion object {
             fun createBy(task: IUtImmortalTask, minDate: DPDate, maxDate: DPDate): PlayListSettingViewModel {
@@ -142,6 +146,7 @@ class PlayListSettingDialog : UtDialogEx() {
             .checkBinding(controls.checkStartDate, viewModel.enableStartDate)
             .checkBinding(controls.checkEndDate, viewModel.enableEndDate)
             .checkBinding(controls.checkCloudTestMode, viewModel.cloudTestMode)
+            .checkBinding(controls.checkOnlyUnBackupItems, viewModel.onlyUnBackedUpItems)
             .textBinding(controls.startDateText, viewModel.startDate.map { it.toString() })
             .textBinding(controls.endDateText, viewModel.endDate.map { it.toString() })
             .materialRadioButtonGroupBinding(controls.sortOrderSelector, viewModel.orderByDate, PlayListSettingViewModel.SortOrderResolver)
