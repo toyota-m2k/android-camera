@@ -67,7 +67,7 @@ class SelectRangeDialog: UtDialogEx() {
 
         var naturalDuration: Long = 0L
             private set
-        val minSpan = RangedPlayModel.MIN_SPAN_LENGTH/60000
+        val minSpan = 1 // min
         val maxSpan get() = ((naturalDuration - minSpan)/60000).toInt()
         val enablePartialMode = MutableStateFlow(true)
         val presetSpan = MutableStateFlow(3)
