@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
@@ -23,6 +24,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.headersContentLength
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
@@ -225,6 +227,51 @@ object TcClient {
             logger.error(e)
         }
         return false
+    }
+
+    data class RepairingItem(val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String)
+
+    suspend fun getListForRepair():List<RepairingItem>? {
+        if(!Authentication.authenticateAndMessage()) return null
+        suspend fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
+            return sequence<RepairingItem> {
+                for(i in 0..<list.length()) {
+                    val o = list.getJSONObject(i)
+                    yield(RepairingItem(
+                        id = o.optInt("id", 0),
+                        originalId = o.optInt("originalId", 0),
+                        name = o.optString("name", ""),
+                        size = o.optLong("size", 0),
+                        type = o.optString("type", ""),
+                        registeredDate = o.optLong("registeredDate", 0L),
+                        lastModifiedDate = o.optLong("lastModifiedDate", 0L),
+                        creationDate = o.optLong("creationDate", 0L),
+                        metaInfo = o.optString("metaInfo", ""),
+                        deleted = o.optInt("deleted", 0),
+                        extAttrDate = o.optLong("extAttrDate", 0L),
+                        rating = o.optInt("rating", 0),
+                        mark = o.optInt("mark", 0),
+                        label = o.optString("label", ""),
+                        category = o.optString("category", ""),
+                        chapters = o.optString("chapters", "")
+                    ))
+                }
+            }
+        }
+        return UtImmortalSimpleTask.executeAsync("list for repair") {
+            withContext(Dispatchers.IO) {
+                val request = Request.Builder()
+                    .url("http://${Authentication.activeHostAddress}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
+                    .get()
+                    .build()
+                try {
+                    val json = executeAndGetJsonAsync(request)
+                    jsonToItems(json.getJSONArray("list")).toList()
+                } catch(e:Throwable) {
+                    null
+                }
+            }
+        }
     }
 
 //    private fun waitForUploaded(url:String, item: ItemEx) {

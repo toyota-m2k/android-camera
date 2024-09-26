@@ -24,9 +24,11 @@ import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -51,6 +53,7 @@ class ServerActivity : UtMortalActivity() {
         val statusString = MutableStateFlow("Starting...")
         val backupCommand = LiteUnitCommand(::backup)
         val purgeCommand = LiteUnitCommand(::purge)
+        val repairCommand = LiteUnitCommand(::repair)
         val isBusy = MutableStateFlow(false)
 
         init {
@@ -121,6 +124,24 @@ class ServerActivity : UtMortalActivity() {
                 }
             }
         }
+
+        private fun repair() {
+            viewModelScope.launch {
+                val itemsOnServer = TcClient.getListForRepair() ?: return@launch
+                val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
+                var count:Int = 0
+                for(item in itemsOnServer) {
+                    if(!itemsOnLocal.contains(item.originalId)) {
+                        // サーバーにのみ存在するレコード
+                        logger.debug("found target item: ${item.name} / ${item.id}")
+                        MetaDB.repairWithBackup(SCApplication.instance, item)
+                        count++
+                    }
+                }
+                logger.debug("$count items has been repaired.")
+            }
+        }
+
         override fun onCleared() {
             super.onCleared()
             server.close()
@@ -156,6 +177,7 @@ class ServerActivity : UtMortalActivity() {
             .textBinding(controls.serverAddress, viewModel.ipAddress)
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
+            .bindCommand(viewModel.repairCommand, controls.repairButton)
             .multiEnableBinding(arrayOf(controls.purgeButton,controls.backupButton), viewModel.isBusy, boolConvert = BoolConvert.Inverse)
             .visibilityBinding(controls.progressRing, viewModel.isBusy, hiddenMode = VisibilityBinding.HiddenMode.HideByInvisible)
     }

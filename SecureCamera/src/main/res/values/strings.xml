@@ -92,4 +92,5 @@
     <string name="span_5_min">5 min</string>
     <string name="span_10_min">10 min</string>
     <string name="span_custom">Custom</string>
+    <string name="repair">Repair</string>
 </resources>

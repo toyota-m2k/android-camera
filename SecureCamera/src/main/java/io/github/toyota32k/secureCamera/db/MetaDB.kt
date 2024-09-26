@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.db
 
 import android.app.Application
+import android.content.Context
 import androidx.core.net.toUri
 import androidx.room.Room
 import androidx.room.migration.Migration
@@ -9,10 +10,14 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
+import io.github.toyota32k.media.lib.converter.Converter
+import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.UtLog
@@ -134,6 +139,27 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
 
         fun creationDate(item:MetaData): Long {
             return filename2date(item.name)?.time ?: 0L
+        }
+
+        suspend fun decodeChaptersString(jsonStr:String): Sequence<IChapter> {
+            try {
+                val json = JSONArray(jsonStr)
+                return sequence<IChapter> {
+                    for (i in 0..<json.length()) {
+                        val o = json.getJSONObject(i)
+                        yield(
+                            Chapter(
+                                o.optLong("position", 0L),
+                                o.optString("label", ""),
+                                o.optBoolean("skip", false)
+                            )
+                        )
+                    }
+                }
+            } catch(e:Throwable) {
+                TcClient.logger.error(e)
+                return emptySequence()
+            }
         }
     }
 }
@@ -551,6 +577,34 @@ object MetaDB {
 //                    logger.error("ID Mismatch")
 //                }
             }
+        }
+    }
+
+    suspend fun repairWithBackup(context: Context, ri: RepairingItem) {
+        val chapters = decodeChaptersString(ri.chapters).toList()
+        val item = ItemEx(MetaData(
+            id = ri.originalId,
+            name = ri.name,
+            group = 0,
+            mark = ri.mark,
+            type = if(ri.type=="mp4") 1 else 0,
+            date = ri.lastModifiedDate,
+            size = ri.size,
+            duration = 0L,
+            rating = ri.rating,
+            cloud = CloudStatus.Cloud.v,
+            flag = 0,
+            ext = null,
+            attr_date = ri.extAttrDate,
+            label = ri.label,
+            category = ri.category
+        ), chapters)
+        withContext(Dispatchers.IO) {
+            val duration = Converter.analyze(HttpInputFile(context, item.serverUri)).duration
+            val newData = MetaData.modifiedEntry(item.data, duration = duration)
+            db.metaDataTable().insert(newData)
+            db.chapterDataTable().setForOwner(newData.id, chapters.map { ChapterData(0,newData.id, it.position, it.label, it.skip) })
+            DBChange.add(newData.id)
         }
     }
 
