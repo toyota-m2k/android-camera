@@ -93,6 +93,7 @@ object Settings {
         var endDateInt by spd.pref(0)
         var cloudTestMode by spd.pref(false)
         var onlyUnBackedUpItems by spd.pref(false)
+        var allowDelete by spd.pref(false)
 
         var startDate: DPDate
             get() = DPDate.fromInt(startDateInt)

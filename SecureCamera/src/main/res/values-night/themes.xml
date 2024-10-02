@@ -1,5 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.TryCamera.M3.Cherry" parent="Theme.TryCamera.M3.DynamicColor">
+    <style name="Theme.TryCamera.M3.DarkBase" parent="Theme.TryCamera.M3.DynamicColor">
+<!--        <item name="ampPlayerBackground">?attr/colorSurface</item>"-->
+<!--        <item name="ampPanelBackgroundColor">@color/surface_50</item>-->
+<!--        <item name="ampPanelForegroundColor">?attr/colorOnSurface</item>-->
+    </style>
+    <style name="Theme.TryCamera.M3.Cherry" parent="Theme.TryCamera.M3.DarkBase">
+
+
         <item name="colorPrimary">@color/theme_cherry_primary</item>
         <item name="colorOnPrimary">@color/theme_cherry_onPrimary</item>
         <item name="colorPrimaryContainer">@color/theme_cherry_primaryContainer</item>

@@ -90,6 +90,7 @@ class ItemDialog : UtDialogEx() {
         widthOption = WidthOption.COMPACT
         heightOption = HeightOption.AUTO_SCROLL
         gravityOption = GravityOption.CENTER
+        noHeader = true
         setLeftButton(BuiltInButtonType.CANCEL)
         setRightButton(BuiltInButtonType.OK)
     }

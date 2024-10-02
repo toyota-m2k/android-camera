@@ -5,8 +5,9 @@
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
-        <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_30</item>
+        <item name="ampPlayerBackground">?attr/colorSurfaceVariant</item>"
+        <item name="ampPanelBackgroundColor">@color/surface_50</item>
+        <item name="ampPanelForegroundColor">?attr/colorOnSurface</item>
         <item name="ampPanelPaddingBottom">10dp</item>
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>
@@ -22,8 +23,9 @@
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
-        <item name="ampPlayerBackground">@color/black</item>"
-        <item name="ampPanelBackgroundColor">@color/surface_30</item>
+        <item name="ampPlayerBackground">?attr/colorSurfaceVariant</item>"
+        <item name="ampPanelBackgroundColor">@color/surface_50</item>
+        <item name="ampPanelForegroundColor">?attr/colorOnSurface</item>
         <item name="ampPanelPaddingBottom">10dp</item>
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>

@@ -96,4 +96,12 @@
             />
 
     </LinearLayout>
+
+    <!-- Guard View -->
+    <FrameLayout
+        android:id="@+id/safe_guard"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        />
 </FrameLayout>
