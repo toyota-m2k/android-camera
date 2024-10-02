@@ -18,12 +18,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.observe
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -246,6 +248,7 @@ class EditorActivity : UtMortalActivity() {
             binder
                 .enableBinding(controls.redo, viewModel.chapterList.canRedo)
                 .enableBinding(controls.undo, viewModel.chapterList.canUndo)
+                .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //                .visibilityBinding(controls.saveVideo, ConstantLiveData(viewModel.targetItem.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .bindCommand(viewModel.commandAddChapter, controls.makeChapter)
                 .bindCommand(viewModel.commandAddSkippingChapter, controls.makeChapterAndSkip)

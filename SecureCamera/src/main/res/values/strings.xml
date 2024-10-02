@@ -93,4 +93,5 @@
     <string name="span_10_min">10 min</string>
     <string name="span_custom">Custom</string>
     <string name="repair">Repair</string>
+    <string name="allow_delete">Allow Deletion</string>
 </resources>

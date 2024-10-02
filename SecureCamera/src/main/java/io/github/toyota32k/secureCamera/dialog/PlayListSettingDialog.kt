@@ -49,6 +49,7 @@ class PlayListSettingDialog : UtDialogEx() {
         val cloudTestMode = MutableStateFlow(false)
         val onlyUnBackedUpItems = MutableStateFlow(false)
         val editingMode = MutableStateFlow(EditingMode.None)
+        val allowDelete = MutableStateFlow(false)
         val showStartDatePicker: Flow<Boolean> = combine(enableStartDate,editingMode) {enabled,mode-> enabled && mode==EditingMode.EditingStart }
         val showEndDatePicker: Flow<Boolean> = combine(enableEndDate, editingMode){enabled,mode-> enabled && mode==EditingMode.EditingEnd }
 
@@ -68,6 +69,7 @@ class PlayListSettingDialog : UtDialogEx() {
             orderByDate.value = false
             cloudTestMode.value = false
             onlyUnBackedUpItems.value = false
+            allowDelete.value = false
         }
 
         private fun normalizeDateRange() {
@@ -92,6 +94,7 @@ class PlayListSettingDialog : UtDialogEx() {
             normalizeDateRange()
             onlyUnBackedUpItems.value = Settings.PlayListSetting.onlyUnBackedUpItems
             cloudTestMode.value = Settings.PlayListSetting.cloudTestMode
+            allowDelete.value = Settings.PlayListSetting.allowDelete
         }
 
         fun save() {
@@ -103,6 +106,7 @@ class PlayListSettingDialog : UtDialogEx() {
             Settings.PlayListSetting.endDate = endDate.value
             Settings.PlayListSetting.cloudTestMode = cloudTestMode.value
             Settings.PlayListSetting.onlyUnBackedUpItems = onlyUnBackedUpItems.value
+            Settings.PlayListSetting.allowDelete = allowDelete.value
         }
         companion object {
             fun createBy(task: IUtImmortalTask, minDate: DPDate, maxDate: DPDate): PlayListSettingViewModel {
@@ -147,6 +151,7 @@ class PlayListSettingDialog : UtDialogEx() {
             .checkBinding(controls.checkEndDate, viewModel.enableEndDate)
             .checkBinding(controls.checkCloudTestMode, viewModel.cloudTestMode)
             .checkBinding(controls.checkOnlyUnBackupItems, viewModel.onlyUnBackedUpItems)
+            .checkBinding(controls.checkAlowDelete, viewModel.allowDelete)
             .textBinding(controls.startDateText, viewModel.startDate.map { it.toString() })
             .textBinding(controls.endDateText, viewModel.endDate.map { it.toString() })
             .materialRadioButtonGroupBinding(controls.sortOrderSelector, viewModel.orderByDate, PlayListSettingViewModel.SortOrderResolver)

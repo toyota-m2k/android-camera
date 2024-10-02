@@ -212,11 +212,13 @@ class PlayerActivity : UtMortalActivity() {
                 if(PlayListSettingDialog.show(mm.min, mm.max)) {
                     playlist.onSettingChanged()
                 }
+                allowDelete.value = Settings.PlayListSetting.allowDelete
             }
         }
 
         val blocking = MutableStateFlow(false)
         val playingBeforeBlocked = MutableStateFlow(false)
+        val allowDelete = MutableStateFlow(Settings.PlayListSetting.allowDelete)
 
         class DateRange {
             private var minDate:DPDate = DPDate.Invalid
@@ -628,7 +630,7 @@ class PlayerActivity : UtMortalActivity() {
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, dragToMove = false, swipeToDelete = true, deletionHandler = ::onDeletingItem) { itemBinder, views, item->
+            .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, gestureParams = viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,true,::onDeletingItem)}) { itemBinder, views, item->
                 val textView = views.findViewById<TextView>(R.id.text_view)
                 val sizeView = views.findViewById<TextView>(R.id.size_view)
                 val durationView = views.findViewById<TextView>(R.id.duration_view)

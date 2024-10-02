@@ -218,6 +218,7 @@ class SettingDialog : UtDialogEx() {
         }
     }
     override fun preCreateBodyView() {
+        title = context.getString(R.string.settings)
         setLeftButton(BuiltInButtonType.CANCEL)
         setRightButton(BuiltInButtonType.DONE)
         setLimitWidth(400)
