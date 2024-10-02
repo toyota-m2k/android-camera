@@ -54,10 +54,18 @@ class PlayListSettingDialog : UtDialogEx() {
         val showEndDatePicker: Flow<Boolean> = combine(enableEndDate, editingMode){enabled,mode-> enabled && mode==EditingMode.EditingEnd }
 
         val commandEditStartDate = LiteUnitCommand {
-            editingMode.value = EditingMode.EditingStart
+            if(editingMode.value==EditingMode.EditingStart) {
+                editingMode.value = EditingMode.None
+            } else {
+                editingMode.value = EditingMode.EditingStart
+            }
         }
         val commandEditEndDate = LiteUnitCommand {
-            editingMode.value = EditingMode.EditingEnd
+            if(editingMode.value==EditingMode.EditingEnd) {
+                editingMode.value = EditingMode.None
+            } else {
+                editingMode.value = EditingMode.EditingEnd
+            }
         }
         val commandEndEdit = LiteCommand<DPDate> {
             editingMode.value = EditingMode.None
@@ -151,7 +159,7 @@ class PlayListSettingDialog : UtDialogEx() {
             .checkBinding(controls.checkEndDate, viewModel.enableEndDate)
             .checkBinding(controls.checkCloudTestMode, viewModel.cloudTestMode)
             .checkBinding(controls.checkOnlyUnBackupItems, viewModel.onlyUnBackedUpItems)
-            .checkBinding(controls.checkAlowDelete, viewModel.allowDelete)
+            .checkBinding(controls.checkAllowDelete, viewModel.allowDelete)
             .textBinding(controls.startDateText, viewModel.startDate.map { it.toString() })
             .textBinding(controls.endDateText, viewModel.endDate.map { it.toString() })
             .materialRadioButtonGroupBinding(controls.sortOrderSelector, viewModel.orderByDate, PlayListSettingViewModel.SortOrderResolver)
