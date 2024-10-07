@@ -52,6 +52,7 @@ import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -172,6 +173,7 @@ class EditorActivity : UtMortalActivity() {
                 true
             }
         }
+        val playingBeforeBlocked = MutableStateFlow(false)
         val blocking = MutableStateFlow(false)
 
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
@@ -239,12 +241,18 @@ class EditorActivity : UtMortalActivity() {
         binder.owner(this)
 
         lifecycleScope.launch {
-            if(savedInstanceState==null) {
-                val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-                val item = MetaDB.itemExOf(name) ?: throw IllegalStateException("no item")
-                val chapters = MetaDB.getChaptersFor(item.data)
-                viewModel.setSource(item, chapters)
+            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
+            val item = MetaDB.itemExOf(name) ?: throw IllegalStateException("no item")
+            val chapters = MetaDB.getChaptersFor(item.data)
+            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage()) {
+                UtImmortalSimpleTask.run {
+                    setResultAndFinish(false, item)
+                    true
+                }
+                return@launch
             }
+            viewModel.setSource(item, chapters)
+
             binder
                 .enableBinding(controls.redo, viewModel.chapterList.canRedo)
                 .enableBinding(controls.undo, viewModel.chapterList.canUndo)
@@ -463,8 +471,10 @@ class EditorActivity : UtMortalActivity() {
     override fun onPause() {
         logger.debug()
         super.onPause()
-        viewModel.blocking.value = true
         saveChapters()  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
+        viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
+        viewModel.blocking.value = true
+        viewModel.playerControllerModel.playerModel.pause()
         if(isFinishing) {
             logger.debug("finishing")
             viewModel.playerControllerModel.close()
@@ -478,10 +488,18 @@ class EditorActivity : UtMortalActivity() {
             lifecycleScope.launch {
                 if(PasswordDialog.checkPassword()) {
                     viewModel.blocking.value = false
+                    if(viewModel.playingBeforeBlocked.value) {
+                        viewModel.playingBeforeBlocked.value = false
+                        viewModel.playerControllerModel.playerModel.play()
+                    }
                 } else {
                     logger.error("Incorrect Password")
-                    finish()
+                    UtImmortalSimpleTask.run {
+                        setResultAndFinish(false, viewModel.targetItem)
+                        true
+                    }
                 }
+                true
             }
         }
     }
