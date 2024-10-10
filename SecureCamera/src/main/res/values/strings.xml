@@ -94,4 +94,5 @@
     <string name="span_custom">Custom</string>
     <string name="repair">Repair</string>
     <string name="allow_delete">Allow Deletion</string>
+    <string name="device_id_title">Device ID</string>
 </resources>

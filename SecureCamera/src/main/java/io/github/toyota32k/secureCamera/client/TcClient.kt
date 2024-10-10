@@ -233,7 +233,7 @@ object TcClient {
 
     suspend fun getListForRepair():List<RepairingItem>? {
         if(!Authentication.authenticateAndMessage()) return null
-        suspend fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
+        fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
             return sequence<RepairingItem> {
                 for(i in 0..<list.length()) {
                     val o = list.getJSONObject(i)

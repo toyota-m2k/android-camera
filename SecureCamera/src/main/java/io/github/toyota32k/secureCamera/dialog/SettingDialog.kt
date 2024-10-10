@@ -28,6 +28,7 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.gesture.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.asConstantLiveData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -249,6 +250,7 @@ class SettingDialog : UtDialogEx() {
                     .textBinding(controls.allowWrongPasswordText, viewModel.allowWrongPasswordText)
                     .textBinding(controls.skipForwardText, viewModel.skipForwardText)
                     .textBinding(controls.skipBackwardText, viewModel.skipBackwardText)
+                    .textBinding(controls.deviceId, Settings.SecureArchive.clientId.asConstantLiveData())
                     .checkBinding(controls.enablePasswordCheck, viewModel.securityEnablePassword)
                     .checkBinding(controls.blockPasswordErrorCheck, viewModel.securityClearAllOnPasswordError)
                     .checkBinding(controls.hidePanelOnCameraCheck, viewModel.cameraHidePanelOnStart)
