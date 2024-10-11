@@ -96,4 +96,5 @@
     <string name="allow_delete">Allow Deletion</string>
     <string name="device_id_title">Device ID</string>
     <string name="show_detail">Show Detail</string>
+    <string name="migrate">Migrate</string>
 </resources>

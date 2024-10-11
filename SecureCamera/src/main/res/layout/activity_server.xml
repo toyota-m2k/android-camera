@@ -46,6 +46,13 @@
         android:layout_marginTop="20dp"
         />
 
+    <Button
+        android:id="@+id/migrate_button"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="@string/migrate"
+        android:layout_marginTop="20dp"
+        />
     <!--    <Button-->
 <!--        android:id="@+id/close_button"-->
 <!--        android:layout_width="200dp"-->

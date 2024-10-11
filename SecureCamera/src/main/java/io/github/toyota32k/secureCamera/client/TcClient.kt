@@ -274,6 +274,34 @@ object TcClient {
         }
     }
 
+    data class DeviceInfo(val name:String, val clientId:String)
+    suspend fun getDeviceListForMigration():List<DeviceInfo>? {
+        fun jsonToItems(list: JSONArray):Sequence<DeviceInfo> {
+            return sequence<DeviceInfo> {
+                for (i in 0..<list.length()) {
+                    val o = list.getJSONObject(i)
+                    yield(DeviceInfo(
+                        name = o.optString("name", "noname"),
+                        clientId = o.optString("id", "uav")))
+                }
+            }
+        }
+
+        if(!Authentication.authenticateAndMessage()) return null
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("http://${Authentication.activeHostAddress}/migration/devices?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}")
+                .get()
+                .build()
+            try {
+                val json = executeAndGetJsonAsync(request)
+                jsonToItems(json.getJSONArray("list")).toList()
+            } catch(e:Throwable) {
+                null
+            }
+        }
+    }
+
 //    private fun waitForUploaded(url:String, item: ItemEx) {
 //        CoroutineScope(Dispatchers.IO).launch {
 //            try {

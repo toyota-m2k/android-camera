@@ -20,8 +20,10 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtMessageBox
+import io.github.toyota32k.dialog.UtSingleSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
@@ -54,6 +56,7 @@ class ServerActivity : UtMortalActivity() {
         val backupCommand = LiteUnitCommand(::backup)
         val purgeCommand = LiteUnitCommand(::purge)
         val repairCommand = LiteUnitCommand(::repair)
+        val migrateCommand = LiteUnitCommand(::migrate)
         val isBusy = MutableStateFlow(false)
 
         init {
@@ -126,19 +129,57 @@ class ServerActivity : UtMortalActivity() {
         }
 
         private fun repair() {
+            isBusy.value = true
             viewModelScope.launch {
-                val itemsOnServer = TcClient.getListForRepair() ?: return@launch
-                val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
-                var count:Int = 0
-                for(item in itemsOnServer) {
-                    if(!itemsOnLocal.contains(item.originalId)) {
-                        // サーバーにのみ存在するレコード
-                        logger.debug("found target item: ${item.name} / ${item.id}")
-                        MetaDB.repairWithBackup(SCApplication.instance, item)
-                        count++
+                try {
+                    val itemsOnServer = TcClient.getListForRepair() ?: return@launch
+                    val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
+                    var count:Int = 0
+                    for(item in itemsOnServer) {
+                        if(!itemsOnLocal.contains(item.originalId)) {
+                            // サーバーにのみ存在するレコード
+                            logger.debug("found target item: ${item.name} / ${item.id}")
+                            MetaDB.repairWithBackup(SCApplication.instance, item)
+                            count++
+                        }
                     }
+                    logger.debug("$count items has been repaired.")
+                } finally {
+                    isBusy.value = false
                 }
-                logger.debug("$count items has been repaired.")
+            }
+        }
+
+        private fun migrate() {
+            isBusy.value = true
+            viewModelScope.launch {
+                try {
+                    val devices = TcClient.getDeviceListForMigration() ?: return@launch
+                    if(devices.isEmpty()) {
+                        UtImmortalSimpleTask.runAsync("no device error") {
+                            showConfirmMessageBox("Migration", "No devices found.")
+                            true
+                        }
+                        return@launch
+                    }
+                    val device = UtImmortalSimpleTask.executeAsync("select device") {
+                        var index =showDialog(taskName) {
+                            UtSingleSelectionBox().apply {
+                                items = devices.map { "${it.name} - ${it.clientId}" }.toTypedArray()
+                                title = "Select device"
+                            }
+                        }.selectedIndex
+                        if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
+                            null
+                        } else devices[index]
+                    }
+                    if(device==null) {
+                        return@launch
+                    }
+                    logger.debug("selected device: ${device.name} / ${device.clientId}")
+                } finally {
+                    isBusy.value = false
+                }
             }
         }
 
@@ -178,6 +219,7 @@ class ServerActivity : UtMortalActivity() {
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
             .bindCommand(viewModel.repairCommand, controls.repairButton)
+            .bindCommand(viewModel.migrateCommand, controls.migrateButton)
             .multiEnableBinding(arrayOf(controls.purgeButton,controls.backupButton), viewModel.isBusy, boolConvert = BoolConvert.Inverse)
             .visibilityBinding(controls.progressRing, viewModel.isBusy, hiddenMode = VisibilityBinding.HiddenMode.HideByInvisible)
     }
