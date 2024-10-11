@@ -56,6 +56,7 @@ import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.dialog.DetailMessageDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
@@ -386,23 +387,30 @@ class EditorActivity : UtMortalActivity() {
             val awaiter = converter.executeAsync()
             vm.cancelCommand.bindForever { awaiter.cancel() }
             CoroutineScope(Dispatchers.IO).launch {
-                val r = awaiter.await()
-                vm.message.value = "Optimizing Now..."
-                val dstFile:File = if(FastStart.process(trimFile.toUri(), optFile.toUri(), applicationContext) {
-                    vm.progress.value = it.percentage
-                    vm.progressText.value = it.format()
-                }) {
-                    safeDelete(trimFile)
-                    optFile
-                } else {
-                    safeDelete(optFile)
-                    trimFile
-                }
-                try {
+                var result:Boolean = try {
+                    val r = awaiter.await()
+                    if(!r.succeeded) {
+                        if(r.cancelled) {
+                            throw CancellationException("conversion cancelled")
+                        } else {
+                            throw r.exception ?: IllegalStateException("unknown error")
+                        }
+                    }
+                    vm.message.value = "Optimizing Now..."
+                    val dstFile:File = if(FastStart.process(trimFile.toUri(), optFile.toUri(), applicationContext) {
+                            vm.progress.value = it.percentage
+                            vm.progressText.value = it.format()
+                        }) {
+                        safeDelete(trimFile)
+                        optFile
+                    } else {
+                        safeDelete(optFile)
+                        trimFile
+                    }
+
                     val srcLen = srcFile.getLength().let { if(it<0) targetItem.size else it }
                     val dstLen = dstFile.length()
-                    var confirmed = false
-                    if (r.succeeded && dstLen>0) {
+                    if (dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                         if(quality.compact) {
 //                            val s = Converter.analyze(srcFile.toAndroidFile())
@@ -412,7 +420,6 @@ class EditorActivity : UtMortalActivity() {
                             if(!UtImmortalSimpleTask.runAsync("low quality") {
                                 showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             }) { throw CancellationException("cancelled") }
-                            confirmed = true
                         }
 
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
@@ -432,21 +439,13 @@ class EditorActivity : UtMortalActivity() {
                             }
                             MetaDB.updateFile(targetItem, newChapterList)
                         }
-                        UtImmortalSimpleTask.run("completeMessage") {
-                            if(!confirmed) {
-                                showConfirmMessageBox("Completed.","${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
-                            }
-                            setResultAndFinish(true, targetItem)
-                            true
-                        }
-                    } else if(!r.cancelled) {
-                        val msg = r.errorMessage ?: r.exception?.message ?: "unknown error"
-                        UtImmortalSimpleTask.run("errorMessage") {
-                            showConfirmMessageBox("Error.", msg)
-                            true
-                        }
+                        DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")
+                        setResultAndFinish(true, targetItem)
+                    } else {
+                        throw IllegalStateException("no data")
                     }
-                } catch(e:Throwable) {
+                    true
+                } catch (e:Throwable) {
                     if(e !is CancellationException) {
                         logger.error(e)
                         UtImmortalSimpleTask.run("errorMessage") {
@@ -457,12 +456,12 @@ class EditorActivity : UtMortalActivity() {
                             true
                         }
                     }
+                    false
                 } finally {
                     safeDelete(trimFile)
                     safeDelete(optFile)
                 }
-
-                withContext(Dispatchers.Main) { vm.closeCommand.invoke(r.succeeded) }
+                withContext(Dispatchers.Main) { vm.closeCommand.invoke(result) }
             }
             showDialog(taskName) { ProgressDialog() }.status.ok
         }
