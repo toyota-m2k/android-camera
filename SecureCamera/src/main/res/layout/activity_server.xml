@@ -38,6 +38,14 @@
         android:layout_marginTop="20dp"
         />
 
+    <CheckBox
+        android:id="@+id/maintenance_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/maintenance"
+        android:layout_marginTop="20dp"
+        />
+
     <Button
         android:id="@+id/repair_button"
         android:layout_width="200dp"
@@ -63,8 +71,8 @@
 
     <ProgressBar
         android:id="@+id/progress_ring"
-        android:layout_width="20dp"
-        android:layout_height="16dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_marginTop="20dp"
         android:visibility="invisible"
         tools:visibility="invisible"

@@ -141,7 +141,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             return filename2date(item.name)?.time ?: 0L
         }
 
-        suspend fun decodeChaptersString(jsonStr:String): Sequence<IChapter> {
+        fun decodeChaptersString(jsonStr:String): Sequence<IChapter> {
             try {
                 val json = JSONArray(jsonStr)
                 return sequence<IChapter> {
@@ -450,6 +450,25 @@ object MetaDB {
                 itemOf(name)?.apply {
                     DBChange.add(id)
                 }
+            }
+        }
+    }
+
+    suspend fun migrateOne(handle:String, storedEntry: TcClient.StoredFileEntry):MetaData? {
+        return withContext(Dispatchers.IO) {
+            db.runInTransaction<MetaData?> {
+                // まず挿入
+                db.metaDataTable().insert(storedEntry.toMetaData())
+                // チャプターを設定
+                val data = db.metaDataTable().getDataOf(storedEntry.name)
+                    ?: throw IllegalStateException("no data")
+                db.chapterDataTable().setForOwner(
+                    data.id,
+                    storedEntry.toChaptersList()
+                        .map { ChapterData(0, data.id, it.position, it.label, it.skip) })
+                // 変更イベントを発行
+                DBChange.add(data.id)
+                data
             }
         }
     }

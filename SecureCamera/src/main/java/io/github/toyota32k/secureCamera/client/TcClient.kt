@@ -5,12 +5,15 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
@@ -201,6 +204,7 @@ object TcClient {
             .addFormDataPart("MetaInfo", "")
             .addFormDataPart("ExtAttr", "${item.attrDataJson}")
             .addFormDataPart("File", item.name, body)
+            .addFormDataPart("Duration", "${item.duration}")
             .build()
         val request = Request.Builder()
             .url("http://${Authentication.activeHostAddress}/upload")
@@ -302,48 +306,132 @@ object TcClient {
         }
     }
 
-//    private fun waitForUploaded(url:String, item: ItemEx) {
-//        CoroutineScope(Dispatchers.IO).launch {
-//            try {
-//                var cont = true
-//                while (cont) {
-//                    delay(1000)
-//                    val locationReq = Request.Builder().url(url).get().build()
-//                    NetClient.executeAsync(locationReq).use { result -> //client.newCall(locationReq).executeAsync(null)
-//                        when (result.code) {
-//                            StatusCode.Ok.code -> {
-//                                // upload completed
-//                                logger.debug("uploaded")
-//                                val newItem = MetaDB.updateCloud(item, CloudStatus.Uploaded)
-//                                withContext(Dispatchers.Main) {
-//                                    val activity = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? PlayerActivity
-//                                    if(activity!=null) {
-//                                        activity.itemUpdated(newItem.name)
-//                                    }
-//                                }
-//                                cont = false
-//                            }
-//
-//                            StatusCode.Accepted.code -> {
-//                                val body = result.body?.use { it.string() }
-//                                    ?: throw IllegalStateException("Server Response No Data.")
-//                                val json = JSONObject(body)
-//                                val total = json.optLong("total")
-//                                val current = json.optLong("current")
-//                                logger.debug("registering on server: $current / $total")
-//                            }
-//
-//                            else -> {
-//                                // error
-//                                logger.debug("error response: ${result.code}")
-//                                cont = false
-//                            }
-//                        }
-//                    }
-//                }
-//            } catch(e:Throwable) {
-//                logger.error(e)
-//            }
-//        }
-//    }
+    data class StoredFileEntry(
+        val id:Long,
+        val originalId:String,
+        val ownerId:String,
+        val name:String,
+        val size:Long,
+        val registeredDate:Long,
+        val lastModifiedDate:Long,
+        val creationDate:Long,
+        val metaInfo:String,
+        val deleted:Long,
+        val extAttrDate:Long,
+        val rating:Int,
+        val mark:Int,
+        val label:String,
+        val category:String,
+        val chapters:String,
+        val duration:Long,
+    ) {
+        val isValid:Boolean get() = id>0 && originalId.isNotEmpty() && ownerId.isNotEmpty()
+        // なんと、Duration は端末側にしか覚えていない
+        fun toMetaData():MetaData {
+            return MetaData(
+                id=0,
+                name=name,
+                group=0,
+                mark=mark,
+                type=if(name.endsWith(".mp4")) 1 else 0,
+                date=registeredDate,
+                size=size,
+                duration=duration,
+                rating=rating,
+                cloud=CloudStatus.Cloud.v,
+                flag=0,
+                ext=null,
+                attr_date=extAttrDate,
+                label=label,
+                category=category
+            )
+        }
+        fun toChaptersList():List<IChapter> {
+            if(chapters.isEmpty()) return emptyList()
+            return ItemEx.decodeChaptersString(chapters).toList()
+        }
+    }
+
+    data class MigrationInfo(val handle:String, val list:List<StoredFileEntry>)
+    suspend fun startMigration(targetClientId:String):MigrationInfo? {
+        fun jsonToItems(list: JSONArray):Sequence<StoredFileEntry> {
+            return sequence<StoredFileEntry> {
+                for (i in 0..<list.length()) {
+                    val o = list.getJSONObject(i)
+                    yield(StoredFileEntry(
+                        id = o.optLong("id", 0),
+                        originalId = o.optString("originalId", ""),
+                        ownerId = o.optString("ownerId",""),
+                        name = o.optString("name", ""),
+                        size = o.optLong("size", 0),
+                        registeredDate = o.optLong("registeredDate", 0L),
+                        lastModifiedDate = o.optLong("lastModifiedDate", 0L),
+                        creationDate = o.optLong("creationDate", 0L),
+                        metaInfo = o.optString("metaInfo", ""),
+                        deleted = o.optLong("deleted", 0L),
+                        extAttrDate = o.optLong("extAttrDate", 0L),
+                        rating = o.optInt("rating", 0),
+                        mark = o.optInt("mark", 0),
+                        label = o.optString("label", ""),
+                        category = o.optString("category", ""),
+                        chapters = o.optString("chapters", ""),
+                        duration = o.optLong("duration", 0L),
+                    ))
+                }
+            }.filter { it.isValid }
+        }
+        if(!Authentication.authenticateAndMessage()) return null
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&n=$targetClientId")
+                .get()
+                .build()
+            try {
+                val json = executeAndGetJsonAsync(request)
+                val handle = json.optString("handle")
+                val list = json.getJSONArray("targets")
+                MigrationInfo(handle, jsonToItems(list).toList())
+            } catch(e:Throwable) {
+                null
+            }
+        }
+    }
+    suspend fun endMigration(handle:String):Boolean {
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("http://${Authentication.activeHostAddress}/migration/end?h=$handle")
+                .get()
+                .build()
+            try {
+                executeAndGetJsonAsync(request)
+                true
+            } catch(e:Throwable) {
+                false
+            }
+        }
+    }
+
+    suspend fun reportMigratedOne(handle:String, entry: StoredFileEntry, newId:Int): Boolean {
+        if(!Authentication.authenticateAndMessage()) return false
+        return withContext(Dispatchers.IO) {
+            val json = JSONObject()
+                .put("handle", handle)
+                .put("oldOwnerId", entry.ownerId)
+                .put("oldOriginalId", entry.originalId)
+                .put("newOwnerId", Settings.SecureArchive.clientId)
+                .put("newOriginalId", "$newId")
+                .toString()
+            val request = Request.Builder()
+                .url("http://${Authentication.activeHostAddress}/migration/exec?auth=${Authentication.authToken}")
+                .put(json.toRequestBody("application/json".toMediaType()))
+                .build()
+            try {
+                executeAndGetJsonAsync(request)
+                true
+            } catch(e:Throwable) {
+                false
+            }
+
+        }
+    }
 }
