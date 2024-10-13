@@ -201,6 +201,7 @@ object TcClient {
             .addFormDataPart("MetaInfo", "")
             .addFormDataPart("ExtAttr", "${item.attrDataJson}")
             .addFormDataPart("File", item.name, body)
+            .addFormDataPart("Duration", "${item.duration}")
             .build()
         val request = Request.Builder()
             .url("http://${Authentication.activeHostAddress}/upload")
@@ -229,7 +230,7 @@ object TcClient {
         return false
     }
 
-    data class RepairingItem(val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String)
+    data class RepairingItem(val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
 
     suspend fun getListForRepair():List<RepairingItem>? {
         if(!Authentication.authenticateAndMessage()) return null
@@ -253,7 +254,8 @@ object TcClient {
                         mark = o.optInt("mark", 0),
                         label = o.optString("label", ""),
                         category = o.optString("category", ""),
-                        chapters = o.optString("chapters", "")
+                        chapters = o.optString("chapters", ""),
+                        duration = o.optLong("duration")
                     ))
                 }
             }
