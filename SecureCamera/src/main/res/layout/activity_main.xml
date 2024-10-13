@@ -27,45 +27,34 @@
         android:layout_height="wrap_content"
         android:text="@string/camera"
         />
-    <Space
-        android:layout_height="@dimen/menu_button_spacing"
-        android:layout_width="0dp"
-        />
     <Button
         android:id="@+id/player_button"
+        android:layout_marginTop="10dp"
         android:layout_width="@dimen/menu_button_width"
         android:layout_height="wrap_content"
         android:text="@string/player"
         />
-    <Space
-        android:layout_height="@dimen/menu_button_spacing"
-        android:layout_width="0dp"
-        />
     <Button
         android:id="@+id/server_button"
+        android:layout_marginTop="20dp"
         android:layout_width="@dimen/menu_button_width"
         android:layout_height="wrap_content"
         android:text="@string/server"
         />
-    <Space
-        android:layout_height="@dimen/menu_button_spacing"
-        android:layout_width="0dp"
-        />
     <Button
         android:id="@+id/settings_button"
+        android:layout_marginTop="10dp"
         android:layout_width="@dimen/menu_button_width"
         android:layout_height="wrap_content"
         android:text="@string/settings"
         />
-    <Space
-        android:layout_height="@dimen/menu_button_spacing"
-        android:layout_width="0dp"
-        />
     <Button
         android:id="@+id/clear_all_button"
+        android:layout_marginTop="10dp"
         android:layout_width="@dimen/menu_button_width"
         android:layout_height="wrap_content"
         android:text="@string/clear_all"
+        android:visibility="gone"
         />
 
 </LinearLayout>

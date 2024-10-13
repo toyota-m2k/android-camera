@@ -61,7 +61,6 @@ data class MetaData(
             label: String? = src.label,
             category: String? = src.category,
         ):MetaData = MetaData(id,name,group,mark,type,date,size,duration,rating,cloud,flag,ext, attr_date, label, category)
-
     }
 
     val isVideo:Boolean
