@@ -40,6 +40,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         get() = data.id
     val name:String
         get() = data.name
+    // ファイルのタイムスタンプ（ファイルを編集すると更新される）
     val date:Long
         get() = data.date
     val type:Int
@@ -61,6 +62,7 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     val nameForDisplay:String
         get() = name.substringAfter("-").substringBeforeLast(".").replace("-", "  ")
 
+    // 動画撮影日時（ファイル名から取得：不変）
     val creationDate:Long by lazy {
         filename2date(name)?.time ?: 0L
     }
@@ -99,6 +101,9 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
             } else ""
         }
 
+    // SecureArchiveへのアップロード時に、プロパティ情報も送信するための仕掛け。
+    // アップロードに multipart/form-data を使ったため、パラメータが１つずつ、part body になってしまって扱いにくいので、
+    // 追加情報を１つの json にしてしまうための仕掛け。
     val attrDataJson : JSONObject
         get() = JSONObject()
                 .put("cmd", "extension")
@@ -590,7 +595,7 @@ object MetaDB {
             type = if(ri.type=="mp4") 1 else 0,
             date = ri.lastModifiedDate,
             size = ri.size,
-            duration = 0L,
+            duration = ri.duration,
             rating = ri.rating,
             cloud = CloudStatus.Cloud.v,
             flag = 0,
