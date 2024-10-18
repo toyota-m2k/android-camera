@@ -141,7 +141,9 @@ class EditorActivity : UtMortalActivity() {
             if(targetItem.cloud.isFileInLocal) {
                 targetItem.file.toAndroidFile()
             } else {
-                HttpInputFile(application, OkHttpStreamSource(targetItem.uri)).apply { addRef() }
+                HttpInputFile(application, OkHttpStreamSource(targetItem.uri)).apply {
+                    addRef()
+                }
             }
         }
 
@@ -344,7 +346,9 @@ class EditorActivity : UtMortalActivity() {
         logger.debug()
         lifecycleScope.launch {
             val quality = SelectQualityDialog.show() ?: return@launch
-            trimmingAndSave(quality)
+            withContext(Dispatchers.IO) {
+                trimmingAndSave(quality)
+            }
         }
         return true
     }

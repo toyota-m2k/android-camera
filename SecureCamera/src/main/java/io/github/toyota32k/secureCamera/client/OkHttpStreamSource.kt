@@ -21,10 +21,16 @@ class OkHttpStreamSource(val url: String) : IHttpStreamSource {
     private var stream: InputStream? = null
 
     override fun close() {
-        stream?.close()
-        stream = null
-        call?.cancel()
-        call = null
+        synchronized(this) {
+            try {
+                stream?.close()
+                stream = null
+            } catch (_: Throwable) {}
+            try {
+                call?.cancel()
+                call = null
+            } catch (_: Throwable) {}
+        }
     }
 
     override fun open(): InputStream {
