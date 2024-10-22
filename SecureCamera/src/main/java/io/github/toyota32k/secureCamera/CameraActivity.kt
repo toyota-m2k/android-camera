@@ -20,14 +20,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
+import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.anim.VisibilityAnimation
+import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.multiEnableBinding
+import io.github.toyota32k.binder.multiVisibilityBinding
+import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -48,7 +52,9 @@ import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.shared.gesture.Direction
+import io.github.toyota32k.utils.DisposableFlowObserver
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CoroutineScope
@@ -59,6 +65,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
@@ -175,12 +184,17 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 videoCapture.stop()
             }
         }
+
+        val exposureCompensationAvailable = MutableStateFlow(false)
+        val exposureCompensationIndex = MutableStateFlow(0f)
+        val showExposureSlider = MutableStateFlow(false)
     }
 
     private val permissionsBroker = UtMultiPermissionsBroker(this)
     private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
+    private val exposeBinder = Binder()
     private val viewModel by viewModels<CameraViewModel>()
     private val cameraManipulator : TcCameraManipulator by lazy { TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.LongTap, rapidTap = false) }
 
@@ -240,6 +254,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .bindCommand(LiteUnitCommand(this::toggleCamera), controls.flipCameraButton)
             .bindCommand(torchCommand, controls.lampOnButton, false)
             .bindCommand(torchCommand, controls.lampOffButton, true)
+            .clickBinding(controls.exposureButton) { showExposureSlider() }
+            .clickBinding(controls.sliderGuardView) { hideExposureSlider() }
+            .multiVisibilityBinding(arrayOf(controls.exposureSlider, controls.sliderGuardView), viewModel.showExposureSlider, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .add(exposeBinder)
 
 //        cameraGestureManager = CameraGestureManager.Builder()
 //            .enableFocusGesture()
@@ -285,6 +303,30 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 me.startCamera(viewModel.frontCameraSelected.value)
             }
         }
+    }
+
+    private fun showExposureSlider() {
+        val camera = currentCamera ?: return
+        if(!viewModel.exposureCompensationAvailable.value) return
+        exposeBinder.reset()
+        controls.exposureSlider.apply {
+            value = 0f
+            valueFrom = camera.exposureIndex.min.toFloat()
+            valueTo = camera.exposureIndex.max.toFloat()
+        }
+        exposeBinder
+            .owner(this)
+            .sliderBinding(controls.exposureSlider, viewModel.exposureCompensationIndex, mode= BindingMode.TwoWay)
+            .add(viewModel.exposureCompensationIndex.disposableObserve(this) { index->
+                lifecycleScope.launch {
+                    camera.exposureIndex.setIndex(index.roundToInt())
+                }
+            })
+        viewModel.showExposureSlider.value = true
+    }
+    private fun hideExposureSlider() {
+        viewModel.showExposureSlider.value = false
+        exposeBinder.reset()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -345,12 +387,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                     .videoCapture(viewModel.videoCapture)
                 }
                 .apply {
-                    val exposureState = cameraInfo.exposureState
-                    val range = exposureState.exposureCompensationRange
-                    val step = exposureState.exposureCompensationStep
-                    logger.debug("exposureState: current=${exposureState.exposureCompensationIndex}: ${range.lower}-${range.upper}, step=$step")
-
-
+                    viewModel.exposureCompensationAvailable.value = exposureIndex.isSupported
                     cameraManipulator.attachCamera(this@CameraActivity, camera, controls.previewView) {
                         onFlickVertical {
                             viewModel.showControlPanel.value = it.direction == Direction.Start
