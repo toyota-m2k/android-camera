@@ -368,9 +368,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                             controls.focusIndicator.x = it.x - w/2
                             controls.focusIndicator.y = it.y - h/2
                             lifecycleScope.launch {
-                                focusIndicatorAnimation.run(false)
-                                delay(3000)
-                                focusIndicatorAnimation.run(true)
+                                focusIndicatorAnimation.advanceAndBack(3000)
                             }
                         }
                     }
