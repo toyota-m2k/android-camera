@@ -22,6 +22,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.anim.VisibilityAnimation
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
@@ -169,6 +170,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private lateinit var controls: ActivityCameraBinding
 
+    private lateinit var focusIndicatorAnimation: VisibilityAnimation
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -233,6 +235,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            .build(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        focusIndicatorAnimation = VisibilityAnimation(300).apply {
+            addView(controls.focusIndicator)
+        }
 
         gestureScope.launch {
             if(permissionsBroker.Request()
@@ -323,6 +329,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                     .videoCapture(viewModel.videoCapture)
                 }
                 .apply {
+                    val exposureState = cameraInfo.exposureState
+                    val range = exposureState.exposureCompensationRange
+                    val step = exposureState.exposureCompensationStep
+                    logger.debug("exposureState: current=${exposureState.exposureCompensationIndex}: ${range.lower}-${range.upper}, step=$step")
+
+
                     cameraManipulator.attachCamera(this@CameraActivity, camera, controls.previewView) {
                         onFlickVertical {
                             viewModel.showControlPanel.value = it.direction == Direction.Start
@@ -347,6 +359,18 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //                                    }
 //                                    else -> {}
 //                                }
+                            }
+                        }
+                        onFocusedAt {
+                            logger.debug("onFocusedAt: (${it.x}, ${it.y})")
+                            val w = controls.focusIndicator.width
+                            val h = controls.focusIndicator.height
+                            controls.focusIndicator.x = it.x - w/2
+                            controls.focusIndicator.y = it.y - h/2
+                            lifecycleScope.launch {
+                                focusIndicatorAnimation.run(false)
+                                delay(3000)
+                                focusIndicatorAnimation.run(true)
                             }
                         }
                     }

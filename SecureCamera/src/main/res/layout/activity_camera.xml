@@ -56,7 +56,7 @@
         <ImageButton android:id="@+id/photo_button"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_photo"
+            app:srcCompat="@drawable/ic_camera"
             android:background="?attr/selectableItemBackground"
             android:contentDescription="@string/desc_photo" />
         <ImageButton android:id="@+id/video_rec_button"
@@ -105,6 +105,14 @@
         app:srcCompat="@drawable/ic_photo"
         app:tint="@color/white"
         tools:ignore="ContentDescription" />
+    <ImageView
+        android:id="@+id/focus_indicator"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:srcCompat="@drawable/ic_focus"
+        app:tint="@color/white"
+        android:visibility="invisible"
+        tools:ignore="ContentDescription"/>
 
 <!--    <androidx.constraintlayout.utils.widget.ImageFilterView-->
 <!--        android:id="@+id/mini_rec_indicator"-->

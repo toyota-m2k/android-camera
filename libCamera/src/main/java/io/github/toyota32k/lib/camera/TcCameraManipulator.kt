@@ -45,6 +45,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
     private lateinit var gestureScope:CoroutineScope
 
     val gesture = UtGestureInterpreter(context.applicationContext, enableScaleEvent=true, rapidTap)
+    var onFocusdAt:((UtGestureInterpreter.IPositionalEvent)->Unit)? = null
 
     interface IListenerBuilder {
         fun onTap(fn: (UtGestureInterpreter.IPositionalEvent)->Unit)
@@ -52,6 +53,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         fun onDoubleTap(fn: (UtGestureInterpreter.IPositionalEvent)->Unit)
         fun onFlickHorizontal(fn:(UtGestureInterpreter.IFlickEvent)->Unit)
         fun onFlickVertical(fn:(UtGestureInterpreter.IFlickEvent)->Unit)
+        fun onFocusedAt(fn:(UtGestureInterpreter.IPositionalEvent)->Unit)
     }
     private inner class ListenerBuilder:IListenerBuilder {
         var mTap: ((UtGestureInterpreter.IPositionalEvent)->Unit)? = null
@@ -59,6 +61,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         var mDoubleTap: ((UtGestureInterpreter.IPositionalEvent)->Unit)? = null
         var mFlickHorizontal: ((UtGestureInterpreter.IFlickEvent)->Unit)? = null
         var mFlickVertical: ((UtGestureInterpreter.IFlickEvent)->Unit)? = null
+        var mFocusedAt: ((UtGestureInterpreter.IPositionalEvent)->Unit)? = null
 
         override fun onTap(fn: (UtGestureInterpreter.IPositionalEvent)->Unit) {
             if(focusActionBy==FocusActionBy.Tap) {
@@ -84,6 +87,9 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         override fun onFlickVertical(fn:(UtGestureInterpreter.IFlickEvent)->Unit) {
             mFlickVertical = fn
         }
+        override fun onFocusedAt(fn:(UtGestureInterpreter.IPositionalEvent)->Unit) {
+            mFocusedAt = fn
+        }
 
         fun build(owner: LifecycleOwner,previewView: PreviewView) {
             if(gesture.rapidTap) {
@@ -98,6 +104,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
                 FocusActionBy.DoubleTap -> mDoubleTap = this@TcCameraManipulator::focus
                 else -> {}
             }
+            onFocusdAt = mFocusedAt
             gesture.setup(owner, previewView) {
                 onScale(this@TcCameraManipulator::zoom)
                 mTap?.apply {
@@ -193,10 +200,11 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         val camera = camera ?: return
         val meteringPointFactory = previewView.meteringPointFactory
         val focusPoint = meteringPointFactory.createPoint(event.x, event.y)
-        val meteringAction = FocusMeteringAction.Builder(focusPoint).build()
+        val meteringAction = FocusMeteringAction.Builder(focusPoint).disableAutoCancel().build()
         gestureScope.launch {
             try {
                 camera.cameraControl.startFocusAndMetering(meteringAction).await()
+                onFocusdAt?.invoke(event)
             } catch(e:Throwable) {
                 logger.error(e)
             }

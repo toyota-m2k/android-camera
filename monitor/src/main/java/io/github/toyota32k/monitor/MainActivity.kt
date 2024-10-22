@@ -135,7 +135,6 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
                 .frontCamera(front)
                 .standardPreview(controls.previewView)
             }
-
         } catch (e: Throwable) {
             logger.error(e)
         }
