@@ -24,7 +24,9 @@
         android:orientation="horizontal"
         android:background="?attr/ampPanelBackgroundColor"
         android:layout_gravity="end|bottom"
-        android:paddingHorizontal="20dp"
+        android:padding="4dp"
+        android:layout_marginEnd="25dp"
+        android:layout_marginBottom="10dp"
         tools:visibility="invisible"
         >
 <!--        <ImageButton android:id="@+id/expand_button"-->
@@ -52,18 +54,29 @@
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_lamp_off"
             android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
             android:contentDescription="@string/desc_lamp_off" />
+        <ImageButton android:id="@+id/exposure_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_brightness"
+            android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
+            android:contentDescription="@string/desc_exposure"
+            />
         <ImageButton android:id="@+id/photo_button"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_camera"
             android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
             android:contentDescription="@string/desc_photo" />
         <ImageButton android:id="@+id/video_rec_button"
             android:layout_width="@dimen/media_button_width"
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_video_rec"
             android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
             android:contentDescription="@string/desc_video_rec" />
         <ImageButton android:id="@+id/video_stop_button"
             android:layout_width="@dimen/media_button_width"
@@ -76,6 +89,7 @@
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_video_pause"
             android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
             android:contentDescription="@string/desc_video_pause" />
         <ImageButton android:id="@+id/video_resume_button"
             android:layout_width="@dimen/media_button_width"
@@ -88,6 +102,7 @@
             android:layout_height="@dimen/media_button_height"
             app:srcCompat="@drawable/ic_flip"
             android:background="?attr/selectableItemBackground"
+            app:tint="?attr/ampPanelForegroundColor"
             android:contentDescription="@string/desc_flip_camera" />
 <!--        <ImageButton android:id="@+id/close_button"-->
 <!--            android:layout_width="@dimen/media_button_width"-->
@@ -128,10 +143,9 @@
         android:id="@+id/mini_rec_indicator"
         android:layout_gravity="end|bottom"
         android:layout_margin="10dp"
-        android:layout_width="10dp"
-        android:layout_height="10dp"
-        app:srcCompat="@drawable/ic_video_rec"
-        app:tint="@color/red"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        app:srcCompat="@drawable/ic_video_stop"
         tools:ignore="ContentDescription" />
 
 </FrameLayout>

@@ -136,7 +136,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
         @SuppressLint("MissingPermission")
         val takeVideoCommand = LiteUnitCommand {
-            when (recordingState.value) {
+            val recording = when (recordingState.value) {
                 TcVideoCapture.RecordingState.NONE -> {
                     val file = newVideoFile()
                     videoCapture.takeVideoInFile(file) {
@@ -149,9 +149,25 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                             }
                         }
                     }
+                    true
                 }
-                TcVideoCapture.RecordingState.STARTED -> videoCapture.pause()
-                TcVideoCapture.RecordingState.PAUSING -> videoCapture.resume()
+                TcVideoCapture.RecordingState.STARTED -> {
+                    videoCapture.pause()
+                    false
+                }
+                TcVideoCapture.RecordingState.PAUSING -> {
+                    videoCapture.resume()
+                    true
+                }
+            }
+            if(recording && Settings.Camera.hidePanelOnStart) {
+                // hidePanelOnStart == true の場合は、録画開始から５秒後にコントロールパネルを非表示にする
+                viewModelScope.launch {
+                    delay(5000)
+                    if(recordingState.value == TcVideoCapture.RecordingState.STARTED) {
+                        showControlPanel.value = false
+                    }
+                }
             }
         }
         val finalizeVideoCommand = LiteUnitCommand {
