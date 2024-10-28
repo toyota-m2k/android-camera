@@ -188,6 +188,13 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val exposureCompensationAvailable = MutableStateFlow(false)
         val exposureCompensationIndex = MutableStateFlow(0f)
         val showExposureSlider = MutableStateFlow(false)
+        val commandExposure = LiteCommand<Float> {
+            val newValue = (exposureCompensationIndex.value+it).coerceIn(exposureMin, exposureMax)
+//            UtLog("CAMERA.VM").debug("exposureCompensationIndex: ${exposureCompensationIndex.value} -> $newValue")
+            exposureCompensationIndex.value = newValue
+        }
+        var exposureMin = 0f
+        var exposureMax = 0f
     }
 
     private val permissionsBroker = UtMultiPermissionsBroker(this)
@@ -256,7 +263,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .bindCommand(torchCommand, controls.lampOffButton, true)
             .clickBinding(controls.exposureButton) { showExposureSlider() }
             .clickBinding(controls.sliderGuardView) { hideExposureSlider() }
-            .multiVisibilityBinding(arrayOf(controls.exposureSlider, controls.sliderGuardView), viewModel.showExposureSlider, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .multiVisibilityBinding(arrayOf(controls.exposurePanel, controls.sliderGuardView), viewModel.showExposureSlider, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .add(exposeBinder)
 
 //        cameraGestureManager = CameraGestureManager.Builder()
@@ -309,14 +316,18 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val camera = currentCamera ?: return
         if(!viewModel.exposureCompensationAvailable.value) return
         exposeBinder.reset()
+        viewModel.exposureMin = camera.exposureIndex.min.toFloat()
+        viewModel.exposureMax = camera.exposureIndex.max.toFloat()
         controls.exposureSlider.apply {
             value = 0f
-            valueFrom = camera.exposureIndex.min.toFloat()
-            valueTo = camera.exposureIndex.max.toFloat()
+            valueFrom = viewModel.exposureMin
+            valueTo = viewModel.exposureMax
         }
         exposeBinder
             .owner(this)
             .sliderBinding(controls.exposureSlider, viewModel.exposureCompensationIndex, mode= BindingMode.TwoWay)
+            .bindCommand(viewModel.commandExposure, controls.exposurePlus,1f)
+            .bindCommand(viewModel.commandExposure, controls.exposureMinus,-1f)
             .add(viewModel.exposureCompensationIndex.disposableObserve(this) { index->
                 lifecycleScope.launch {
                     camera.exposureIndex.setIndex(index.roundToInt())
