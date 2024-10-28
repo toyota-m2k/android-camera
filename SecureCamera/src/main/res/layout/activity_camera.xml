@@ -124,20 +124,39 @@
         android:clickable="true"
         android:visibility="gone"
         />
-    <com.google.android.material.slider.Slider
-        android:id="@+id/exposure_slider"
+    <LinearLayout
+        android:id="@+id/exposure_panel"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:valueFrom="-10"
-        android:valueTo="10"
-        android:value="0"
-        android:stepSize="1"
-        android:visibility="gone"
+        android:paddingVertical="10dp"
         app:layout_constraintBottom_toTopOf="@+id/control_panel"
         app:layout_constraintEnd_toEndOf="@+id/control_panel"
         app:layout_constraintStart_toStartOf="@+id/control_panel"
-        />
+        android:clickable="true"
+        android:visibility="gone"
+        >
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exposure_minus"
+            style="@style/SettingDlgIconButton"
+            app:icon="@drawable/ic_minus"
+            />
+        <com.google.android.material.slider.Slider
+            android:id="@+id/exposure_slider"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:valueFrom="-10"
+            android:valueTo="10"
+            android:value="0"
+            android:stepSize="1"
+            />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exposure_plus"
+            style="@style/SettingDlgIconButton"
+            app:icon="@drawable/ic_plus"
+            />
+
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/mini_shutter_indicator"
