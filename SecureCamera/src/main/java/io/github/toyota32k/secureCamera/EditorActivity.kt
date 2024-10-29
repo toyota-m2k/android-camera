@@ -24,7 +24,6 @@ import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
-import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
@@ -388,11 +387,10 @@ class EditorActivity : UtMortalActivity() {
                     vm.progressText.value = it.format()
                 }
                 .build()
-            val awaiter = converter.executeAsync()
-            vm.cancelCommand.bindForever { awaiter.cancel() }
+            vm.cancelCommand.bindForever { converter.cancel() }
             CoroutineScope(Dispatchers.IO).launch {
                 var result:Boolean = try {
-                    val r = awaiter.await()
+                    val r = converter.execute()
                     if(!r.succeeded) {
                         if(r.cancelled) {
                             throw CancellationException("conversion cancelled")
