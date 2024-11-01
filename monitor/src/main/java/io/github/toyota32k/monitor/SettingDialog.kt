@@ -28,6 +28,7 @@ class SettingDialog : UtDialogEx() {
     override fun preCreateBodyView() {
         UtDialogConfig.solidBackgroundOnPhone = false
         noHeader = true
+        noFooter = true
         cancellable = true
         heightOption = HeightOption.COMPACT
         widthOption = WidthOption.COMPACT

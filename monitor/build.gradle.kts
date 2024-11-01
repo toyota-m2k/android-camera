@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.android.application)
@@ -6,6 +8,24 @@ plugins {
 android {
     namespace = "io.github.toyota32k.monitor"
     compileSdk = 35
+
+    signingConfigs {
+        val properties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { properties.load(it) }
+        }
+
+        val keyStorePath: String = properties.getProperty("key_store_path")!!
+        val password: String = properties.getProperty("key_password")!!
+
+        create("release") {
+            storeFile = file(keyStorePath)
+            storePassword = password
+            keyAlias = "key0"
+            keyPassword = password
+        }
+    }
 
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"
@@ -19,8 +39,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     buildFeatures {
