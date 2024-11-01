@@ -55,7 +55,7 @@ class MainActivity : UtMortalActivity() {
 
 //        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
         @SuppressLint("SetTextI18n")
-        controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
+        controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)} ${if(BuildConfig.DEBUG) "(d)" else ""}"
 //        setContentView(R.layout.activity_main)
 
         hideActionBar()
