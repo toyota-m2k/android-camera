@@ -3,6 +3,8 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
@@ -237,6 +239,7 @@ class EditorActivity : UtMortalActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideActionBar()
         hideStatusBar()
 
@@ -503,6 +506,11 @@ class EditorActivity : UtMortalActivity() {
                 true
             }
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        logger.debug("${newConfig.orientation}")
     }
 
     override fun onDestroy() {

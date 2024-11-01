@@ -41,7 +41,7 @@ class MainActivity : UtMortalActivity() {
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor)
-        setTheme(R.style.Theme_TryCamera_M3_Cherry)
+        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)

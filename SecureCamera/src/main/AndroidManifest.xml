@@ -21,11 +21,12 @@
         <activity
             android:name=".EditorActivity"
             android:exported="false"
-            android:screenOrientation="landscape" />
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            />
         <activity
             android:name=".PlayerActivity"
             android:exported="false"
-            android:screenOrientation="landscape" />
+            />
         <activity
             android:name=".CameraActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"

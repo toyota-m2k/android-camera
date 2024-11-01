@@ -1,6 +1,8 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -111,6 +113,7 @@ import kotlin.math.roundToInt
 
 
 class PlayerActivity : UtMortalActivity() {
+    override val logger = UtLog("PlayerActivity")
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -171,8 +174,8 @@ class PlayerActivity : UtMortalActivity() {
         }
         private var dbOpened:Boolean = MetaDB.open()
 
-        private val context: Application
-            get() = getApplication()
+//        private val context: Application
+//            get() = getApplication()
         val playlist = Playlist()
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportFullscreen()
@@ -216,8 +219,8 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        val blocking = MutableStateFlow(false)
-        val playingBeforeBlocked = MutableStateFlow(false)
+        val blockingAt = MutableStateFlow(0L)              // 画面ロックした時刻
+        val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
         val allowDelete = MutableStateFlow(Settings.PlayListSetting.allowDelete)
 
         class DateRange {
@@ -605,7 +608,7 @@ class PlayerActivity : UtMortalActivity() {
             }
             .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .multiVisibilityBinding(arrayOf(controls.photoSaveButton, controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
             .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
@@ -926,14 +929,17 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
+        logger.debug("windowMode=$mode")
         when(mode) {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
         }
     }
@@ -953,10 +959,9 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-
     override fun onPause() {
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
-        viewModel.blocking.value = true
+        viewModel.blockingAt.value = System.currentTimeMillis()
         viewModel.playerControllerModel.playerModel.pause()
         super.onPause()
     }
@@ -964,6 +969,7 @@ class PlayerActivity : UtMortalActivity() {
     override fun onResume() {
         super.onResume()
         fun afterUnblocked() {
+            viewModel.blockingAt.value = 0
             if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
                 controls.videoViewer.associatePlayer()
                 lifecycleScope.launch { viewModel.playlist.refreshList() }
@@ -972,10 +978,9 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playerControllerModel.playerModel.play()
             }
         }
-        if(viewModel.blocking.value) {
+        if(viewModel.blockingAt.value-System.currentTimeMillis()>3000) {
             lifecycleScope.launch {
                 if(PasswordDialog.checkPassword()) {
-                    viewModel.blocking.value = false
                     afterUnblocked()
                 } else {
                     logger.error("Incorrect Password")
@@ -1001,9 +1006,5 @@ class PlayerActivity : UtMortalActivity() {
             return true
         }
         return false
-    }
-
-    companion object {
-        val logger = UtLog("PlayerActivity", null, PlayerActivity::class.java)
     }
 }
