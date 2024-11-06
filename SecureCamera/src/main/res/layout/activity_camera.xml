@@ -123,21 +123,24 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:clickable="true"
         android:visibility="gone"
+        tools:visibility="visible"
         />
     <LinearLayout
         android:id="@+id/exposure_panel"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:paddingVertical="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/control_panel"
-        app:layout_constraintEnd_toEndOf="@+id/control_panel"
-        app:layout_constraintStart_toStartOf="@+id/control_panel"
         android:clickable="true"
         android:visibility="gone"
+        tools:visibility="visible"
+        android:padding="48dp"
         >
         <com.google.android.material.button.MaterialButton
             android:id="@+id/exposure_minus"
-            style="@style/SettingDlgIconButton"
+            style="@style/CameraActivityIconButton"
             app:icon="@drawable/ic_minus"
             />
         <com.google.android.material.slider.Slider
@@ -152,7 +155,7 @@
             />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/exposure_plus"
-            style="@style/SettingDlgIconButton"
+            style="@style/CameraActivityIconButton"
             app:icon="@drawable/ic_plus"
             />
 

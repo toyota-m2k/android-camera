@@ -27,7 +27,7 @@ object Settings {
         const val DEF_SELFIE_ACTION = TAP_VIDEO
         const val DEF_HIDE_PANEL_ON_START = false
 
-        var tapAction:Int by spd.pref(DEF_TAP_ACTION)
+//        var tapAction:Int by spd.pref(DEF_TAP_ACTION)
         var selfieAction:Int by spd.pref(DEF_SELFIE_ACTION)
         var hidePanelOnStart:Boolean by spd.pref(DEF_HIDE_PANEL_ON_START)
 
@@ -72,7 +72,7 @@ object Settings {
     }
 
     fun reset() {
-        Camera.tapAction = Camera.DEF_TAP_ACTION
+//        Camera.tapAction = Camera.DEF_TAP_ACTION
         Camera.selfieAction = Camera.DEF_SELFIE_ACTION
         Camera.hidePanelOnStart = Camera.DEF_HIDE_PANEL_ON_START
         Player.spanOfSkipForward = Player.DEF_SPAN_OF_SKIP_FORWARD

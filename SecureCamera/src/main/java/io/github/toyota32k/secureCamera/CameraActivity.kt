@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -19,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import com.google.android.material.tooltip.TooltipDrawable
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.BoolConvert
@@ -33,7 +35,9 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
+import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
@@ -51,10 +55,12 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.utils.DisposableFlowObserver
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
+import io.github.toyota32k.utils.dp
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CoroutineScope
@@ -188,11 +194,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         val exposureCompensationAvailable = MutableStateFlow(false)
         val exposureCompensationIndex = MutableStateFlow(0f)
         val showExposureSlider = MutableStateFlow(false)
-        val commandExposure = LiteCommand<Float> {
-            val newValue = (exposureCompensationIndex.value+it).coerceIn(exposureMin, exposureMax)
-//            UtLog("CAMERA.VM").debug("exposureCompensationIndex: ${exposureCompensationIndex.value} -> $newValue")
-            exposureCompensationIndex.value = newValue
-        }
+        val commandExposure = LiteCommand<Float>()
         var exposureMin = 0f
         var exposureMax = 0f
     }
@@ -203,7 +205,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     private val binder = Binder()
     private val exposeBinder = Binder()
     private val viewModel by viewModels<CameraViewModel>()
-    private val cameraManipulator : TcCameraManipulator by lazy { TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.LongTap, rapidTap = false) }
+    private val cameraManipulator : TcCameraManipulator by lazy { TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.Tap, rapidTap = true) }
 
     private lateinit var controls: ActivityCameraBinding
 
@@ -275,7 +277,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //            }
 //            .build(this)
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_SECURE)
 
         focusIndicatorAnimation = VisibilityAnimation(300).apply {
             addView(controls.focusIndicator)
@@ -326,6 +330,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         exposeBinder
             .owner(this)
             .sliderBinding(controls.exposureSlider, viewModel.exposureCompensationIndex, mode= BindingMode.TwoWay)
+            .bindCommand(viewModel.commandExposure, ::onExposureButtonTapped)
             .bindCommand(viewModel.commandExposure, controls.exposurePlus,1f)
             .bindCommand(viewModel.commandExposure, controls.exposureMinus,-1f)
             .add(viewModel.exposureCompensationIndex.disposableObserve(this) { index->
@@ -334,11 +339,33 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 }
             })
         viewModel.showExposureSlider.value = true
+        controls.exposureSlider
     }
     private fun hideExposureSlider() {
         viewModel.showExposureSlider.value = false
         exposeBinder.reset()
     }
+    private fun onExposureButtonTapped(diff:Float) {
+        val min = viewModel.exposureMin
+        val max = viewModel.exposureMax
+        val newValue = (viewModel.exposureCompensationIndex.value+diff).coerceIn(min,max)
+//        viewModel.exposureCompensationIndex.value = newValue
+
+        // +/- ボタンからスライダーの値をセットしたときにも、値ラベルを表示したいが、標準のAPIとして機能が公開されていないので、
+        // タッチイベントをエミュレートして表示させる。
+        controls.exposureSlider.apply {
+            // Sliderは左右に 24dp 程度のマージンがあるので、これを差し引いて x座標を求める必要がある。
+            val margin = 24.dp.px(this@CameraActivity)
+            val x = margin + (this.width-margin*2) * (newValue - min) / (max-min)
+            val y = this.height / 2f
+            val tick = System.currentTimeMillis()
+            val motionEvent = MotionEvent.obtain(tick,tick, MotionEvent.ACTION_MOVE, x, y, 0)
+            this.onTouchEvent(motionEvent)
+            motionEvent.recycle()
+        }
+
+    }
+
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -406,25 +433,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         onFlickHorizontal {
                             viewModel.showControlPanel.value = it.direction == Direction.Start
                         }
-//                        onDoubleTap {
-//                            if(!viewModel.showControlPanel.value) {
-//                                viewModel.takeVideoCommand.invoke()
-//                            }
-//                        }
-                        onTap {
-                            if(!viewModel.showControlPanel.value) {
-                                execCameraAction(false, it.x, it.y)
-//                                when(Settings.Camera.tapAction) {
-//                                    Settings.Camera.TAP_PHOTO -> {
-//                                        takePicture(it.x, it.y)
-//                                    }
-//                                    Settings.Camera.TAP_VIDEO -> {
-//                                        viewModel.takeVideoCommand.invoke()
-//                                    }
-//                                    else -> {}
-//                                }
-                            }
-                        }
+                        onLongTap { window.setSecureMode() }
                         onFocusedAt {
                             logger.debug("onFocusedAt: (${it.x}, ${it.y})")
                             val w = controls.focusIndicator.width
@@ -442,8 +451,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
     }
 
-    private fun execCameraAction(selfie:Boolean, x:Float=-1f, y:Float=-1f ) {
-        val action = if( selfie ) Settings.Camera.selfieAction else Settings.Camera.tapAction
+    private fun execSelfieAction(x:Float=-1f, y:Float=-1f ) {
+        val action = Settings.Camera.selfieAction
         when(action) {
             Settings.Camera.TAP_PHOTO -> {
                 takePicture(x, y)
@@ -470,7 +479,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode==KeyEvent.KEYCODE_VOLUME_UP && event?.action==KeyEvent.ACTION_DOWN) {
-            execCameraAction(selfie = true)
+            execSelfieAction()
             return true
         }
         return super.handleKeyEvent(keyCode, event)

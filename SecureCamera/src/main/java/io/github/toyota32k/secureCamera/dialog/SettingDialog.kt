@@ -63,20 +63,20 @@ class SettingDialog : UtDialogEx() {
                 return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
             }
         }
-        enum class CameraTapAction(val value:Int, @IdRes val id:Int, @IdRes val selfieId:Int) {
-            NONE(Settings.Camera.TAP_NONE, R.id.radio_camera_action_none, R.id.radio_selfie_action_none),
-            VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_camera_action_video, R.id.radio_selfie_action_video),
-            PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_camera_action_photo, R.id.radio_selfie_action_photo)
+        enum class CameraTapAction(val value:Int, @IdRes val selfieId:Int) {
+            NONE(Settings.Camera.TAP_NONE, R.id.radio_selfie_action_none),
+            VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_selfie_action_video),
+            PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_selfie_action_photo)
             ;
-            object TapActionResolver : IIDValueResolver<Int> {
-                override fun id2value(id: Int): Int? {
-                    return enumValues<CameraTapAction>().find { it.id==id }?.value
-                }
-
-                override fun value2id(v: Int): Int {
-                    return enumValues<CameraTapAction>().find { it.value==v }?.id ?: NONE.id
-                }
-            }
+//            object TapActionResolver : IIDValueResolver<Int> {
+//                override fun id2value(id: Int): Int? {
+//                    return enumValues<CameraTapAction>().find { it.id==id }?.value
+//                }
+//
+//                override fun value2id(v: Int): Int {
+//                    return enumValues<CameraTapAction>().find { it.value==v }?.id ?: NONE.id
+//                }
+//            }
             object SelfieActionResolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
                     return enumValues<CameraTapAction>().find { it.selfieId==id }?.value
@@ -107,7 +107,7 @@ class SettingDialog : UtDialogEx() {
         }
 
 
-        val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
+//        val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
         val selfieAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.selfieAction)
         val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
         val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipForward.toFloat()))
@@ -189,7 +189,7 @@ class SettingDialog : UtDialogEx() {
 
         fun save() {
             Settings.apply {
-                Settings.Camera.tapAction = cameraTapAction.value
+//                Settings.Camera.tapAction = cameraTapAction.value
                 Settings.Camera.selfieAction = selfieAction.value
                 Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
                 Settings.Player.spanOfSkipForward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipForward.value))
@@ -205,7 +205,7 @@ class SettingDialog : UtDialogEx() {
             UtImmortalSimpleTask.run { TcClient.registerOwnerToSecureArchive() }
         }
         fun reset() {
-            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
+//            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
             selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
             cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
             playerSpanOfSkipForward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat())
@@ -270,9 +270,9 @@ class SettingDialog : UtDialogEx() {
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchiveAddressButton, 0)
                     .bindCommand(viewModel.commandEditAddress, controls.editSecureArchive2ndAddressButton, 1)
                     .bindCommand(viewModel.commandDeviceName, controls.editDeviceNameButton)
-                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
-                        SettingViewModel.CameraTapAction.TapActionResolver
-                    )
+//                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
+//                        SettingViewModel.CameraTapAction.TapActionResolver
+//                    )
                     .materialRadioButtonGroupBinding(controls.radioSelfieAction, viewModel.selfieAction,
                         SettingViewModel.CameraTapAction.SelfieActionResolver
                     )
