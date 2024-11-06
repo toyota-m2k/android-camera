@@ -26,11 +26,13 @@
         <activity
             android:name=".PlayerActivity"
             android:exported="false"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             />
         <activity
             android:name=".CameraActivity"
+            android:exported="false"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
-            android:exported="false" />
+            />
         <activity
             android:name=".MainActivity"
             android:exported="true">

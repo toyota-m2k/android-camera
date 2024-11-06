@@ -232,6 +232,7 @@ class EditorActivity : UtMortalActivity() {
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
         setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.editor)) { v, insets ->
@@ -239,7 +240,6 @@ class EditorActivity : UtMortalActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideActionBar()
         hideStatusBar()
 
@@ -519,8 +519,8 @@ class EditorActivity : UtMortalActivity() {
     }
 
     private fun saveChapters() {
+        val source = viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
         if(viewModel.chapterList.isDirty) {
-            val source = viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
             val target = source.item.data
             val list = viewModel.chapterList.chapters.run {
                 // 先頭の不要なチャプターは削除する

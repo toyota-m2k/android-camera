@@ -78,6 +78,7 @@ import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.shared.UtSorter
 import io.github.toyota32k.shared.gesture.Direction
 import io.github.toyota32k.shared.gesture.IUtManipulationTarget
@@ -568,6 +569,8 @@ class PlayerActivity : UtMortalActivity() {
         enableEdgeToEdge()
         Settings.initialize(application)
 
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
         setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
@@ -701,7 +704,7 @@ class PlayerActivity : UtMortalActivity() {
             onScale(manipulator::onScale)
             onTap(manipulator::onTap)
             onDoubleTap(manipulator::onDoubleTap)
-            onLongTap { _ -> setSecureMode() }
+            onLongTap { _ -> window.setSecureMode() }
             onFlickVertical(manipulator::onFlick)
         }
 
@@ -934,28 +937,13 @@ class PlayerActivity : UtMortalActivity() {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
-        }
-    }
-
-    private fun setSecureMode() {
-        val current = (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
-        UtImmortalSimpleTask.run("setSecureMode") {
-            val next = showDialog(taskName) { UtRadioSelectionBox.create("Secure Mode", arrayOf("Allow Capture", "Disallow Capture"), if(current) 1 else 0) }.selectedIndex == 1
-            if(current!=next) {
-                if(next) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-            }
-            true
         }
     }
 
