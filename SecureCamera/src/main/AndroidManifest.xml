@@ -14,7 +14,7 @@
         android:usesCleartextTraffic="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:theme="@style/Theme.TryCamera.M3.Cherry.NoActionBar">
+        android:theme="@style/Theme.TryCamera.M3.DynamicColor.NoActionBar">
         <activity
             android:name=".ServerActivity"
             android:exported="false" />

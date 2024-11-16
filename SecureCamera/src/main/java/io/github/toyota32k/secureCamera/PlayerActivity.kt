@@ -572,7 +572,7 @@ class PlayerActivity : UtMortalActivity() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
-        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+//        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)

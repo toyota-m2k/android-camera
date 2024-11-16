@@ -230,7 +230,7 @@ class EditorActivity : UtMortalActivity() {
         enableEdgeToEdge()
 
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
-        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+//        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         controls = ActivityEditorBinding.inflate(layoutInflater)

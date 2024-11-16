@@ -214,8 +214,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
-        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+//        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -225,7 +227,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             insets
         }
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideActionBar()
         hideStatusBar()
 
