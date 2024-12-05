@@ -231,8 +231,8 @@ class EditorActivity : UtMortalActivity() {
 
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
 //        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
+//        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.editor)) { v, insets ->
@@ -508,10 +508,10 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        logger.debug("${newConfig.orientation}")
-    }
+//    override fun onConfigurationChanged(newConfig: Configuration) {
+//        super.onConfigurationChanged(newConfig)
+//        logger.debug("${newConfig.orientation}")
+//    }
 
     override fun onDestroy() {
         logger.debug()

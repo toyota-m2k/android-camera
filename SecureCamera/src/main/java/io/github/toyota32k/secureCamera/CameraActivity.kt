@@ -214,8 +214,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-
+//        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
 //        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
@@ -368,10 +367,11 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     }
 
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        logger.debug("${newConfig.orientation}")
-    }
+//    override fun onConfigurationChanged(newConfig: Configuration) {
+//        super.onConfigurationChanged(newConfig)
+//        logger.debug("${newConfig.orientation}")
+//    }
+
     override fun onDestroy() {
         super.onDestroy()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

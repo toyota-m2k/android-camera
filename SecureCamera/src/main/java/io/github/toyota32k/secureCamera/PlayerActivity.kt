@@ -569,8 +569,7 @@ class PlayerActivity : UtMortalActivity() {
         enableEdgeToEdge()
         Settings.initialize(application)
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-
+//        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
 //        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 

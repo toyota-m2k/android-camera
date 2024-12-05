@@ -2,6 +2,8 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.media.MediaMetadataRetriever
 import android.os.ParcelFileDescriptor
+import io.github.toyota32k.media.lib.converter.AndroidFile
+import io.github.toyota32k.media.lib.format.getDuration
 import io.github.toyota32k.secureCamera.db.MetaDB
 import kotlinx.coroutines.delay
 import java.io.File
@@ -35,14 +37,18 @@ object VideoUtil {
     }
 
     private fun rawGetDuration(fd:FileDescriptor):Long? {
-        try {
-            MediaMetadataRetriever().use { mmr ->
-                mmr.setDataSource(fd)
-                return mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong()
+        return try {
+            MediaMetadataRetriever().run {
+                try {
+                    setDataSource(fd)
+                    extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong()
+                } finally {
+                    release()
+                }
             }
         } catch(e:Throwable) {
             MetaDB.logger.error(e)
-            return 0L
+            null
         }
     }
 
@@ -52,23 +58,45 @@ object VideoUtil {
      * １秒間隔でリトライする。
      * @param retry リトライ回数（＝待ち合わせる秒数）, 0 ならリトライしない
      */
-    suspend fun getDuration(file:File, retry:Int):Long {
-            var i = 0
-            var retryFd = retry
-            while(true) {
-                val p = openFileDescriptor(file, retryFd) ?: return 0L
-                p.use { pfd->
-                    val d = rawGetDuration(pfd.fileDescriptor)
-                    if(d!=null) {
-                        return d.toLong()
-                    }
+    suspend fun getDurationOriginal(file:File, retry:Int):Long {
+        var i = 0
+        var retryFd = retry
+        while(true) {
+            val p = openFileDescriptor(file, retryFd) ?: return 0L
+            p.use { pfd->
+                val d = rawGetDuration(pfd.fileDescriptor)
+                if(d!=null) {
+                    return d.toLong()
                 }
-                if(i>=retry) {
-                    return 0L
-                }
-                delay(WAIT_DURATION)
-                i++
-                retryFd = 0
             }
+            if(i>=retry) {
+                return 0L
+            }
+            delay(WAIT_DURATION)
+            i++
+            retryFd = 0
+        }
+    }
+
+    suspend fun getDuration(file:File, retry:Int):Long {
+        var i = 0
+        while(true) {
+            val d = try {
+                AndroidFile(file).openMetadataRetriever().use {
+                    it.obj.getDuration()
+                }
+            } catch (e:Throwable) {
+                MetaDB.logger.error(e)
+                null
+            }
+            if(d!=null) {
+                return d.toLong()
+            }
+            if(i>=retry) {
+                return 0L
+            }
+            delay(WAIT_DURATION)
+            i++
+        }
     }
 }

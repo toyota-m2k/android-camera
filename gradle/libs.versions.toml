@@ -1,7 +1,7 @@
 [versions]
 # plugins
 kotlin = "2.0.21"
-agp = "8.7.2"
+agp = "8.7.3"
 # room compiler で使用。
 # ksp のバージョンは、kotlin_version と同じ世代のものを指定する必要がある。
 # https://github.com/google/ksp/releases で確認する。
@@ -28,7 +28,7 @@ lifecycleViewmodelKtx = "2.8.7"
 material = "1.12.0"
 activity = "1.9.3"
 constraintlayout = "2.2.0"
-media3ExoplayerVersion = "1.4.1"
+media3ExoplayerVersion = "1.5.0"
 okhttp = "4.12.0"
 preferenceKtx = "1.2.1"
 roomRuntime = "2.6.1"
