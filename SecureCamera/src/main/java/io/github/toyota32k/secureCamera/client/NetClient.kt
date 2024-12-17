@@ -54,6 +54,7 @@ object NetClient {
     suspend fun Call.executeAsync(canceller: Canceller?) : Response {
         return suspendCoroutine {cont ->
             try {
+                canceller?.setCall(this)
                 enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
                         UtLogger.error("NetClient: error: ${e.localizedMessage}")
@@ -65,7 +66,6 @@ object NetClient {
                         cont.resume(response)
                     }
                 })
-                canceller?.setCall(this)
             } catch(e:Throwable) {
                 UtLogger.error("NetClient: exception: ${e.localizedMessage}")
                 cont.resumeWithException(e)

@@ -6,10 +6,12 @@ import android.os.Build
 import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.lib.player.model.IChapter
-import io.github.toyota32k.lib.player.model.chapter.Chapter
+import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.client.worker.Downloader
+import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -26,7 +28,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.internal.headersContentLength
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -34,7 +35,7 @@ import java.util.Locale
 object TcClient {
     val logger = UtLog("Tc", NetClient.logger, this::class.java)
 
-    private fun sizeInKb(size: Long): String {
+    fun sizeInKb(size: Long): String {
         return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
@@ -91,146 +92,48 @@ object TcClient {
         }
     }
 
-    suspend fun downloadFromSecureArchive(item: ItemEx):Boolean {
+    suspend inline fun <reified T: Downloader.DLWorker> downloadFromSecureArchive(item: ItemEx):Boolean {
         return UtImmortalSimpleTask.runAsync("downloading item") {
             if(!Authentication.authenticateAndMessage()) return@runAsync false
-//            val address = Settings.SecureArchive.address
-//            if(address.isEmpty()) return@runAsync false
-
-            val canceller = Canceller()
             val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+            val awaiter = Downloader.download<T>(SCApplication.instance, item.id, item.serverUri, item.file.absolutePath) { current, total->
+                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
+                viewModel.progress.value = percent
+                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+            }
             viewModel.message.value = "Downloading..."
-            viewModel.cancelCommand.bindForever(canceller::cancel)
+            viewModel.cancelCommand.bindForever {
+                awaiter.cancel()
+            }
             CoroutineScope(Dispatchers.IO).launch {
-                val result = downloadFromSecureArchiveAsync(item,canceller) { current, total ->
-                    val percent = (current * 100L / total).toInt()
-                    viewModel.progress.value = percent
-                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-                }
+                val result = awaiter.await()
                 withContext(Dispatchers.Main) {viewModel.closeCommand.invoke(result) }
-//                withContext(Dispatchers.Main) {
-//                    viewModel.closeCommand.invoke(true)
-//                    if(result) {
-//                        val newItem = MetaDB.updateCloud(item, CloudStatus.Uploaded)
-//                        (getActivity() as? PlayerActivity)?.itemUpdated(newItem.name)
-//                    }
-//                }
             }
-            showDialog(taskName) { ProgressDialog() }
-                .status
-                .ok
-        }
-    }
-
-    private suspend fun downloadFromSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:((current:Long, total:Long)->Unit)?):Boolean {
-        return withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(item.serverUri)
-                .build()
-            try {
-                executeAsync(request, canceller).use { response ->
-                    try {
-                        if (response.isSuccessful) {
-                            response.body?.use { body ->
-                                body.byteStream().use { inStream ->
-                                    item.file.outputStream().use { outStream ->
-                                        if (progress != null) {
-                                            val totalLength = response.headersContentLength()
-                                            var bytesCopied: Long = 0
-                                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                                            var bytes = inStream.read(buffer)
-                                            while (bytes >= 0) {
-                                                outStream.write(buffer, 0, bytes)
-                                                bytesCopied += bytes
-                                                progress.invoke(bytesCopied, totalLength)
-                                                bytes = inStream.read(buffer)
-//                                                logger.debug("downloading: $bytesCopied / $totalLength")
-                                            }
-//                                            logger.debug("downloaded: $bytesCopied / $totalLength")
-                                        } else {
-                                            inStream.copyTo(outStream)
-                                        }
-                                        outStream.flush()
-                                    }
-                                }
-                            }
-                            true
-                        } else {
-                            logger.error(response.message)
-                            false
-                        }
-                    } catch (e: Throwable) {
-                        logger.error(e)
-                        false
-                    }
-                }
-            } catch (e:Throwable) {
-                logger.error(e)
-                false
-            }
+            showDialog(taskName) { ProgressDialog() }.status.ok
         }
     }
 
     suspend fun uploadToSecureArchive(item:ItemEx):Boolean {
-        if(!Authentication.authenticateAndMessage()) return false
 
         return UtImmortalSimpleTask.runAsync("upload item") {
-            val canceller = Canceller()
+            if(!Authentication.authenticateAndMessage()) return@runAsync false
             val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+            val awaiter = Uploader.upload(SCApplication.instance, item) { current, total->
+                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
+                viewModel.progress.value = percent
+                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+            }
+
             viewModel.message.value = "Uploading..."
-            viewModel.cancelCommand.bindForever(canceller::cancel)
+            viewModel.cancelCommand.bindForever {
+                awaiter.cancel()
+            }
             CoroutineScope(Dispatchers.IO).launch {
-                val result = uploadToSecureArchiveAsync(item,canceller) { current, total ->
-                    val percent = (current * 100L / total).toInt()
-                    viewModel.progress.value = percent
-                    viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-                }
+                val result = awaiter.await()
                 withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(result) }
             }
             showDialog(taskName) { ProgressDialog().apply{ parentVisibilityOption = ParentVisibilityOption.NONE } }.status.ok
         }
-    }
-
-    private suspend fun uploadToSecureArchiveAsync(item: ItemEx, canceller: Canceller?, progress:(current:Long, total:Long)->Unit):Boolean {
-        if(!Authentication.authenticateAndMessage()) return false
-        val contentType = if(item.type==0) "image/png" else "video/mp4"
-        val body = ProgressRequestBody(item.file.asRequestBody(contentType.toMediaType()), progress)
-        val multipartBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("OwnerId", Settings.SecureArchive.clientId)
-            .addFormDataPart("FileDate", "${item.date}")
-            .addFormDataPart("CreationDate", "${item.creationDate}")
-            .addFormDataPart("OriginalId", "${item.id}")
-            .addFormDataPart("MetaInfo", "")
-            .addFormDataPart("ExtAttr", "${item.attrDataJson}")
-            .addFormDataPart("File", item.name, body)
-            .addFormDataPart("Duration", "${item.duration}")
-            .build()
-        val request = Request.Builder()
-            .url("http://${Authentication.activeHostAddress}/upload")
-            .post(multipartBody)
-            .build()
-        try {
-//            val location:String?
-            val code = executeAsync(request,canceller).use {
-//                location =it.headers ["Location"]
-                it.code
-            }
-            if(code==200) {
-                logger.debug("uploaded")
-                MetaDB.updateCloud(item, CloudStatus.Uploaded)
-                return true
-            }
-            logger.error("unexpected status code: $code")
-//            if(code==202) {
-//                val url = "http://${address}${location}?o=${Settings.SecureArchive.clientId}&c=${item.id}"
-//                logger.debug("waiting: location:${url}")
-//                waitForUploaded(url, item)
-//            }
-        } catch(e:Throwable) {
-            logger.error(e)
-        }
-        return false
     }
 
     data class RepairingItem(val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)

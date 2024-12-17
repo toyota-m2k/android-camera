@@ -6,6 +6,7 @@ import androidx.core.net.toUri
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.work.WorkerParameters
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
@@ -14,6 +15,7 @@ import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.ScDef
+import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -578,6 +580,15 @@ object MetaDB {
         }
     }
 
+    suspend fun updateCloud(id:Int, cloud:CloudStatus, updateFileStatus:Boolean) {
+        val item = itemAt(id) ?: return
+        if(updateFileStatus) {
+            updateCloud(updateFile(item.toItemEx(),null), cloud)
+        } else {
+            updateCloud(item, cloud.v)
+        }
+    }
+
     /**
      * ファイルが編集されたとき、サイズやDurationなどの情報を更新する
      */
@@ -652,34 +663,48 @@ object MetaDB {
         }
     }
 
+    class RestoreDLWorker(context: Context, params: WorkerParameters): Downloader.DLWorker(context,params) {
+        override suspend fun onDownloaded(itemId: Int) {
+            logger.info("restored: $itemId")
+            updateCloud(itemId, CloudStatus.Uploaded, updateFileStatus = false)
+        }
+    }
     suspend fun restoreFromCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return true
         }
-        return withContext(Dispatchers.IO) {
-            if (TcClient.downloadFromSecureArchive(item)) {
-                logger.debug("downloaded: ${item.name}")
-                updateCloud(item, CloudStatus.Uploaded)
-                true
-            } else {
-                logger.debug("download error: ${item.name}")
-                false
-            }
-        }
+        return TcClient.downloadFromSecureArchive<RestoreDLWorker>(item)
+//        return withContext(Dispatchers.IO) {
+//            if (TcClient.downloadFromSecureArchive(item)) {
+//                logger.debug("downloaded: ${item.name}")
+//                updateCloud(item, CloudStatus.Uploaded)
+//                true
+//            } else {
+//                logger.debug("download error: ${item.name}")
+//                false
+//            }
+//        }
     }
 
-    suspend fun recoverFromCloud(item: ItemEx):Boolean {
-        return withContext(Dispatchers.IO) {
-            if (TcClient.downloadFromSecureArchive(item)) {
-                logger.debug("downloaded: ${item.name}")
-                updateCloud(updateFile(item, null), CloudStatus.Uploaded)
-                true
-            } else {
-                logger.debug("download error: ${item.name}")
-                false
-            }
+    class RecoverDLWorker(context: Context, params: WorkerParameters): Downloader.DLWorker(context,params) {
+        override suspend fun onDownloaded(itemId: Int) {
+            logger.info("recovered: $itemId")
+            updateCloud(itemId, CloudStatus.Uploaded, updateFileStatus = true)
         }
+    }
+    suspend fun recoverFromCloud(item: ItemEx):Boolean {
+        return TcClient.downloadFromSecureArchive<RecoverDLWorker>(item)
+//        return withContext(Dispatchers.IO) {
+//            if (TcClient.downloadFromSecureArchive<RecoverDLWorker>(item)) {
+//                logger.debug("downloaded: ${item.name}")
+//                updateCloud(updateFile(item, null), CloudStatus.Uploaded)
+//                true
+//            } else {
+//                logger.debug("download error: ${item.name}")
+//                false
+//            }
+//        }
     }
 
     /**

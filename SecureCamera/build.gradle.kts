@@ -75,8 +75,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.androidx.preference.ktx)
+    implementation(libs.kotrinx.coroutines.core)
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
