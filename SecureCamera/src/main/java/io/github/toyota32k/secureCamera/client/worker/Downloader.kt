@@ -1,30 +1,19 @@
 package io.github.toyota32k.secureCamera.client.worker
 
 import android.content.Context
-import androidx.work.CoroutineWorker
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import io.github.toyota32k.media.lib.converter.IAwaiter
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.utils.IAwaiter
+import io.github.toyota32k.utils.ProgressWorker
+import io.github.toyota32k.utils.ProgressWorkerProcessor
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.ensureActive
 import okhttp3.Request
 import java.io.File
-import java.util.UUID
-import kotlinx.coroutines.ensureActive
 
 object Downloader : ProgressWorkerProcessor() {
     const val KEY_ITEM_ID = "itemId"
