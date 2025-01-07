@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import io.github.toyota32k.media.lib.converter.IAwaiter
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.ProgressRequestBody
@@ -14,9 +13,11 @@ import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.utils.IAwaiter
+import io.github.toyota32k.utils.ProgressWorker
+import io.github.toyota32k.utils.ProgressWorkerProcessor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
