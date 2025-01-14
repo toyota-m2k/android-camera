@@ -3,8 +3,6 @@ package io.github.toyota32k.secureCamera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
@@ -20,7 +18,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import com.google.android.material.tooltip.TooltipDrawable
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.BoolConvert
@@ -35,9 +32,7 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
@@ -56,11 +51,10 @@ import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
-import io.github.toyota32k.shared.gesture.Direction
-import io.github.toyota32k.utils.DisposableFlowObserver
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.dp
+import io.github.toyota32k.utils.gesture.Direction
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CoroutineScope
@@ -71,8 +65,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {

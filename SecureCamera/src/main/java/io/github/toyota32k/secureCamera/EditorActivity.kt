@@ -3,8 +3,6 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.KeyEvent
@@ -64,12 +62,12 @@ import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
-import io.github.toyota32k.shared.gesture.UtGestureInterpreter
-import io.github.toyota32k.shared.gesture.UtManipulationAgent
-import io.github.toyota32k.shared.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.gesture.UtGestureInterpreter
+import io.github.toyota32k.utils.gesture.UtManipulationAgent
+import io.github.toyota32k.utils.gesture.UtSimpleManipulationTarget
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CancellationException

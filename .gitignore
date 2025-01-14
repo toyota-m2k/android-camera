@@ -24,3 +24,4 @@ libPlayer/build
 .idea/deploymentTargetSelector.xml
 .idea/runConfigurations.xml
 .idea/kotlinc.xml
+.idea/inspectionProfiles/Project_Default.xml
