@@ -1,8 +1,6 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -42,7 +40,6 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.dialog.UtRadioSelectionBox
 import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.UtMortalActivity
@@ -80,14 +77,14 @@ import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.shared.UtSorter
-import io.github.toyota32k.shared.gesture.Direction
-import io.github.toyota32k.shared.gesture.IUtManipulationTarget
-import io.github.toyota32k.shared.gesture.Orientation
-import io.github.toyota32k.shared.gesture.UtGestureInterpreter
-import io.github.toyota32k.shared.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
+import io.github.toyota32k.utils.gesture.Direction
+import io.github.toyota32k.utils.gesture.IUtManipulationTarget
+import io.github.toyota32k.utils.gesture.Orientation
+import io.github.toyota32k.utils.gesture.UtGestureInterpreter
+import io.github.toyota32k.utils.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.hideActionBar
 import io.github.toyota32k.utils.hideStatusBar
 import io.github.toyota32k.utils.onTrue
@@ -136,7 +133,7 @@ class PlayerActivity : UtMortalActivity() {
                 if(name==null) return null
                 return try {
                     java.lang.Enum.valueOf(ListMode::class.java, name)
-                } catch (e:Throwable) {
+                } catch (_:Throwable) {
                     null
                 }
             }

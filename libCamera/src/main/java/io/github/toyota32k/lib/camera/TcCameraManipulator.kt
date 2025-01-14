@@ -8,9 +8,9 @@ import androidx.camera.view.PreviewView
 import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.shared.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.WeakReferenceDelegate
+import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -184,7 +184,7 @@ class TcCameraManipulator(context:Context, focusAction:FocusActionBy, rapidTap:B
         gestureScope.launch {
             try {
                 camera.cameraControl.setZoomRatio(zoom).await()
-            } catch(e: CameraControl.OperationCanceledException) {
+            } catch(_: CameraControl.OperationCanceledException) {
                 logger.debug("zoom operation cancelled.")
             } catch(e:Throwable) {
                 logger.error(e)

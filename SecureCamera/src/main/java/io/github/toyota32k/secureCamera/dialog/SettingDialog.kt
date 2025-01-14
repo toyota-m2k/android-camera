@@ -25,10 +25,10 @@ import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.shared.gesture.UtClickRepeater
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.asConstantLiveData
+import io.github.toyota32k.utils.gesture.UtClickRepeater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
