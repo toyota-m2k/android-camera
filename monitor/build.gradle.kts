@@ -26,7 +26,6 @@ android {
             keyPassword = password
         }
     }
-
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"
         minSdk = 26
@@ -36,7 +35,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -46,10 +48,6 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("release")
         }
-    }
-    buildFeatures {
-        buildConfig = true
-        viewBinding = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
