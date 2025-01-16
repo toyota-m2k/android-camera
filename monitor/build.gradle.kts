@@ -16,14 +16,16 @@ android {
             localPropertiesFile.inputStream().use { properties.load(it) }
         }
 
-        val keyStorePath: String = properties.getProperty("key_store_path") ?: ""
-        val password: String = properties.getProperty("key_password") ?: ""
+        val keyStorePath: String? = properties.getProperty("key_store_path")
+        val password: String? = properties.getProperty("key_password")
 
-        create("release") {
-            storeFile = file(keyStorePath)
-            storePassword = password
-            keyAlias = "key0"
-            keyPassword = password
+        if(keyStorePath!=null) {
+            create("release") {
+                storeFile = file(keyStorePath)
+                storePassword = password
+                keyAlias = "key0"
+                keyPassword = password
+            }
         }
     }
     defaultConfig {
