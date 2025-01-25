@@ -18,8 +18,8 @@ android {
             localPropertiesFile.inputStream().use { properties.load(it) }
         }
 
-        val keyStorePath: String = properties.getProperty("key_store_path")!!
-        val password: String = properties.getProperty("key_password")!!
+        val keyStorePath: String = properties.getProperty("key_store_path") ?: ""
+        val password: String = properties.getProperty("key_password") ?: ""
 
         create("release") {
             storeFile = file(keyStorePath)
@@ -28,7 +28,6 @@ android {
             keyPassword = password
         }
     }
-
     defaultConfig {
         applicationId = "io.github.toyota32k.secureCamera"
         minSdk = 26
@@ -38,13 +37,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
     buildFeatures {
         buildConfig = true
         viewBinding = true
     }
-
-
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -62,7 +58,6 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
 }
 
 dependencies {

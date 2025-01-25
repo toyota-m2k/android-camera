@@ -16,17 +16,18 @@ android {
             localPropertiesFile.inputStream().use { properties.load(it) }
         }
 
-        val keyStorePath: String = properties.getProperty("key_store_path")!!
-        val password: String = properties.getProperty("key_password")!!
+        val keyStorePath: String? = properties.getProperty("key_store_path")
+        val password: String? = properties.getProperty("key_password")
 
-        create("release") {
-            storeFile = file(keyStorePath)
-            storePassword = password
-            keyAlias = "key0"
-            keyPassword = password
+        if(keyStorePath!=null) {
+            create("release") {
+                storeFile = file(keyStorePath)
+                storePassword = password
+                keyAlias = "key0"
+                keyPassword = password
+            }
         }
     }
-
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"
         minSdk = 26
@@ -36,20 +37,25 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            val sign = signingConfigs.findByName("release")
+            if(sign!=null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            val sign = signingConfigs.findByName("release")
+            if(sign!=null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
-    }
-    buildFeatures {
-        buildConfig = true
-        viewBinding = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
