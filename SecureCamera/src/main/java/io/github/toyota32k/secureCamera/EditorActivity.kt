@@ -37,8 +37,11 @@ import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
+import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
+import io.github.toyota32k.lib.player.model.chapterAt
+import io.github.toyota32k.lib.player.model.chapterOn
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
@@ -98,7 +101,7 @@ class EditorActivity : UtMortalActivity() {
         val targetItem:ItemEx get() = videoSource.item
 
         val chapterList by lazy {
-            ChapterEditor(videoSource.chapterList as IMutableChapterList)
+            ChapterEditor(videoSource.chapterList as IMutableChapterList)   // videoSource.chapterList は空のリスト ... setSourceでリストは初期化される。
         }
         val commandAddChapter = LiteUnitCommand {
             chapterList.addChapter(playerModel.currentPosition, "", null)
@@ -134,6 +137,10 @@ class EditorActivity : UtMortalActivity() {
             resetInputFile()
             playerModel.setSource(VideoSource(item), false)
             chapterList.initChapters(chapters)
+            if(chapterList.chapterAt(0)?.position!=0L) {
+                // 動画先頭位置が暗黙のチャプターとして登録されていることを前提に動作する。
+                chapterList.addChapter(0, "", null)
+            }
         }
 
         private val resetableInputFile: UtLazyResetableValue<IInputMediaFile> = UtLazyResetableValue {
