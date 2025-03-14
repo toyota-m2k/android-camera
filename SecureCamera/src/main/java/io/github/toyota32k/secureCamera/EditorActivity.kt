@@ -380,6 +380,11 @@ class EditorActivity : UtMortalActivity() {
 
 
         UtImmortalSimpleTask.run("trimming") {
+            // トリミング開始前に編集内容を一旦セーブ
+            // ..トリミング中に強制終了したとき（主にデバッグ中）に編集内容が消えてしまうのを回避
+            withContext(Dispatchers.IO) {
+                saveChapters()
+            }
             val vm = ProgressDialog.ProgressViewModel.create(taskName)
             vm.message.value = "Trimming Now..."
             val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
