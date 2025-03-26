@@ -12,22 +12,20 @@ import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalViewModel
-import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
-import io.github.toyota32k.utils.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class ItemDialog : UtDialogEx() {
-    class ItemViewModel : UtImmortalViewModel() {
+    class ItemViewModel : UtDialogViewModel() {
         lateinit var item:MutableStateFlow<ItemEx>
 
         enum class NextAction {
@@ -71,17 +69,9 @@ class ItemDialog : UtDialogEx() {
                 true
             } else false
         }
-        companion object {
-            fun createBy(task:IUtImmortalTask, item:ItemEx):ItemViewModel {
-                return UtImmortalViewModelHelper.createBy(ItemViewModel::class.java, task) { it.initFor(item) }
-            }
-            fun instanceFor(dlg:ItemDialog):ItemViewModel {
-                return UtImmortalViewModelHelper.instanceFor(ItemViewModel::class.java, dlg)
-            }
-        }
     }
 
-    private lateinit var viewModel: ItemViewModel
+    private val viewModel: ItemViewModel by lazy { getViewModel() }
     private lateinit var controls: DialogItemBinding
 
     override fun preCreateBodyView() {
@@ -91,12 +81,11 @@ class ItemDialog : UtDialogEx() {
         heightOption = HeightOption.AUTO_SCROLL
         gravityOption = GravityOption.CENTER
         noHeader = true
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.OK)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.OK
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
-        viewModel = ItemViewModel.instanceFor(this)
         controls = DialogItemBinding.inflate(inflater.layoutInflater)
         binder
             .textBinding(controls.itemName, viewModel.item.map { it.nameForDisplay})

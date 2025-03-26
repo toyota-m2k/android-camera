@@ -10,10 +10,11 @@ import io.github.toyota32k.binder.radioGroupBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTask
+import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
-import io.github.toyota32k.dialog.task.UtImmortalViewModel
-import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
+import io.github.toyota32k.dialog.task.awaitSubTaskResult
+import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.lib.player.model.RangedPlayModel
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSelectRangeBinding
@@ -41,7 +42,7 @@ data class SplitParams(
 }
 
 class SelectRangeDialog: UtDialogEx() {
-    class RangeModeViewModel: UtImmortalViewModel() {
+    class RangeModeViewModel: UtDialogViewModel() {
         object SpanResolver : IIDValueResolver<Int> {
             override fun id2value(id: Int): Int? {
                 return when(id) {
@@ -94,34 +95,33 @@ class SelectRangeDialog: UtDialogEx() {
 
         companion object {
             // 1 min
-            fun createBy(task: IUtImmortalTask, currentParams: SplitParams): RangeModeViewModel {
-                return UtImmortalViewModelHelper.createBy(
-                    RangeModeViewModel::class.java,
-                    task
-                ).apply { initWith(currentParams) }
-            }
-
-            fun instanceFor(dlg: SelectRangeDialog): RangeModeViewModel {
-                return UtImmortalViewModelHelper.instanceFor(RangeModeViewModel::class.java, dlg)
-            }
+//            fun createBy(task: IUtImmortalTask, currentParams: SplitParams): RangeModeViewModel {
+//                return UtImmortalViewModelHelper.createBy(
+//                    RangeModeViewModel::class.java,
+//                    task
+//                ).apply { initWith(currentParams) }
+//            }
+//
+//            fun instanceFor(dlg: SelectRangeDialog): RangeModeViewModel {
+//                return UtImmortalViewModelHelper.instanceFor(RangeModeViewModel::class.java, dlg)
+//            }
         }
     }
 
-    lateinit var viewModel: RangeModeViewModel
+    val viewModel: RangeModeViewModel by lazy { getViewModel() }
     lateinit var controls: DialogSelectRangeBinding
 
     override fun preCreateBodyView() {
         draggable = true
         scrollable = true
         heightOption = HeightOption.AUTO_SCROLL
-        setLimitWidth(400)
+        widthOption = WidthOption.LIMIT(400)
         gravityOption = GravityOption.CENTER
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.OK)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.OK
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
-        viewModel = RangeModeViewModel.instanceFor(this)
         title = "Partial Edit -- ${TimeSpan(viewModel.naturalDuration).formatAuto()}"
         controls = DialogSelectRangeBinding.inflate(inflater.layoutInflater)
         controls.spanSlider.valueFrom = viewModel.minSpan.toFloat()
@@ -143,8 +143,8 @@ class SelectRangeDialog: UtDialogEx() {
 
     companion object {
         suspend fun show(task: UtImmortalTaskBase, currentParams: SplitParams): SplitParams? {
-            return task.run {
-                val vm = RangeModeViewModel.createBy(this, currentParams)
+            return task.awaitSubTaskResult {
+                val vm = createViewModel<RangeModeViewModel> { initWith(currentParams) }
                 if(showDialog(taskName) { SelectRangeDialog() }.status.ok) {
                     vm.toSplitParams()
                 } else {

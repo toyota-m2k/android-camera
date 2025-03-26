@@ -4,7 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
@@ -14,7 +15,6 @@ import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
-import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -24,9 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -93,9 +91,9 @@ object TcClient {
     }
 
     suspend inline fun <reified T: Downloader.DLWorker> downloadFromSecureArchive(item: ItemEx):Boolean {
-        return UtImmortalSimpleTask.runAsync("downloading item") {
-            if(!Authentication.authenticateAndMessage()) return@runAsync false
-            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+        return UtImmortalTask.awaitTaskResult("downloading item") {
+            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
+            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
             val awaiter = Downloader.download<T>(SCApplication.instance, item.id, item.serverUri, item.file.absolutePath) { current, total->
                 val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
                 viewModel.progress.value = percent
@@ -115,9 +113,9 @@ object TcClient {
 
     suspend fun uploadToSecureArchive(item:ItemEx):Boolean {
 
-        return UtImmortalSimpleTask.runAsync("upload item") {
-            if(!Authentication.authenticateAndMessage()) return@runAsync false
-            val viewModel = ProgressDialog.ProgressViewModel.create(taskName)
+        return UtImmortalTask.awaitTaskResult("upload item") {
+            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
+            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
             val awaiter = Uploader.upload(SCApplication.instance, item) { current, total->
                 val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
                 viewModel.progress.value = percent
@@ -166,18 +164,17 @@ object TcClient {
                 }
             }
         }
-        return UtImmortalSimpleTask.executeAsync("list for repair") {
-            withContext(Dispatchers.IO) {
-                val request = Request.Builder()
-                    .url("http://${Authentication.activeHostAddress}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
-                    .get()
-                    .build()
-                try {
-                    val json = executeAndGetJsonAsync(request)
-                    jsonToItems(json.getJSONArray("list")).toList()
-                } catch(e:Throwable) {
-                    null
-                }
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("http://${Authentication.activeHostAddress}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
+                .get()
+                .build()
+            try {
+                val json = executeAndGetJsonAsync(request)
+                jsonToItems(json.getJSONArray("list")).toList()
+            } catch(e:Throwable) {
+                logger.error(e)
+                null
             }
         }
     }
@@ -205,6 +202,7 @@ object TcClient {
                 val json = executeAndGetJsonAsync(request)
                 jsonToItems(json.getJSONArray("list")).toList()
             } catch(e:Throwable) {
+                logger.error(e)
                 null
             }
         }
@@ -296,6 +294,7 @@ object TcClient {
                 val list = json.getJSONArray("targets")
                 MigrationInfo(handle, jsonToItems(list).toList())
             } catch(e:Throwable) {
+                logger.error(e)
                 null
             }
         }
@@ -310,6 +309,7 @@ object TcClient {
                 executeAndGetJsonAsync(request)
                 true
             } catch(e:Throwable) {
+                logger.error(e)
                 false
             }
         }
@@ -333,6 +333,7 @@ object TcClient {
                 executeAndGetJsonAsync(request)
                 true
             } catch(e:Throwable) {
+                logger.error(e)
                 false
             }
 

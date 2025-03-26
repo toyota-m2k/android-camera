@@ -99,4 +99,8 @@
     <string name="migrate">Migrate</string>
     <string name="maintenance">Maintenance</string>
     <string name="desc_exposure">Exposure Compensation</string>
+    <string name="look_and_feel"><![CDATA[Look&Feel]]></string>
+    <string name="day_night_mode"><![CDATA[Day&Night Mode]]></string>
+    <string name="contrast_mode">Color Contrast</string>
+    <string name="theme_selector">Theme</string>
 </resources>

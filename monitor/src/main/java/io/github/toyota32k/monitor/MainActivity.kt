@@ -18,12 +18,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.headlessNonnullBinding
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.gesture.CameraGestureManager
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope

@@ -3,7 +3,6 @@ package io.github.toyota32k.secureCamera.dialog
 import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -13,12 +12,11 @@ import io.github.toyota32k.binder.editTextBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
-import io.github.toyota32k.dialog.task.IUtImmortalTaskMutableContextSource
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
-import io.github.toyota32k.dialog.task.getString
+import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.secureCamera.MainActivity
@@ -38,8 +36,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PasswordDialog : UtDialogEx() {
-    class PasswordViewModel : ViewModel(), IUtImmortalTaskMutableContextSource {
-        override lateinit var immortalTaskContext: IUtImmortalTaskContext
+    class PasswordViewModel : UtDialogViewModel() {
         enum class Mode {
             NEW_PASSWORD,       // パスワード登録用（入力後、確認のためもう一回がでるやつ）
             CHECK_PASSWORD,     // パスワード照合用（n回までリトライ）
@@ -120,10 +117,10 @@ class PasswordDialog : UtDialogEx() {
     }
 
     override fun preCreateBodyView() {
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.DONE)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.DONE
         gravityOption = GravityOption.CENTER
-        setLimitWidth(400)
+        widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.COMPACT
 //        title = requireActivity().getString(if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) R.string.authentication else R.string.password)
         title = if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) {
@@ -245,14 +242,14 @@ class PasswordDialog : UtDialogEx() {
 
         suspend fun checkPassword():Boolean {
             if(!Settings.Security.enablePassword) return true
-            return UtImmortalSimpleTask.runAsync("checkPassword") {
+            return UtImmortalTask.awaitTaskResult("checkPassword") {
                 val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
                 if(showDialog(taskName) { PasswordDialog() }.status.ok) {
                     when (vm.checkResult) {
                         PasswordViewModel.CheckPasswordResult.NG -> false
                         PasswordViewModel.CheckPasswordResult.OK -> true
                         PasswordViewModel.CheckPasswordResult.BLOCKED -> {
-                            showConfirmMessageBox(getString(R.string.password),getString(R.string.password_error))
+                            showConfirmMessageBox(getStringOrNull(R.string.password),getStringOrNull(R.string.password_error))
                             true
                         }
                     }
@@ -261,7 +258,7 @@ class PasswordDialog : UtDialogEx() {
         }
 
         suspend fun newPassword():String? {
-            return UtImmortalSimpleTask.executeAsync("newPassword") {
+            return UtImmortalTask.awaitTaskResult("newPassword") {
                 val vm = PasswordViewModel.createForNewPassword(taskName)
                 if(showDialog(taskName) { PasswordDialog() }.status.ok) {
                    vm.getPassword()
@@ -270,7 +267,7 @@ class PasswordDialog : UtDialogEx() {
         }
 
         suspend fun authenticate(targetName:String):Boolean {
-            return UtImmortalSimpleTask.runAsync("auth") {
+            return UtImmortalTask.awaitTaskResult("auth") {
                 PasswordViewModel.createForAuthentication(taskName, targetName)
                 showDialog(taskName) { PasswordDialog() }.status.ok
             }

@@ -2,7 +2,6 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
-import androidx.lifecycle.ViewModel
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
@@ -16,11 +15,10 @@ import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTask
-import io.github.toyota32k.dialog.task.IUtImmortalTaskContext
-import io.github.toyota32k.dialog.task.IUtImmortalTaskMutableContextSource
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogPlaylistSettingBinding
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -30,12 +28,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
-class UtImmortalTaskMutableContextSourceImpl : IUtImmortalTaskMutableContextSource {
-    override lateinit var immortalTaskContext: IUtImmortalTaskContext
-}
-
 class PlayListSettingDialog : UtDialogEx() {
-    class PlayListSettingViewModel : ViewModel(), IUtImmortalTaskMutableContextSource by UtImmortalTaskMutableContextSourceImpl(), IUtPropOwner {
+    class PlayListSettingViewModel : UtDialogViewModel(), IUtPropOwner {
         enum class EditingMode {
             None, EditingStart, EditingEnd,
         }
@@ -117,14 +111,14 @@ class PlayListSettingDialog : UtDialogEx() {
             Settings.PlayListSetting.allowDelete = allowDelete.value
         }
         companion object {
-            fun createBy(task: IUtImmortalTask, minDate: DPDate, maxDate: DPDate): PlayListSettingViewModel {
-                return UtImmortalViewModelHelper.createBy(PlayListSettingViewModel::class.java,task) {
-                    it.load(minDate,maxDate)
-                }
-            }
-            fun instanceFor(dlg:PlayListSettingDialog): PlayListSettingViewModel {
-                return UtImmortalViewModelHelper.instanceFor(PlayListSettingViewModel::class.java, dlg)
-            }
+//            fun createBy(task: IUtImmortalTask, minDate: DPDate, maxDate: DPDate): PlayListSettingViewModel {
+//                return UtImmortalViewModelHelper.createBy(PlayListSettingViewModel::class.java,task) {
+//                    it.load(minDate,maxDate)
+//                }
+//            }
+//            fun instanceFor(dlg:PlayListSettingDialog): PlayListSettingViewModel {
+//                return UtImmortalViewModelHelper.instanceFor(PlayListSettingViewModel::class.java, dlg)
+//            }
         }
 
         object SortOrderResolver: IIDValueResolver<Boolean> {
@@ -139,14 +133,13 @@ class PlayListSettingDialog : UtDialogEx() {
     }
 
     lateinit var controls: DialogPlaylistSettingBinding
-    val viewModel: PlayListSettingViewModel by lazy {PlayListSettingViewModel.instanceFor(this)}
+    val viewModel: PlayListSettingViewModel by lazy { getViewModel() }
 
     override fun preCreateBodyView() {
-        super.preCreateBodyView()
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.DONE)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.DONE
         gravityOption = GravityOption.CENTER
-        setLimitWidth(400)
+        widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.AUTO_SCROLL
         title = requireActivity().getString(R.string.playlist_setting_title)
         enableFocusManagement()
@@ -182,8 +175,8 @@ class PlayListSettingDialog : UtDialogEx() {
 
     companion object {
         suspend fun show(minDate:DPDate, maxDate:DPDate):Boolean {
-            return UtImmortalSimpleTask.runAsync {
-                PlayListSettingViewModel.createBy(this, minDate, maxDate)
+            return UtImmortalTask.awaitTaskResult {
+                createViewModel<PlayListSettingViewModel> { load(minDate, maxDate) }
                 showDialog(taskName) { PlayListSettingDialog() }.status.ok
             }
         }

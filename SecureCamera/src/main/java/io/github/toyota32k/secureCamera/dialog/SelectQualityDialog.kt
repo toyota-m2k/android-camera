@@ -3,20 +3,15 @@ package io.github.toyota32k.secureCamera.dialog
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
-import androidx.lifecycle.ViewModel
-import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.IIDValueResolver
-import io.github.toyota32k.binder.editTextBinding
 import io.github.toyota32k.binder.radioGroupBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtImmortalViewModel
-import io.github.toyota32k.dialog.task.UtImmortalViewModelHelper
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.R
-import io.github.toyota32k.secureCamera.databinding.DialogAddressBinding
 import io.github.toyota32k.secureCamera.databinding.DialogSelectQualityBinding
-import io.github.toyota32k.secureCamera.dialog.AddressDialog.AddressDialogViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class SelectQualityDialog : UtDialogEx() {
@@ -35,24 +30,24 @@ class SelectQualityDialog : UtDialogEx() {
             override fun value2id(v: VideoQuality): Int = v.id
         }
     }
-    class QualityViewModel : UtImmortalViewModel() {
+    class QualityViewModel : UtDialogViewModel() {
         val quality = MutableStateFlow(VideoQuality.High)
-        companion object {
-            fun createBy(task: IUtImmortalTask): QualityViewModel
-                = UtImmortalViewModelHelper.createBy(QualityViewModel::class.java, task)
-            fun instanceFor(dialog: SelectQualityDialog): QualityViewModel
-                = UtImmortalViewModelHelper.instanceFor(QualityViewModel::class.java, dialog)
-        }
+//        companion object {
+//            fun createBy(task: IUtImmortalTask): QualityViewModel
+//                = UtImmortalViewModelHelper.createBy(QualityViewModel::class.java, task)
+//            fun instanceFor(dialog: SelectQualityDialog): QualityViewModel
+//                = UtImmortalViewModelHelper.instanceFor(QualityViewModel::class.java, dialog)
+//        }
     }
 
-    val viewModel by lazy { QualityViewModel.instanceFor(this) }
+    val viewModel by lazy { getViewModel<QualityViewModel>() }
     lateinit var controls: DialogSelectQualityBinding
 
     override fun preCreateBodyView() {
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.DONE)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.DONE
         gravityOption = GravityOption.CENTER
-        setLimitWidth(400)
+        widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.COMPACT
         title = requireActivity().getString(R.string.video_quality)
         enableFocusManagement()
@@ -68,8 +63,8 @@ class SelectQualityDialog : UtDialogEx() {
 
     companion object {
         suspend fun show():VideoQuality? {
-            return UtImmortalSimpleTask.executeAsync<VideoQuality?>(this::class.java.name) {
-                val vm = QualityViewModel.createBy(this)
+            return UtImmortalTask.awaitTaskResult<VideoQuality?>(this::class.java.name) {
+                val vm = createViewModel<QualityViewModel>()
                 if(showDialog(this.taskName) { SelectQualityDialog() }.status.positive) {
                     vm.quality.value
                 } else null

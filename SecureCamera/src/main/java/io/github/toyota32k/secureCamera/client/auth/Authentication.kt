@@ -1,7 +1,7 @@
 package io.github.toyota32k.secureCamera.client.auth
 
 import android.util.Log
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
@@ -215,7 +215,7 @@ object Authentication {
 
     suspend fun authenticateAndMessage():Boolean {
         suspend fun showMessage(msg:String):Boolean {
-            UtImmortalSimpleTask.runAsync {
+            UtImmortalTask.awaitTaskResult {
                 showConfirmMessageBox(null, msg)
                 true
             }

@@ -2,7 +2,6 @@ package io.github.toyota32k.monitor
 
 import android.os.Bundle
 import android.view.View
-import androidx.lifecycle.ViewModel
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
@@ -12,16 +11,10 @@ import io.github.toyota32k.dialog.task.*
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class SettingDialog : UtDialogEx() {
-    class SettingViewModel : ViewModel(), IUtImmortalTaskMutableContextSource {
-        override lateinit var immortalTaskContext: IUtImmortalTaskContext
+    class SettingViewModel : UtDialogViewModel() {
         val frontCameraSelected = MutableStateFlow(false)
-
-        companion object {
-            fun create(task: IUtImmortalTask, frontCamera:Boolean):SettingViewModel {
-                return task.createViewModel<SettingViewModel>().apply {
-                    frontCameraSelected.value = frontCamera
-                }
-            }
+        fun initialize(frontCamera:Boolean) {
+            frontCameraSelected.value = frontCamera
         }
     }
 
@@ -49,7 +42,7 @@ class SettingDialog : UtDialogEx() {
         }
     }
 
-    val viewModel: SettingViewModel by lazy { immortalTaskContext.getViewModel() }
+    val viewModel: SettingViewModel by lazy { getViewModel() }
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         val orgCamera = viewModel.frontCameraSelected.value
         return inflater.inflate(R.layout.setting_dialog).also { dlg->
@@ -65,11 +58,10 @@ class SettingDialog : UtDialogEx() {
 
     companion object {
         fun show(frontCamera: MutableStateFlow<Boolean>) {
-            UtImmortalSimpleTask.run(SettingDialog::class.java.name) {
-                val model = SettingViewModel.create(this, frontCamera.value)
+            UtImmortalTask.launchTask(SettingDialog::class.java.name) {
+                val model = createViewModel<SettingViewModel> { initialize(frontCamera.value) }
                 showDialog(taskName) { SettingDialog() }
                 frontCamera.value = model.frontCameraSelected.value
-                true
             }
         }
     }

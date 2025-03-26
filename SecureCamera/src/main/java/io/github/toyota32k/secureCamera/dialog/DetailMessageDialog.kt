@@ -2,22 +2,21 @@ package io.github.toyota32k.secureCamera.dialog
 
 import android.os.Bundle
 import android.view.View
-import androidx.constraintlayout.utils.widget.MotionLabel
 import androidx.lifecycle.ViewModelProvider
 import io.github.toyota32k.binder.checkBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtImmortalViewModel
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.secureCamera.databinding.DialogDetailMessageBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class DetailMessageDialog : UtDialogEx() {
-    class DetailMessageViewModel : UtImmortalViewModel() {
+    class DetailMessageViewModel : UtDialogViewModel() {
         val label = MutableStateFlow("")
         val message = MutableStateFlow("")
         val detailMessage = MutableStateFlow("")
@@ -44,7 +43,8 @@ class DetailMessageDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
         widthOption = WidthOption.FULL
         heightOption = HeightOption.AUTO_SCROLL
-        setRightButton(BuiltInButtonType.CLOSE)
+        rightButtonType = ButtonType.CLOSE
+        noHeader = true
     }
 
     override fun createBodyView(
@@ -65,10 +65,9 @@ class DetailMessageDialog : UtDialogEx() {
 
     companion object {
         suspend fun showMessage(label:String, message:String, detailMessage:String) {
-            UtImmortalSimpleTask.executeAsync(DetailMessageDialog::class.java.name) {
+            UtImmortalTask.awaitTask(DetailMessageDialog::class.java.name) {
                 DetailMessageViewModel.create(taskName, label, message, detailMessage)
                 showDialog(taskName) { DetailMessageDialog() }
-                true
             }
         }
     }

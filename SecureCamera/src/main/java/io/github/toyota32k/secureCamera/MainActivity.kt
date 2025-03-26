@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
@@ -12,16 +13,17 @@ import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
-import io.github.toyota32k.dialog.task.getString
+import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
+import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
 import kotlinx.coroutines.launch
@@ -37,6 +39,8 @@ class MainActivity : UtMortalActivity() {
     private lateinit var controls: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
+//        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
@@ -47,7 +51,7 @@ class MainActivity : UtMortalActivity() {
         setContentView(controls.root)
 
         // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(controls.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
@@ -156,17 +160,16 @@ class MainActivity : UtMortalActivity() {
 
 
 
-        SettingDialog.show(application)
+        SettingDialog.show()
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
     }
 
     companion object {
         private fun clearAllData() {
-            UtImmortalSimpleTask.run("ClearAll") {
-                if(showOkCancelMessageBox(getString(R.string.clear_all), getString(R.string.msg_confirm))) {
+            UtImmortalTask.launchTask("ClearAll") {
+                if(showOkCancelMessageBox(getStringOrNull(R.string.clear_all), getStringOrNull(R.string.msg_confirm))) {
                     resetAll(false)
                 }
-                true
             }
         }
 

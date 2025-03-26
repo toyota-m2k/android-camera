@@ -26,8 +26,10 @@ import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtActivityBroker
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.UtImmortalTaskBase
+import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
@@ -37,11 +39,9 @@ import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
-import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.chapterAt
-import io.github.toyota32k.lib.player.model.chapterOn
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
@@ -169,7 +169,7 @@ class EditorActivity : UtMortalActivity() {
             chapterList.redo()
         }
         val commandSplit = LiteUnitCommand {
-            UtImmortalSimpleTask.run("split") {
+            UtImmortalTask.launchTask("split") {
                 val current = playerControllerModel.rangePlayModel.value
                 val params = if(current!=null) {
                     SplitParams.fromModel(current)
@@ -179,7 +179,6 @@ class EditorActivity : UtMortalActivity() {
                 if(result!=null) {
                     playerControllerModel.setRangePlayModel(result.toModel())
                 }
-                true
             }
         }
         val playingBeforeBlocked = MutableStateFlow(false)
@@ -255,9 +254,8 @@ class EditorActivity : UtMortalActivity() {
             val item = MetaDB.itemExOf(name) ?: throw IllegalStateException("no item")
             val chapters = MetaDB.getChaptersFor(item.data)
             if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage()) {
-                UtImmortalSimpleTask.run {
+                UtImmortalTask.launchTask {
                     setResultAndFinish(false, item)
-                    true
                 }
                 return@launch
             }
@@ -379,13 +377,13 @@ class EditorActivity : UtMortalActivity() {
 //        logger.debug("input:\n$s")
 
 
-        UtImmortalSimpleTask.run("trimming") {
+        UtImmortalTask.launchTask("trimming") {
             // トリミング開始前に編集内容を一旦セーブ
             // ..トリミング中に強制終了したとき（主にデバッグ中）に編集内容が消えてしまうのを回避
             withContext(Dispatchers.IO) {
                 saveChapters()
             }
-            val vm = ProgressDialog.ProgressViewModel.create(taskName)
+            val vm = createViewModel<ProgressDialog.ProgressViewModel>()
             vm.message.value = "Trimming Now..."
             val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
             val converter = Converter.Factory()
@@ -432,7 +430,7 @@ class EditorActivity : UtMortalActivity() {
 //                            logger.debug("input:\n$s")
 //                            val d = Converter.analyze(dstFile.toAndroidFile())
 //                            logger.debug("output:\n$d")
-                            if(!UtImmortalSimpleTask.runAsync("low quality") {
+                            if(!UtImmortalTask.awaitTaskResult("low quality") {
                                 showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
                             }) { throw CancellationException("cancelled") }
                         }
@@ -463,7 +461,7 @@ class EditorActivity : UtMortalActivity() {
                 } catch (e:Throwable) {
                     if(e !is CancellationException) {
                         logger.error(e)
-                        UtImmortalSimpleTask.run("errorMessage") {
+                        UtImmortalTask.launchTask("errorMessage") {
                             showConfirmMessageBox(
                                 "Something Wrong.",
                                 e.localizedMessage ?: e.message ?: ""
@@ -508,7 +506,7 @@ class EditorActivity : UtMortalActivity() {
                     }
                 } else {
                     logger.error("Incorrect Password")
-                    UtImmortalSimpleTask.run {
+                    UtImmortalTask.launchTask {
                         setResultAndFinish(false, viewModel.targetItem)
                         true
                     }
@@ -547,14 +545,14 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
-    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-                UtImmortalSimpleTask.run {
+            UtImmortalTask.launchTask {
 //                    saveChapters()
-                    setResultAndFinish(true, viewModel.targetItem)
-                    true
-                }
-                return true
+                setResultAndFinish(true, viewModel.targetItem)
+            }
+            return true
 //            if(viewModel.chapterList.isDirty) {
 //                UtImmortalSimpleTask.run {
 //                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
@@ -567,7 +565,7 @@ class EditorActivity : UtMortalActivity() {
 //                return true
 //            }
         }
-        return super.handleKeyEvent(keyCode, event)
+        return super.onKeyDown(keyCode, event)
     }
 
     class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
@@ -592,7 +590,7 @@ class EditorActivity : UtMortalActivity() {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)
 
-        private suspend fun UtImmortalSimpleTask.setResultAndFinish(ok:Boolean,item:ItemEx) {
+        private suspend fun UtImmortalTaskBase.setResultAndFinish(ok:Boolean,item:ItemEx) {
             (getActivity() as? EditorActivity)?.apply {
                 setResult(if(ok) RESULT_OK else RESULT_CANCELED, Intent().apply { putExtra(KEY_FILE_NAME, item.name) })
                 finish()

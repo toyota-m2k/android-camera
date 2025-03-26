@@ -33,8 +33,8 @@ import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcCameraManipulator
@@ -191,7 +191,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         var exposureMax = 0f
     }
 
-    private val permissionsBroker = UtMultiPermissionsBroker(this)
+    private val permissionsBroker = UtMultiPermissionsBroker().apply { register(this@CameraActivity) }
     private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
@@ -470,12 +470,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         viewModel.takePicture(logger)
     }
 
-    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode==KeyEvent.KEYCODE_VOLUME_UP && event?.action==KeyEvent.ACTION_DOWN) {
             execSelfieAction()
             return true
         }
-        return super.handleKeyEvent(keyCode, event)
+        return super.onKeyDown(keyCode, event)
     }
 
 

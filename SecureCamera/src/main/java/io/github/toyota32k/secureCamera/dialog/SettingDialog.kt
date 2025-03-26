@@ -1,11 +1,9 @@
 package io.github.toyota32k.secureCamera.dialog
 
-import android.app.Application
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
@@ -17,14 +15,21 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.sliderBinding
+import io.github.toyota32k.binder.spinnerBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.*
+import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.application
+import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.asConstantLiveData
@@ -36,19 +41,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlin.math.max
-import kotlin.math.min
-import java.util.*
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToLong
 
 class SettingDialog : UtDialogEx() {
-    class SettingViewModel(application: Application) : AndroidViewModel(application), IUtImmortalTaskMutableContextSource, IUtPropOwner {
-        override lateinit var immortalTaskContext: IUtImmortalTaskContext
-
+    class SettingViewModel : UtDialogViewModel(), IUtPropOwner {
         companion object {
             const val minNumberOfIncorrectPassword:Int = 2
             const val maxNumberOfIncorrectPassword:Int = 10
@@ -56,12 +59,12 @@ class SettingDialog : UtDialogEx() {
                 return min(maxNumberOfIncorrectPassword,max(minNumberOfIncorrectPassword, v))
             }
 
-            fun createBy(taskName:String, application: Application): SettingViewModel {
-                return logger.chronos { UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task") }
-            }
-            fun instanceFor(dlg: SettingDialog): SettingViewModel {
-                return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
-            }
+//            fun createBy(taskName:String, application: Application): SettingViewModel {
+//                return logger.chronos { UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task") }
+//            }
+//            fun instanceFor(dlg: SettingDialog): SettingViewModel {
+//                return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
+//            }
         }
         enum class CameraTapAction(val value:Int, @IdRes val selfieId:Int) {
             NONE(Settings.Camera.TAP_NONE, R.id.radio_selfie_action_none),
@@ -128,6 +131,10 @@ class SettingDialog : UtDialogEx() {
         val secureArchive2ndAddressForDisplay = secureArchive2ndAddress.map { it.ifEmpty { "(n/a)" } }
 
         val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
+
+        val dayNightMode = MutableStateFlow(Settings.Design.nightMode)
+        val themeInfo = MutableStateFlow(Settings.Design.themeInfo)
+        val contrastLevel = MutableStateFlow(Settings.Design.contrastLevel)
 
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
@@ -201,8 +208,13 @@ class SettingDialog : UtDialogEx() {
                 Settings.SecureArchive.primaryAddress = secureArchiveAddress.value
                 Settings.SecureArchive.secondaryAddress = secureArchive2ndAddress.value
                 Settings.SecureArchive.deviceName = deviceName.value
+                Settings.Design.nightMode = dayNightMode.value
+                Settings.Design.themeInfo = themeInfo.value
+                Settings.Design.contrastLevel = contrastLevel.value
             }
-            UtImmortalSimpleTask.run { TcClient.registerOwnerToSecureArchive() }
+            UtImmortalTask.launchTask {
+                TcClient.registerOwnerToSecureArchive()
+            }
         }
         fun reset() {
 //            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
@@ -218,27 +230,25 @@ class SettingDialog : UtDialogEx() {
                 Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         }
     }
+
     override fun preCreateBodyView() {
         title = context.getString(R.string.settings)
-        setLeftButton(BuiltInButtonType.CANCEL)
-        setRightButton(BuiltInButtonType.DONE)
-        setLimitWidth(400)
+        leftButtonType = ButtonType.CANCEL
+        rightButtonType = ButtonType.DONE
+        widthOption = WidthOption.LIMIT(500)
         scrollable = true
         cancellable = false
+        gravityOption = GravityOption.CENTER
         if(isPhone) {
-            widthOption = WidthOption.FULL
             heightOption = HeightOption.FULL
-            scrollable = true
         } else {
             heightOption = HeightOption.AUTO_SCROLL
-            gravityOption = GravityOption.CENTER
-            setLimitWidth(500)
         }
-        gravityOption = GravityOption.CENTER
     }
 
-    lateinit var controls:DialogSettingBinding
-    val viewModel: SettingViewModel by lazy { SettingViewModel.instanceFor(this) }
+    private lateinit var controls:DialogSettingBinding
+    private val viewModel: SettingViewModel by lazy { getViewModel() }
+
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogSettingBinding.inflate(inflater.layoutInflater)
         controls.sliderSkipForward.setLabelFormatter { viewModel.formatSpanLabel(it) }
@@ -261,6 +271,9 @@ class SettingDialog : UtDialogEx() {
                     .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
                     .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchive2ndAddressForDisplay)
                     .textBinding(controls.deviceName, viewModel.deviceName)
+                    .spinnerBinding(controls.dayNightModeSpinner, viewModel.dayNightMode, ThemeSelector.NightMode.entries)
+                    .spinnerBinding(controls.themeSpinner, viewModel.themeInfo, Settings.ThemeList.themes) { it.label }
+                    .spinnerBinding(controls.colorContrastSpinner, viewModel.contrastLevel, ThemeSelector.ContrastLevel.entries)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +100f)
@@ -321,14 +334,23 @@ class SettingDialog : UtDialogEx() {
     }
     companion object {
         val logger = UtLog("Setting", null, this::class.java)
-        fun show(application: Application) {
-            UtImmortalSimpleTask.run(this::class.java.name) {
+        fun show() {
+            UtImmortalTask.launchTask(this::class.java.name) {
                 if(!PasswordDialog.checkPassword()) {
-                    return@run false
+                    return@launchTask
                 }
-                SettingViewModel.createBy(taskName, application)
-                showDialog(taskName) { SettingDialog() }
-                true
+                createViewModel<SettingViewModel>()
+                if (showDialog(taskName) { SettingDialog() }.status.ok) {
+                    withOwner {
+                        val activity = it.asActivity() as? MainActivity ?: return@withOwner
+                        if (ThemeSelector.defaultInstance.isThemeChanged(Settings.Design.themeInfo,Settings.Design.contrastLevel)) {
+                            activity.startActivity(Intent(activity, MainActivity::class.java))
+                            activity.finish()
+                        } else {
+                            ThemeSelector.defaultInstance.applyNightMode(Settings.Design.nightMode)
+                        }
+                    }
+                }
             }
         }
     }

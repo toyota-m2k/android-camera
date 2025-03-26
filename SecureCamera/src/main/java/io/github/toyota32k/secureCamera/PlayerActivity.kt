@@ -40,9 +40,11 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewGestureBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
@@ -815,9 +817,9 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private fun startEditing(item:ItemEx) {
-        UtImmortalSimpleTask.run("dealItem") {
+        UtImmortalTask.launchTask("dealItem") {
             viewModel.playerControllerModel.commandPause.invoke()
-            val vm = ItemDialog.ItemViewModel.createBy(this, item)
+            val vm = createViewModel<ItemDialog.ItemViewModel> { initFor(item) }
             if(showDialog(taskName) { ItemDialog() }.status.ok) {
                 vm.saveIfNeed()
                 val item2 = vm.item.value
@@ -836,11 +838,10 @@ class PlayerActivity : UtMortalActivity() {
                     else -> {}
                 }
             }
-            true
         }
     }
 
-    private suspend fun UtImmortalSimpleTask.editItem(item:ItemEx) {
+    private suspend fun UtImmortalTaskBase.editItem(item:ItemEx) {
         viewModel.saveListModeAndSelection()
         viewModel.playlist.select(null)
         viewModel.playerControllerModel.playerModel.killPlayer()
@@ -984,11 +985,11 @@ class PlayerActivity : UtMortalActivity() {
 //        }
 //    }
 
-    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
             viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
             return true
         }
-        return false
+        return super.onKeyDown(keyCode, event)
     }
 }

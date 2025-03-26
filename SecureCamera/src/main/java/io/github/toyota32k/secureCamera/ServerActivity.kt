@@ -18,16 +18,14 @@ import io.github.toyota32k.binder.combinatorialVisibilityBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.multiEnableBinding
-import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
-import io.github.toyota32k.dialog.UtMessageBox
-import io.github.toyota32k.dialog.task.UtImmortalSimpleTask
-import io.github.toyota32k.dialog.task.UtMortalActivity
+import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
-import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -91,7 +89,7 @@ class ServerActivity : UtMortalActivity() {
                 if(!Authentication.authenticateAndMessage()) {
                     return@launch
                 }
-                val decision = UtImmortalSimpleTask.runAsync {
+                val decision = UtImmortalTask.awaitTaskResult {
                     showOkCancelMessageBox(
                         "Backup",
                         "Backup to ${Authentication.activeHostLabel}",
@@ -141,7 +139,7 @@ class ServerActivity : UtMortalActivity() {
                 try {
                     val itemsOnServer = TcClient.getListForRepair() ?: return@launch
                     val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
-                    var count:Int = 0
+                    var count = 0
                     for(item in itemsOnServer) {
                         if(!itemsOnLocal.contains(item.originalId)) {
                             // サーバーにのみ存在するレコード
@@ -159,7 +157,7 @@ class ServerActivity : UtMortalActivity() {
 
         private fun migrate() {
             isBusy.value = true
-            UtImmortalSimpleTask.run("migrate") {
+            UtImmortalTask.launchTask("migrate") {
                 try {
                     fun shorten(text:String, head:Int=5, tail:Int=5):String {
                         return if(text.length>head+tail) {
@@ -168,27 +166,27 @@ class ServerActivity : UtMortalActivity() {
                             text
                         }
                     }
-                    val devices = TcClient.getDeviceListForMigration() ?: return@run false
+                    val devices = TcClient.getDeviceListForMigration() ?: return@launchTask
                     if(devices.isEmpty()) {
                         showConfirmMessageBox("Migration", "No devices found.")
-                        return@run false
+                        return@launchTask
                     }
                     var index = showRadioSelectionBox("Select Device", devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(), 0)
                     var device = if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
-                            return@run false
-                        } else devices[index]
+                        return@launchTask
+                    } else devices[index]
 
                     val migration = TcClient.startMigration(device.clientId)
                     if(migration==null) {
-                        UtMessageBox.openForConfirm("Migration", "Migration failed.")
-                        return@run false
+                        showConfirmMessageBox("Migration", "Migration failed.")
+                        return@launchTask
                     }
                     if(migration.list.isEmpty()) {
-                        UtMessageBox.openForConfirm("Migration", "No data to migrate.")
-                        return@run false
+                        showConfirmMessageBox("Migration", "No data to migrate.")
+                        return@launchTask
                     }
                     var cancelled = false
-                    val pvm = ProgressDialog.ProgressViewModel.create("migration-progress")
+                    val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
                     pvm.message.value = "Migrating..."
                     pvm.cancelCommand.bindForever { cancelled = true }
                     var count = 0
@@ -199,7 +197,7 @@ class ServerActivity : UtMortalActivity() {
                             }
                             count++
                             pvm.progress.value = (count * 100 / migration.list.size).toInt()
-                            pvm.progressText.value = "${count} / ${migration.list.size}"
+                            pvm.progressText.value = "$count / ${migration.list.size}"
                             // 端末側DBに移行データのエントリーを作る
                             val data = MetaDB.migrateOne(migration.handle, entry)
                             if (data != null) {
@@ -227,7 +225,6 @@ class ServerActivity : UtMortalActivity() {
                 } finally {
                     isBusy.value = false
                 }
-                true
             }
         }
 
