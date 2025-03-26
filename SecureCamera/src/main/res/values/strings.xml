@@ -103,4 +103,9 @@
     <string name="day_night_mode"><![CDATA[Day&Night Mode]]></string>
     <string name="contrast_mode">Color Contrast</string>
     <string name="theme_selector">Theme</string>
+    <string name="day_night_hint"><![CDATA[Day&Night]]></string>
+    <string name="color_contrast_hint">Colot Contrast</string>
+    <string name="theme_hint">Theme</string>
+    <string name="color_variation">Color Variation</string>
+    <string name="colors">Colors</string>
 </resources>

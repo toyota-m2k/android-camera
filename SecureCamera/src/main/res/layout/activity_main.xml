@@ -49,6 +49,13 @@
         android:text="@string/settings"
         />
     <Button
+        android:id="@+id/colors_button"
+        android:layout_marginTop="10dp"
+        android:layout_width="@dimen/menu_button_width"
+        android:layout_height="wrap_content"
+        android:text="@string/colors"
+        />
+    <Button
         android:id="@+id/clear_all_button"
         android:layout_marginTop="10dp"
         android:layout_width="@dimen/menu_button_width"

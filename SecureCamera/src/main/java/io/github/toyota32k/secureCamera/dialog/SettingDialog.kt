@@ -132,10 +132,6 @@ class SettingDialog : UtDialogEx() {
 
         val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
 
-        val dayNightMode = MutableStateFlow(Settings.Design.nightMode)
-        val themeInfo = MutableStateFlow(Settings.Design.themeInfo)
-        val contrastLevel = MutableStateFlow(Settings.Design.contrastLevel)
-
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
         val commandSkipBackward = LiteCommand(this::updateSkipBackwardSpan)
@@ -208,9 +204,6 @@ class SettingDialog : UtDialogEx() {
                 Settings.SecureArchive.primaryAddress = secureArchiveAddress.value
                 Settings.SecureArchive.secondaryAddress = secureArchive2ndAddress.value
                 Settings.SecureArchive.deviceName = deviceName.value
-                Settings.Design.nightMode = dayNightMode.value
-                Settings.Design.themeInfo = themeInfo.value
-                Settings.Design.contrastLevel = contrastLevel.value
             }
             UtImmortalTask.launchTask {
                 TcClient.registerOwnerToSecureArchive()
@@ -271,9 +264,6 @@ class SettingDialog : UtDialogEx() {
                     .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
                     .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchive2ndAddressForDisplay)
                     .textBinding(controls.deviceName, viewModel.deviceName)
-                    .spinnerBinding(controls.dayNightModeSpinner, viewModel.dayNightMode, ThemeSelector.NightMode.entries)
-                    .spinnerBinding(controls.themeSpinner, viewModel.themeInfo, Settings.ThemeList.themes) { it.label }
-                    .spinnerBinding(controls.colorContrastSpinner, viewModel.contrastLevel, ThemeSelector.ContrastLevel.entries)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
                     .bindCommand(viewModel.commandSkipBackward, controls.skipBackwardPlus, +100f)
@@ -340,17 +330,7 @@ class SettingDialog : UtDialogEx() {
                     return@launchTask
                 }
                 createViewModel<SettingViewModel>()
-                if (showDialog(taskName) { SettingDialog() }.status.ok) {
-                    withOwner {
-                        val activity = it.asActivity() as? MainActivity ?: return@withOwner
-                        if (ThemeSelector.defaultInstance.isThemeChanged(Settings.Design.themeInfo,Settings.Design.contrastLevel)) {
-                            activity.startActivity(Intent(activity, MainActivity::class.java))
-                            activity.finish()
-                        } else {
-                            ThemeSelector.defaultInstance.applyNightMode(Settings.Design.nightMode)
-                        }
-                    }
-                }
+                showDialog(taskName) { SettingDialog() }
             }
         }
     }

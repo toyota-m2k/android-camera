@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
@@ -19,11 +18,11 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
+import io.github.toyota32k.secureCamera.dialog.ColorVariationDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
-import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.hideActionBar
 import kotlinx.coroutines.launch
@@ -69,6 +68,7 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand(::startServer), controls.serverButton )
             .bindCommand(LiteUnitCommand(::clearAllData), controls.clearAllButton)
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
+            .bindCommand(LiteUnitCommand(::colorVariation), controls.colorsButton)
     }
 
     private fun startCamera() {
@@ -162,6 +162,10 @@ class MainActivity : UtMortalActivity() {
 
         SettingDialog.show()
 //        startActivity(Intent(this, OssLicensesMenuActivity::class.java))
+    }
+
+    private fun colorVariation() {
+        ColorVariationDialog.show()
     }
 
     companion object {
