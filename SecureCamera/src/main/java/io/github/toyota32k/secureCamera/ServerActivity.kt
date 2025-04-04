@@ -243,6 +243,7 @@ class ServerActivity : UtMortalActivity() {
     private val binder = Binder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 

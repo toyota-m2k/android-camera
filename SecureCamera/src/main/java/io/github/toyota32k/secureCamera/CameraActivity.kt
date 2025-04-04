@@ -203,6 +203,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private lateinit var focusIndicatorAnimation: VisibilityAnimation
     override fun onCreate(savedInstanceState: Bundle?) {
+        Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

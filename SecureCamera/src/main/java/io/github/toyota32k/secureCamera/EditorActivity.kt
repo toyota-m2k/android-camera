@@ -65,6 +65,7 @@ import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
+import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.UtLog
@@ -230,6 +231,7 @@ class EditorActivity : UtMortalActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         logger.debug()
+        Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

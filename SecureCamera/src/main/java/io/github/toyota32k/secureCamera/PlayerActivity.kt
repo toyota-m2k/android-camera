@@ -564,6 +564,7 @@ class PlayerActivity : UtMortalActivity() {
     private val manipulator: ManipulationTarget by lazy { ManipulationTarget() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
