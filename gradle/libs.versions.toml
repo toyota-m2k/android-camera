@@ -1,7 +1,7 @@
 [versions]
 # plugins
 kotlin = "2.1.10"
-agp = "8.9.1"
+agp = "8.9.2"
 # room compiler で使用。
 # ksp のバージョンは、kotlin_version と同じ世代のものを指定する必要がある。
 # https://github.com/google/ksp/releases で確認する。
@@ -10,7 +10,7 @@ ksp = "2.1.10-1.0.31"
 # libraries
 androidBinding = "1.5.1"
 androidDialog = "5.3.1"
-androidMediaProcessor = "2.17.5"
+androidMediaProcessor = "2.17.7"
 androidServer = "1.1.6"
 androidMediaPlayer = "2.6.4"
 androidUtilitiesVersion = "2.7.6"
@@ -32,7 +32,7 @@ preferenceKtx = "1.2.1"
 roomRuntime = "2.7.0"
 roomCompiler = "2.7.0"
 work = "2.10.0"
-coroutinesCore = "1.10.1"
+coroutinesCore = "1.10.2"
 
 [libraries]
 android-dialog = { module = "com.github.toyota-m2k:android-dialog", version.ref = "androidDialog" }
