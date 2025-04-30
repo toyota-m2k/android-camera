@@ -51,6 +51,7 @@ import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
+import io.github.toyota32k.utils.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
 import io.github.toyota32k.utils.dp
@@ -202,6 +203,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     private lateinit var controls: ActivityCameraBinding
 
     private lateinit var focusIndicatorAnimation: VisibilityAnimation
+
     override fun onCreate(savedInstanceState: Bundle?) {
         Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)

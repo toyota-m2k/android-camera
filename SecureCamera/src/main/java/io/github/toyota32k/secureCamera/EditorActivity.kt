@@ -66,6 +66,7 @@ import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.utils.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.UtLog
@@ -228,6 +229,7 @@ class EditorActivity : UtMortalActivity() {
     // Scale/Scroll
     private val gestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
     private val manipulationAgent by lazy { UtManipulationAgent(UtSimpleManipulationTarget(controls.videoViewer,controls.videoViewer.controls.player)) }
+    private val compatBackKeyDispatcher = CompatBackKeyDispatcher()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         logger.debug()
@@ -294,6 +296,12 @@ class EditorActivity : UtMortalActivity() {
 //            }
             onDoubleTap {
                 manipulationAgent.resetScrollAndScale()
+            }
+        }
+
+        compatBackKeyDispatcher.register(this) {
+            UtImmortalTask.launchTask {
+                setResultAndFinish(true, viewModel.targetItem)
             }
         }
     }
@@ -548,27 +556,27 @@ class EditorActivity : UtMortalActivity() {
     }
 
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-            UtImmortalTask.launchTask {
-//                    saveChapters()
-                setResultAndFinish(true, viewModel.targetItem)
-            }
-            return true
-//            if(viewModel.chapterList.isDirty) {
-//                UtImmortalSimpleTask.run {
-//                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
-//                        setResult(RESULT_OK,)
-//                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
-//                    }
-//                    setResultAndFinish(true, viewModel.targetItem)
-//                    true
-//                }
-//                return true
+//    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+//        if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
+//            UtImmortalTask.launchTask {
+////                    saveChapters()
+//                setResultAndFinish(true, viewModel.targetItem)
 //            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
+//            return true
+////            if(viewModel.chapterList.isDirty) {
+////                UtImmortalSimpleTask.run {
+////                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
+////                        setResult(RESULT_OK,)
+////                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
+////                    }
+////                    setResultAndFinish(true, viewModel.targetItem)
+////                    true
+////                }
+////                return true
+////            }
+//        }
+//        return super.onKeyDown(keyCode, event)
+//    }
 
     class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
         init{

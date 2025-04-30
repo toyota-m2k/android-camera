@@ -175,7 +175,7 @@ class PlayListSettingDialog : UtDialogEx() {
 
     companion object {
         suspend fun show(minDate:DPDate, maxDate:DPDate):Boolean {
-            return UtImmortalTask.awaitTaskResult {
+            return UtImmortalTask.awaitTaskResult("playListSettingDialog.show") {
                 createViewModel<PlayListSettingViewModel> { load(minDate, maxDate) }
                 showDialog(taskName) { PlayListSettingDialog() }.status.ok
             }

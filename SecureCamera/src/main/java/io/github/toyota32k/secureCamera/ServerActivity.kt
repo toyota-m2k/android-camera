@@ -89,7 +89,7 @@ class ServerActivity : UtMortalActivity() {
                 if(!Authentication.authenticateAndMessage()) {
                     return@launch
                 }
-                val decision = UtImmortalTask.awaitTaskResult {
+                val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
                     showOkCancelMessageBox(
                         "Backup",
                         "Backup to ${Authentication.activeHostLabel}",

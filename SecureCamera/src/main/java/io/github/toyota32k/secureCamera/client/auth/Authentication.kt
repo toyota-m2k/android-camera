@@ -11,6 +11,11 @@ import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -213,9 +218,45 @@ object Authentication {
         return if(PasswordDialog.authenticate(activeHostLabel)) Result.OK else Result.CANCELLED
     }
 
+    /**
+     * 認証の調停者
+     * UI操作やバックグラウンドで実行される通信処理などから、同時に認証が要求されたとき、
+     * 最初の要求のみ処理して、その他の要求は、最初の認証の結果を共有できるようにするクラス。
+     */
+    object AuthMediator {
+        val mutex = Mutex()
+        val result = MutableStateFlow<Boolean?>(null)
+        var processing = false
+
+        suspend fun authenticate():Boolean {
+            val generalAgent = mutex.withLock {
+                if(!processing) {
+                    processing = true
+                    result.value = null
+                    true        // 最初の要求
+                } else false    // ２つ目以降の要求
+            }
+            if (generalAgent) {
+                val r = internalAuthenticateAndMessage()
+                result.value = r
+                mutex.withLock {
+                    processing = false
+                }
+                return r
+            }
+            return result.filterNotNull().first()
+        }
+    }
+
     suspend fun authenticateAndMessage():Boolean {
+        return AuthMediator.authenticate()
+    }
+
+
+
+    private suspend fun internalAuthenticateAndMessage():Boolean {
         suspend fun showMessage(msg:String):Boolean {
-            UtImmortalTask.awaitTaskResult {
+            UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
                 showConfirmMessageBox(null, msg)
                 true
             }

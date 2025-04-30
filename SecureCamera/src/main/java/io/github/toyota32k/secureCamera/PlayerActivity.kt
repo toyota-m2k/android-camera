@@ -79,6 +79,7 @@ import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.shared.UtSorter
+import io.github.toyota32k.utils.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtLog
 import io.github.toyota32k.utils.disposableObserve
@@ -563,6 +564,7 @@ class PlayerActivity : UtMortalActivity() {
     private val gestureInterpreter: UtGestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
     private val manipulator: ManipulationTarget by lazy { ManipulationTarget() }
 
+    private val compatBackKeyDispatcher = CompatBackKeyDispatcher()
     override fun onCreate(savedInstanceState: Bundle?) {
         Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
@@ -715,6 +717,15 @@ class PlayerActivity : UtMortalActivity() {
         ensureVisible()
 
         DBChange.observable.onEach(::onDataChanged).launchIn(lifecycleScope)
+
+        // Back Key の動作をカスタマイズ
+        compatBackKeyDispatcher.register(this) {
+            if (viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+                viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
+            } else {
+                finish()
+            }
+        }
     }
 
     /**
@@ -986,11 +997,11 @@ class PlayerActivity : UtMortalActivity() {
 //        }
 //    }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-            viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
+//    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+//        if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+//            viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
+//            return true
+//        }
+//        return super.onKeyDown(keyCode, event)
+//    }
 }

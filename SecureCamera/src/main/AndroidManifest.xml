@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature android:name="android.hardware.camera.any" />
 
@@ -14,7 +15,9 @@
         android:usesCleartextTraffic="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:theme="@style/BlueberryTheme">
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/BlueberryTheme"
+        tools:ignore="UnusedAttribute">
         <activity
             android:name=".ServerActivity"
             android:exported="false" />
@@ -22,17 +25,17 @@
             android:name=".EditorActivity"
             android:exported="false"
             android:screenOrientation="landscape"
-            />
+            tools:ignore="DiscouragedApi" />
         <activity
             android:name=".PlayerActivity"
             android:exported="false"
             android:screenOrientation="landscape"
-            />
+            tools:ignore="DiscouragedApi" />
         <activity
             android:name=".CameraActivity"
             android:exported="false"
             android:screenOrientation="landscape"
-            />
+            tools:ignore="DiscouragedApi" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
