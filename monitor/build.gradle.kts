@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "io.github.toyota32k.monitor"
-    compileSdk = 35
+    compileSdk = 36
 
     signingConfigs {
         val properties = Properties()
@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
