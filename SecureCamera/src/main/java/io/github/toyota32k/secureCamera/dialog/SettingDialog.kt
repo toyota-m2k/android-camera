@@ -324,10 +324,10 @@ class SettingDialog : UtDialogEx() {
     }
     companion object {
         val logger = UtLog("Setting", null, this::class.java)
-        fun show() {
-            UtImmortalTask.launchTask(this::class.java.name) {
+        suspend fun show() {
+            UtImmortalTask.awaitTask (this::class.java.name) {
                 if(!PasswordDialog.checkPassword()) {
-                    return@launchTask
+                    return@awaitTask
                 }
                 createViewModel<SettingViewModel>()
                 showDialog(taskName) { SettingDialog() }

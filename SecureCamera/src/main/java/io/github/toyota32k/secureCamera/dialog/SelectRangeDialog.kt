@@ -69,7 +69,7 @@ class SelectRangeDialog: UtDialogEx() {
         var naturalDuration: Long = 0L
             private set
         val minSpan = 1 // min
-        val maxSpan get() = ((naturalDuration - minSpan)/60000).toInt()
+        val maxSpan get() = ((naturalDuration - minSpan)/60000).toInt().coerceAtLeast(minSpan+1)
         val enablePartialMode = MutableStateFlow(true)
         val presetSpan = MutableStateFlow(3)
         val customSpan = MutableStateFlow(1f)
@@ -124,8 +124,8 @@ class SelectRangeDialog: UtDialogEx() {
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         title = "Partial Edit -- ${TimeSpan(viewModel.naturalDuration).formatAuto()}"
         controls = DialogSelectRangeBinding.inflate(inflater.layoutInflater)
-        controls.spanSlider.valueFrom = viewModel.minSpan.toFloat()
         controls.spanSlider.valueTo = viewModel.maxSpan.toFloat()
+        controls.spanSlider.valueFrom = viewModel.minSpan.toFloat()
         controls.spanSlider.setLabelFormatter {
             "${it.roundToInt()} min"
         }
@@ -142,6 +142,7 @@ class SelectRangeDialog: UtDialogEx() {
     }
 
     companion object {
+        const val MIN_DURATION = 60*2*1000L     // 2分以上ないとSliderが作れない
         suspend fun show(task: UtImmortalTaskBase, currentParams: SplitParams): SplitParams? {
             return task.awaitSubTaskResult {
                 val vm = createViewModel<RangeModeViewModel> { initWith(currentParams) }

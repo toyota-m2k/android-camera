@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
@@ -79,6 +78,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -171,12 +171,14 @@ class EditorActivity : UtMortalActivity() {
             chapterList.redo()
         }
         val commandSplit = LiteUnitCommand {
+            if(playerModel.naturalDuration.value < SelectRangeDialog.MIN_DURATION) return@LiteUnitCommand
             UtImmortalTask.launchTask("split") {
                 val current = playerControllerModel.rangePlayModel.value
                 val params = if(current!=null) {
                     SplitParams.fromModel(current)
-                } else
+                } else {
                     SplitParams.create(playerModel.naturalDuration.value)
+                }
                 val result = SelectRangeDialog.show(this, params)
                 if(result!=null) {
                     playerControllerModel.setRangePlayModel(result.toModel())
@@ -277,6 +279,7 @@ class EditorActivity : UtMortalActivity() {
                 .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
                 .clickBinding(controls.saveVideo) { selectQualityAndSave() }
                 .longClickBinding(controls.saveVideo) { showVideoProperties() }
+                .enableBinding(controls.splitMode, viewModel.playerModel.naturalDuration.map { it>SelectRangeDialog.MIN_DURATION })
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
                 .bindCommand(viewModel.commandSplit, controls.splitMode)
