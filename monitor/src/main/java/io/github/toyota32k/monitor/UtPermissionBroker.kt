@@ -7,7 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 
-class UtPermissionBroker(val activity:FragmentActivity) : UtActivityBroker<String, Boolean>() {
+class UtPermissionBroker_(val activity:FragmentActivity) : UtActivityBroker<String, Boolean>() {
     val context get() = activity.applicationContext
     init { register(activity) }
     companion object {
@@ -40,7 +40,7 @@ class UtMultiPermissionsBroker(val activity: FragmentActivity) : UtActivityBroke
         val list = mutableListOf<String>()
         var requiredFlags = mutableMapOf<String,Boolean>()
         fun add(permission:String, required:Boolean=true):Request {
-            if(!UtPermissionBroker.isPermitted(context,permission)) {
+            if(!UtPermissionBroker_.isPermitted(context,permission)) {
                 list.add(permission)
                 requiredFlags[permission] = required
             }

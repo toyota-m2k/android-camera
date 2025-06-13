@@ -19,14 +19,14 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.ColorVariationDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.hideActionBar
+import io.github.toyota32k.utils.android.hideActionBar
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 

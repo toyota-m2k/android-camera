@@ -19,13 +19,13 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

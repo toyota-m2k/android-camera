@@ -1,6 +1,5 @@
 package io.github.toyota32k.secureCamera.dialog
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
@@ -15,7 +14,6 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.sliderBinding
-import io.github.toyota32k.binder.spinnerBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
@@ -24,16 +22,14 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.application
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
-import io.github.toyota32k.secureCamera.MainActivity
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.asConstantLiveData
 import io.github.toyota32k.utils.gesture.UtClickRepeater
+import io.github.toyota32k.utils.lifecycle.asConstantLiveData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

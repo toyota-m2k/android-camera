@@ -5,11 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
-import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
@@ -38,7 +35,7 @@ import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
-import io.github.toyota32k.binder.recyclerViewGestureBinding
+import io.github.toyota32k.binder.recyclerViewBindingEx
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
@@ -48,8 +45,6 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.TpLib
-import io.github.toyota32k.lib.player.common.FitMode
-import io.github.toyota32k.lib.player.common.UtFitter
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.lib.player.model.IChapterList
@@ -60,11 +55,13 @@ import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
+import io.github.toyota32k.secureCamera.databinding.ListItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.DBChange
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -78,18 +75,19 @@ import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
-import io.github.toyota32k.shared.UtSorter
-import io.github.toyota32k.utils.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.disposableObserve
+import io.github.toyota32k.utils.UtSorter
+import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
+import io.github.toyota32k.utils.android.FitMode
+import io.github.toyota32k.utils.android.UtFitter
+import io.github.toyota32k.utils.android.hideActionBar
+import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.Direction
 import io.github.toyota32k.utils.gesture.IUtManipulationTarget
 import io.github.toyota32k.utils.gesture.Orientation
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.gesture.UtManipulationAgent
-import io.github.toyota32k.utils.hideActionBar
-import io.github.toyota32k.utils.hideStatusBar
+import io.github.toyota32k.utils.lifecycle.disposableObserve
 import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -637,65 +635,64 @@ class PlayerActivity : UtMortalActivity() {
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .recyclerViewGestureBinding(controls.listView, viewModel.playlist.collection, R.layout.list_item, gestureParams = viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,::onDeletingItem)}) { itemBinder, views, item->
-                val textView = views.findViewById<TextView>(R.id.text_view)
-                val sizeView = views.findViewById<TextView>(R.id.size_view)
-                val durationView = views.findViewById<TextView>(R.id.duration_view)
-                val iconView = views.findViewById<ImageView>(R.id.icon_view)
-                val markView = views.findViewById<ImageView>(R.id.icon_mark)
-                val ratingView = views.findViewById<ImageView>(R.id.icon_rating)
-                val cloudView = views.findViewById<ImageView>(R.id.icon_cloud)
-                val isVideo = item.isVideo
-                views.isSelected = false
-                views.tag = item
-                textView.text = item.nameForDisplay
-                sizeView.text = formatSize(item.size)
-                if(!isVideo) {
-                    durationView.visibility = View.GONE
-                } else {
-                    durationView.text = formatTime(item.duration,item.duration)
-                    durationView.visibility = View.VISIBLE
-                }
-                iconView.setImageDrawable(if(isVideo) icVideo() else icPhoto())
-                val markIcon = when(item.mark) {
-                    Mark.None -> null
-                    Mark.Star -> icMarkStar()
-                    Mark.Flag -> icMarkFlag()
-                    Mark.Check -> icMarkCheck()
-                }
-                markView.setImageDrawable(markIcon)
-                val ratingIcon = when(item.rating) {
-                    Rating.RatingNone -> null
-                    Rating.Rating1 -> icRating1()
-                    Rating.Rating2 -> icRating2()
-                    Rating.Rating3 -> icRating3()
-                    Rating.Rating4 -> icRating4()
-                }
-                ratingView.setImageDrawable(ratingIcon)
-
-                val cloudIcon = when(item.cloud) {
-                    CloudStatus.Local-> null
-                    CloudStatus.Uploaded->icCloud()
-                    CloudStatus.Cloud->icCloudFull()
-                }
-                cloudView.setImageDrawable(cloudIcon)
-
-                itemBinder
-                    .owner(this)
-                    .bindCommand(LiteUnitCommand {
-                        if(item==viewModel.playlist.currentSelection.value) {
-                            startEditing(item)
-                        } else {
-                            viewModel.playlist.select(item, false)
-                        }
-                    }, views)
-                    .bindCommand(LongClickUnitCommand {
-                        viewModel.playlist.select(item, false)
-                        startEditing(item)
-                    }, views )
-                    .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
-                        views.isSelected = hit
+            .recyclerViewBindingEx(controls.listView) {
+                list(viewModel.playlist.collection)
+                gestureParams(viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,::onDeletingItem)})
+                inflate { ListItemBinding.inflate(layoutInflater, it, false) }
+                bindView { ctrls, itemBinder, views, item->
+                    val isVideo = item.isVideo
+                    views.isSelected = false
+                    views.tag = item
+                    ctrls.textView.text = item.nameForDisplay
+                    ctrls.sizeView.text = formatSize(item.size)
+                    if(!isVideo) {
+                        ctrls.durationView.visibility = View.GONE
+                    } else {
+                        ctrls.durationView.text = formatTime(item.duration,item.duration)
+                        ctrls.durationView.visibility = View.VISIBLE
                     }
+                    ctrls.iconView.setImageDrawable(if(isVideo) icVideo() else icPhoto())
+                    val markIcon = when(item.mark) {
+                        Mark.None -> null
+                        Mark.Star -> icMarkStar()
+                        Mark.Flag -> icMarkFlag()
+                        Mark.Check -> icMarkCheck()
+                    }
+                    ctrls.iconMark.setImageDrawable(markIcon)
+                    val ratingIcon = when(item.rating) {
+                        Rating.RatingNone -> null
+                        Rating.Rating1 -> icRating1()
+                        Rating.Rating2 -> icRating2()
+                        Rating.Rating3 -> icRating3()
+                        Rating.Rating4 -> icRating4()
+                    }
+                    ctrls.iconRating.setImageDrawable(ratingIcon)
+
+                    val cloudIcon = when(item.cloud) {
+                        CloudStatus.Local-> null
+                        CloudStatus.Uploaded->icCloud()
+                        CloudStatus.Cloud->icCloudFull()
+                    }
+                    ctrls.iconCloud.setImageDrawable(cloudIcon)
+
+                    itemBinder
+                        .owner(this@PlayerActivity)
+                        .bindCommand(LiteUnitCommand {
+                            if(item==viewModel.playlist.currentSelection.value) {
+                                startEditing(item)
+                            } else {
+                                viewModel.playlist.select(item, false)
+                            }
+                        }, views)
+                        .bindCommand(LongClickUnitCommand {
+                            viewModel.playlist.select(item, false)
+                            startEditing(item)
+                        }, views )
+                        .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
+                            views.isSelected = hit
+                        }
+
+                }
             }
 
         controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)

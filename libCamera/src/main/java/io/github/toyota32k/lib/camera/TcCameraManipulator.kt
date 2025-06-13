@@ -8,7 +8,7 @@ import androidx.camera.view.PreviewView
 import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.utils.WeakReferenceDelegate
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import kotlinx.coroutines.CoroutineScope

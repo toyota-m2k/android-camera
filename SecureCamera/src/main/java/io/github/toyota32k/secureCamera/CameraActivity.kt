@@ -43,6 +43,7 @@ import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
 import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
@@ -51,13 +52,11 @@ import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
-import io.github.toyota32k.utils.CompatBackKeyDispatcher
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.disposableObserve
-import io.github.toyota32k.utils.dp
+import io.github.toyota32k.utils.android.dp
+import io.github.toyota32k.utils.android.hideActionBar
+import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.Direction
-import io.github.toyota32k.utils.hideActionBar
-import io.github.toyota32k.utils.hideStatusBar
+import io.github.toyota32k.utils.lifecycle.disposableObserve
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

@@ -26,6 +26,7 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -36,7 +37,6 @@ import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map

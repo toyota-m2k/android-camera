@@ -10,7 +10,7 @@ import io.github.toyota32k.secureCamera.utils.ThemeInfo
 import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.secureCamera.utils.ThemeSelector.ContrastLevel
 import io.github.toyota32k.secureCamera.utils.ThemeSelector.NightMode
-import io.github.toyota32k.shared.SharedPreferenceDelegate
+import io.github.toyota32k.utils.android.SharedPreferenceDelegate
 import java.util.UUID
 
 object Settings {

@@ -18,14 +18,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.headlessNonnullBinding
+import io.github.toyota32k.dialog.broker.UtPermissionBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.gesture.CameraGestureManager
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding
-import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -38,7 +39,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
         val showStatusBar = MutableLiveData(false)
     }
 
-    private val permissionsBroker = UtPermissionBroker(this)
+    private val permissionsBroker = UtPermissionBroker()
     private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
@@ -66,6 +67,10 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 //            isClickable = true
 //            isLongClickable = true
 //        }
+
+        // UtPermissionBroker で application が必要なので、事前に設定する。
+        // 通常は onResume で設定されるが、それでは間に合わない。
+        UtImmortalTaskManager.application = application
 
         gestureScope.launch {
             if(permissionsBroker.requestPermission(Manifest.permission.CAMERA)) {

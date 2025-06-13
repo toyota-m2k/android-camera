@@ -3,13 +3,13 @@ package io.github.toyota32k.secureCamera.client.auth
 import android.util.Log
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
 import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull

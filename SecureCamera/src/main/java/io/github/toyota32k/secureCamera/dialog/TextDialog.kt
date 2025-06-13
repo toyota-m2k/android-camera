@@ -7,14 +7,13 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.editTextBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
-import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogTextBinding
-import io.github.toyota32k.utils.ConstantLiveData
+import io.github.toyota32k.utils.lifecycle.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class TextDialog : UtDialogEx() {

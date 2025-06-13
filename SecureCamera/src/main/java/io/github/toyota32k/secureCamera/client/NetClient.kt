@@ -1,7 +1,6 @@
 package io.github.toyota32k.secureCamera.client
 
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.UtLogger
+import io.github.toyota32k.logger.UtLog
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -57,17 +56,17 @@ object NetClient {
                 canceller?.setCall(this)
                 enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        UtLogger.error("NetClient: error: ${e.localizedMessage}")
+                        logger.error("NetClient: error: ${e.localizedMessage}")
                         cont.resumeWithException(e)
                     }
 
                     override fun onResponse(call: Call, response: Response) {
-                        UtLogger.debug("NetClient: completed (${response.code}): ${call.request().url}")
+                        logger.debug("NetClient: completed (${response.code}): ${call.request().url}")
                         cont.resume(response)
                     }
                 })
             } catch(e:Throwable) {
-                UtLogger.error("NetClient: exception: ${e.localizedMessage}")
+                logger.error("NetClient: exception: ${e.localizedMessage}")
                 cont.resumeWithException(e)
             }
         }

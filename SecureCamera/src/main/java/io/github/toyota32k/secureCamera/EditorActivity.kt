@@ -42,6 +42,7 @@ import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.chapterAt
 import io.github.toyota32k.lib.player.model.skipChapter
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
@@ -65,15 +66,14 @@ import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.utils.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
-import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
+import io.github.toyota32k.utils.android.hideActionBar
+import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.gesture.UtSimpleManipulationTarget
-import io.github.toyota32k.utils.hideActionBar
-import io.github.toyota32k.utils.hideStatusBar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

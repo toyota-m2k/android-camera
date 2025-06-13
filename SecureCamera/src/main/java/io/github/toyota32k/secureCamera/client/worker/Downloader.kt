@@ -3,12 +3,12 @@ package io.github.toyota32k.secureCamera.client.worker
 import android.content.Context
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
-import io.github.toyota32k.utils.IAwaiter
-import io.github.toyota32k.utils.ProgressWorker
-import io.github.toyota32k.utils.ProgressWorkerProcessor
-import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.utils.android.IAwaiter
+import io.github.toyota32k.utils.android.ProgressWorker
+import io.github.toyota32k.utils.android.ProgressWorkerProcessor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

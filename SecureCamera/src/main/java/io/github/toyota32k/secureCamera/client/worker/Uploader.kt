@@ -8,14 +8,13 @@ import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.ProgressRequestBody
 import io.github.toyota32k.secureCamera.client.auth.Authentication
-import io.github.toyota32k.secureCamera.client.worker.Uploader.ULWorker
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.utils.IAwaiter
-import io.github.toyota32k.utils.ProgressWorker
-import io.github.toyota32k.utils.ProgressWorkerProcessor
+import io.github.toyota32k.utils.android.IAwaiter
+import io.github.toyota32k.utils.android.ProgressWorker
+import io.github.toyota32k.utils.android.ProgressWorkerProcessor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive

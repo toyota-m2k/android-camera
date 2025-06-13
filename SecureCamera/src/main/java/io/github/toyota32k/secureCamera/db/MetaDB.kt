@@ -11,6 +11,7 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
+import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
@@ -22,7 +23,6 @@ import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
-import io.github.toyota32k.utils.UtLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

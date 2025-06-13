@@ -1,21 +1,12 @@
 package io.github.toyota32k.lib.camera
 
-import androidx.camera.core.Camera
 import androidx.camera.core.TorchState
-import androidx.concurrent.futures.await
 import androidx.lifecycle.asFlow
-import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.IUtPropOwner
-import io.github.toyota32k.utils.UtLog
-import io.github.toyota32k.utils.disposableObserve
-import io.github.toyota32k.utils.disposableObserveForever
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
@@ -93,9 +84,7 @@ class TcTorch(camera: TcCamera? = null) : IUtPropOwner {
     /**
      * フラッシュライトを点灯する
      */
-    fun putOn() {
-        put(true)
-    }
+    fun putOn() = put(true)
 
     /**
      * フラッシュライトを消灯する

@@ -6,7 +6,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.concurrent.futures.await
-import io.github.toyota32k.utils.UtLog
+import io.github.toyota32k.logger.UtLog
 
 /**
  * TcCameraExtensions
