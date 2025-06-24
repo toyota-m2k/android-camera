@@ -12,6 +12,7 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
+import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogDetailMessageBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -43,7 +44,8 @@ class DetailMessageDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
         widthOption = WidthOption.FULL
         heightOption = HeightOption.AUTO_SCROLL
-        rightButtonType = ButtonType.CLOSE
+        leftButtonType = ButtonType(getString(R.string.reject), positive=false)
+        rightButtonType = ButtonType(getString(R.string.accept), positive=true)
         noHeader = true
     }
 
@@ -64,10 +66,10 @@ class DetailMessageDialog : UtDialogEx() {
     }
 
     companion object {
-        suspend fun showMessage(label:String, message:String, detailMessage:String) {
-            UtImmortalTask.awaitTask(DetailMessageDialog::class.java.name) {
+        suspend fun showMessage(label:String, message:String, detailMessage:String):Boolean {
+            return UtImmortalTask.awaitTaskResult(DetailMessageDialog::class.java.name) {
                 DetailMessageViewModel.create(taskName, label, message, detailMessage)
-                showDialog(taskName) { DetailMessageDialog() }
+                showDialog(taskName) { DetailMessageDialog() }.status.ok
             }
         }
     }

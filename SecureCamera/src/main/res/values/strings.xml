@@ -108,4 +108,6 @@
     <string name="theme_hint">Theme</string>
     <string name="color_variation">Color Variation</string>
     <string name="colors">Colors</string>
+    <string name="reject">Reject</string>
+    <string name="accept">Accept</string>
 </resources>

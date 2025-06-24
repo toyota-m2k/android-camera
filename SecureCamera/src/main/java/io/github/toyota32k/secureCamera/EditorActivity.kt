@@ -438,16 +438,14 @@ class EditorActivity : UtMortalActivity() {
                     val dstLen = dstFile.length()
                     if (dstLen>0) {
                         logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
-                        if(quality.compact) {
-//                            val s = Converter.analyze(srcFile.toAndroidFile())
-//                            logger.debug("input:\n$s")
-//                            val d = Converter.analyze(dstFile.toAndroidFile())
-//                            logger.debug("output:\n$d")
-                            if(!UtImmortalTask.awaitTaskResult("low quality") {
-                                showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
-                            }) { throw CancellationException("cancelled") }
+//                        if(quality.compact) {
+//                            if(!UtImmortalTask.awaitTaskResult("low quality") {
+//                                showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
+//                            }) { throw CancellationException("cancelled") }
+//                        }
+                        if(!DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")) {
+                            throw CancellationException("cancelled")
                         }
-
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
                         if(testOnly) {
@@ -465,7 +463,7 @@ class EditorActivity : UtMortalActivity() {
                             }
                             MetaDB.updateFile(targetItem, newChapterList)
                         }
-                        DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")
+//                        DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")
                         setResultAndFinish(true, targetItem)
                     } else {
                         throw IllegalStateException("no data")

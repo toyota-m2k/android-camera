@@ -472,12 +472,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         viewModel.takePicture(logger)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    override fun handleKeyEvent(keyCode: Int, event: KeyEvent?): Boolean {
         if(keyCode==KeyEvent.KEYCODE_VOLUME_UP && event?.action==KeyEvent.ACTION_DOWN) {
             execSelfieAction()
             return true
         }
-        return super.onKeyDown(keyCode, event)
+        return false
     }
 
 

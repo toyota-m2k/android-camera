@@ -9,8 +9,8 @@ ksp = "2.1.21-2.0.1"
 
 # libraries
 androidBinding = "1.9.2"
-androidDialog = "5.8.1"
-androidMediaProcessor = "2.21.2"
+androidDialog = "5.9.1"
+androidMediaProcessor = "2.22.0"
 androidServer = "1.2.1"
 androidMediaPlayer = "2.10.1"
 androidUtilitiesVersion = "4.2.4"
@@ -29,9 +29,9 @@ activity = "1.10.1"
 constraintlayout = "2.2.1"
 okhttp = "4.12.0"
 preferenceKtx = "1.2.1"
-roomRuntime = "2.7.1"
-roomCompiler = "2.7.1"
-work = "2.10.1"
+roomRuntime = "2.7.2"
+roomCompiler = "2.7.2"
+work = "2.10.2"
 coroutinesCore = "1.10.2"
 
 [libraries]
