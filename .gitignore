@@ -25,3 +25,4 @@ libPlayer/build
 .idea/runConfigurations.xml
 .idea/kotlinc.xml
 .idea/inspectionProfiles/Project_Default.xml
+.idea/deviceManager.xml
