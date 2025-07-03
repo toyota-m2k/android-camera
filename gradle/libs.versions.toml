@@ -1,7 +1,7 @@
 [versions]
 # plugins
 kotlin = "2.1.21"
-agp = "8.11.0"
+agp = "8.10.1"
 # room compiler で使用。
 # ksp のバージョンは、kotlin_version と同じ世代のものを指定する必要がある。
 # https://github.com/google/ksp/releases で確認する。
@@ -12,7 +12,7 @@ androidBinding = "1.9.2"
 androidDialog = "5.9.1"
 androidMediaProcessor = "2.22.0"
 androidServer = "1.2.1"
-androidMediaPlayer = "2.10.1"
+androidMediaPlayer = "3.0.3"
 androidUtilitiesVersion = "4.2.4"
 androidViewex = "1.1.14"
 cameraCore = "1.4.2"

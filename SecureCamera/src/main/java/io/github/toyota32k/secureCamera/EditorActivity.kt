@@ -137,7 +137,7 @@ class EditorActivity : UtMortalActivity() {
 //        val commandSave = LiteUnitCommand()
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
             resetInputFile()
-            playerModel.setSource(VideoSource(item), false)
+            playerModel.setSource(VideoSource(item))
             chapterList.initChapters(chapters)
             if(chapterList.chapterAt(0)?.position!=0L) {
                 // 動画先頭位置が暗黙のチャプターとして登録されていることを前提に動作する。
