@@ -9,7 +9,7 @@ ksp = "2.1.21-2.0.1"
 
 # libraries
 androidBinding = "1.9.2"
-androidDialog = "5.9.1"
+androidDialog = "5.9.2"
 androidMediaProcessor = "2.22.0"
 androidServer = "1.2.1"
 androidMediaPlayer = "3.0.3"
