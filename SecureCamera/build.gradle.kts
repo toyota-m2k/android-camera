@@ -75,7 +75,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.kotrinx.coroutines.core)
-
+    implementation("com.google.code.gson:gson:2.11.0")
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
