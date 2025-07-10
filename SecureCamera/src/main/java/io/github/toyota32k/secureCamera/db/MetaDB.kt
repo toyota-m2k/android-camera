@@ -466,8 +466,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
                 // まず挿入
                 db.metaDataTable().insert(storedEntry.toMetaData())
                 // チャプターを設定
-                val data = db.metaDataTable().getDataOf(storedEntry.name)
-                    ?: throw IllegalStateException("no data")
+                val data = db.metaDataTable().getDataOf(storedEntry.name) ?: throw IllegalStateException("cannot retrieve inserted data")
                 db.chapterDataTable().setForOwner(
                     data.id,
                     storedEntry.toChaptersList()
@@ -745,6 +744,10 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     // endregion
 }
 
+interface IDBSource : Closeable {
+    operator fun get(slotIndex: SlotIndex): ScDB
+}
+
 object MetaDB {
     val cache = mutableMapOf<SlotIndex, ScDB>()
     operator fun get(slotIndex: SlotIndex): ScDB {
@@ -761,6 +764,25 @@ object MetaDB {
             }
         }
     }
+
+    private class DBCache : IDBSource, Closeable {
+        val cache = mutableMapOf<SlotIndex, ScDB>()
+        override operator fun get(slotIndex: SlotIndex): ScDB {
+            return synchronized(cache) {
+                cache.getOrPut(slotIndex) { MetaDB.get(slotIndex) }
+            }
+        }
+        override fun close() {
+            synchronized(cache) {
+                cache.values.forEach { it.close() }
+                cache.clear()
+            }
+        }
+    }
+    fun dbCache(): IDBSource {
+        return DBCache()
+    }
+
 
     inline fun <T> withDB(slotIndex: SlotIndex = SlotSettings.currentSlotIndex, fn: (ScDB) -> T): T {
         val db = get(slotIndex)

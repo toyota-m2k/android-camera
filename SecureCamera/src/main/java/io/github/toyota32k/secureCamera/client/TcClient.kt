@@ -215,6 +215,7 @@ object TcClient {
         val id:Long,
         val originalId:String,
         val ownerId:String,
+        val slot:Int,
         val name:String,
         val size:Long,
         val registeredDate:Long,
@@ -267,6 +268,7 @@ object TcClient {
                         id = o.optLong("id", 0),
                         originalId = o.optString("originalId", ""),
                         ownerId = o.optString("ownerId",""),
+                        slot = o.optInt("slot", 0),
                         name = o.optString("name", ""),
                         size = o.optLong("size", 0),
                         registeredDate = o.optLong("registeredDate", 0L),
@@ -288,7 +290,7 @@ object TcClient {
         if(!Authentication.authenticateAndMessage()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&n=$targetClientId")
+                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&n=${Settings.SecureArchive.clientId}&o=$targetClientId")
                 .get()
                 .build()
             try {
@@ -324,6 +326,7 @@ object TcClient {
             val json = JSONObject()
                 .put("handle", handle)
                 .put("oldOwnerId", entry.ownerId)
+                .put("slot", entry.slot)
                 .put("oldOriginalId", entry.originalId)
                 .put("newOwnerId", Settings.SecureArchive.clientId)
                 .put("newOriginalId", "$newId")

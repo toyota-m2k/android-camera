@@ -38,6 +38,7 @@ import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -193,37 +194,40 @@ class ServerActivity : UtMortalActivity() {
                     pvm.cancelCommand.bindForever { cancelled = true }
                     var count = 0
                     withContext(Dispatchers.IO) {
-                        for (entry in migration.list) {
-                            if (cancelled) {
-                                break
-                            }
-                            count++
-                            pvm.progress.value = (count * 100 / migration.list.size).toInt()
-                            pvm.progressText.value = "$count / ${migration.list.size}"
-                            // 端末側DBに移行データのエントリーを作る
-                            val data = metaDb.migrateOne(migration.handle, entry)
-                            if (data != null) {
-                                // DB的に移行が出来たことをサーバーに知らせる
-                                var result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
-                                if (!result) {
-                                    // この状態になったら
-                                    // - この端末内に、エントリーが追加されている
-                                    // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
-                                    // つまり、表示できないエントリーができてしまう。
-                                    // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
-                                    // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
-                                    // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
-                                    logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
+                        MetaDB.dbCache().use { dbCache ->
+                            for (entry in migration.list) {
+                                if (cancelled) {
+                                    break
                                 }
-                            } else {
-                                logger.error("failed to update item in MetaDB: ${entry.name} / ${entry.originalId}")
+                                count++
+                                pvm.progress.value = (count * 100 / migration.list.size).toInt()
+                                pvm.progressText.value = "$count / ${migration.list.size}"
+                                // 端末側DBに移行データのエントリーを作る
+                                val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
+                                if (data != null) {
+                                    // DB的に移行が出来たことをサーバーに知らせる
+                                    var result =
+                                        TcClient.reportMigratedOne(migration.handle, entry, data.id)
+                                    if (!result) {
+                                        // この状態になったら
+                                        // - この端末内に、エントリーが追加されている
+                                        // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
+                                        // つまり、表示できないエントリーができてしまう。
+                                        // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
+                                        // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
+                                        // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
+                                        logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
+                                    }
+                                } else {
+                                    logger.error("failed to update item in MetaDB: ${entry.name} / ${entry.originalId}")
+                                }
                             }
                         }
+
+                        TcClient.endMigration(migration.handle)
+
+                        logger.debug("selected device: ${device.name} / ${device.clientId}")
                     }
-
-                    TcClient.endMigration(migration.handle)
-
-                    logger.debug("selected device: ${device.name} / ${device.clientId}")
                 } finally {
                     isBusy.value = false
                 }
