@@ -14,6 +14,7 @@ import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSlotBinding
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotInfo
@@ -96,6 +97,7 @@ class SlotDialog : UtDialogEx() {
         draggable = true
         heightOption = HeightOption.AUTO_SCROLL
         widthOption = WidthOption.LIMIT(400)
+        title = requireActivity().getString(R.string.slot_dialog_title)
         enableFocusManagement()
             .autoRegister()
     }

@@ -67,8 +67,8 @@ data class MetaData(
         get() = type == 1
     val isPhoto:Boolean
         get() = type == 0
-    val file:File
-        get() = File(SCApplication.instance.filesDir, name)
+//    val file:File
+//        get() = File(SCApplication.instance.filesDir, name)
 }
 
 @Dao

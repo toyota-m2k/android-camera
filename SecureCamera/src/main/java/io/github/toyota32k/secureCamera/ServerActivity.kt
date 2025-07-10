@@ -33,10 +33,12 @@ import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -52,7 +54,7 @@ class ServerActivity : UtMortalActivity() {
         val logger = UtLog("SERVER")
     }
     class ServerViewModel(application: Application) : AndroidViewModel(application) {
-        private var dbOpened:Boolean = MetaDB.open()
+        private val metaDb:ScDB = MetaDB[SlotSettings.currentSlotIndex]
         val port = Settings.SecureArchive.myPort
         val server = TcServer(port)
         val ipAddress = MutableStateFlow("unknown")
@@ -125,7 +127,7 @@ class ServerActivity : UtMortalActivity() {
             isBusy.value = true
             viewModelScope.launch {
                 try {
-                    MetaDB.purgeAllLocalFiles()
+                    metaDb.purgeAllLocalFiles()
                 } catch(_:Throwable) {
                 } finally {
                     isBusy.value = false
@@ -137,14 +139,14 @@ class ServerActivity : UtMortalActivity() {
             isBusy.value = true
             viewModelScope.launch {
                 try {
-                    val itemsOnServer = TcClient.getListForRepair() ?: return@launch
-                    val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
+                    val itemsOnServer = TcClient.getListForRepair(SlotSettings.currentSlotIndex) ?: return@launch
+                    val itemsOnLocal = metaDb.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
                     var count = 0
                     for(item in itemsOnServer) {
                         if(!itemsOnLocal.contains(item.originalId)) {
                             // サーバーにのみ存在するレコード
                             logger.debug("found target item: ${item.name} / ${item.id}")
-                            MetaDB.repairWithBackup(SCApplication.instance, item)
+                            metaDb.repairWithBackup(SCApplication.instance, item)
                             count++
                         }
                     }
@@ -199,7 +201,7 @@ class ServerActivity : UtMortalActivity() {
                             pvm.progress.value = (count * 100 / migration.list.size).toInt()
                             pvm.progressText.value = "$count / ${migration.list.size}"
                             // 端末側DBに移行データのエントリーを作る
-                            val data = MetaDB.migrateOne(migration.handle, entry)
+                            val data = metaDb.migrateOne(migration.handle, entry)
                             if (data != null) {
                                 // DB的に移行が出来たことをサーバーに知らせる
                                 var result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
@@ -231,9 +233,7 @@ class ServerActivity : UtMortalActivity() {
         override fun onCleared() {
             super.onCleared()
             server.close()
-            if (dbOpened) {
-                MetaDB.close()
-            }
+            metaDb.close()
             logger.debug("stop server")
         }
     }

@@ -7,7 +7,10 @@ import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.HashUtils.encodeHex
 import io.github.toyota32k.server.HttpErrorResponse
 import io.github.toyota32k.server.HttpMethod
@@ -50,30 +53,53 @@ class TcServer(val port:Int) : AutoCloseable {
             return downloadProcCore(request, "image/jpeg")
         }
 
+        private inline fun <T> withDB( fn:(db:ScDB)->T):T {
+            return MetaDB[SlotSettings.currentSlotIndex].use { db->
+                return fn(db)
+            }
+        }
+        private inline fun <T> withDB(slot:Int, fn:(db:ScDB)->T):T {
+            if (slot==-1) {
+                return withDB(fn)
+            }
+            return MetaDB[SlotIndex.fromIndex(slot)].use { db->
+                return fn(db)
+            }
+        }
+
+        val slotRegex = Regex("/slot(?<slot>\\d+)/")
+        private fun getSlot(request: HttpRequest): Int {
+            val m = slotRegex.find(request.url)
+            return m?.groups["slot"]?.value?.toIntOrNull() ?: -1
+        }
+
         private fun downloadProcCore(request: HttpRequest, type: String):IHttpResponse {
             val p = QueryParams.parse(request.url)
             if(p["auth"]!= authToken) {
                 return HttpErrorResponse.unauthorized();
             }
             val id = p["id"]?.toIntOrNull() ?: return HttpErrorResponse.badRequest("id is not specified")
-            val item = runBlocking {
-                MetaDB.itemAt(id)?.run {
-                    if(CloudStatus.valueOf(cloud).isFileInLocal) this else null
+            return withDB(getSlot(request)) { db ->
+                val item = runBlocking {
+                    db.itemAt(id)?.run {
+                        if (CloudStatus.valueOf(cloud).isFileInLocal) this else null
+                    }
+                } ?: return HttpErrorResponse.notFound()
+                val range = request.headers["Range"]
+                if (range == null) {
+                    StreamingHttpResponse(StatusCode.Ok, type, db.fileOf(item), 0L, 0L)
+                } else {
+                    val c =
+                        regRange.find(range) ?: return HttpErrorResponse.badRequest("invalid range")
+                    val start = c.groups["start"]?.value?.toLongOrNull() ?: 0L
+                    val end = c.groups["end"]?.value?.toLongOrNull() ?: 0L
+                    StreamingHttpResponse(StatusCode.Ok, type, db.fileOf(item), start, end)
                 }
-            } ?: return HttpErrorResponse.notFound()
-            val range = request.headers["Range"]
-            return if(range==null) {
-                StreamingHttpResponse(StatusCode.Ok, type, item.file, 0L,0L)
-            } else {
-                val c = regRange.find(range) ?: return HttpErrorResponse.badRequest("invalid range")
-                val start = c.groups["start"]?.value?.toLongOrNull() ?: 0L
-                val end = c.groups["end"]?.value?.toLongOrNull() ?: 0L
-                StreamingHttpResponse(StatusCode.Ok, type, item.file, start, end)
             }
         }
 
         val routes = arrayOf<Route>(
-            Route("Capability", HttpMethod.GET, "/capability") { _, _ ->
+            Route("Capability", HttpMethod.GET, "(/slot\\d+)?/capability") { _, _ ->
                 TextHttpResponse(
                     StatusCode.Ok,
                     JSONObject()
@@ -93,7 +119,7 @@ class TcServer(val port:Int) : AutoCloseable {
                         // .put("challenge", ) todo
                 )
             },
-            Route("List", HttpMethod.GET, Regex("/list(\\?.+)*")) { _, request ->
+            Route("List", HttpMethod.GET, Regex("(/slot\\d+)?/list(\\?.+)*")) { _, request ->
                 val p = QueryParams.parse(request.url)
                 if(p["auth"]!= authToken) {
                     return@Route HttpErrorResponse.unauthorized();
@@ -104,24 +130,27 @@ class TcServer(val port:Int) : AutoCloseable {
                     else->PlayerActivity.ListMode.VIDEO
                 }
                 val backup = (p["backup"]?:"").toBoolean()
-                val predicate:(item: MetaData)->Boolean = if(backup) { _-> true } else { item->item.cloud != CloudStatus.Cloud.v }
-
+                val predicate:(item: ItemEx)->Boolean = if(backup) { _-> true } else { item->item.data.cloud != CloudStatus.Cloud.v }
+                val visitor = if(backup) MetaDB.allVisitor() else MetaDB.singleVisitor(SlotIndex.fromIndex(getSlot(request)))
                 val list = runBlocking {
-                    MetaDB.list(type).filter(predicate).fold(JSONArray()) { array, item ->
-                        val size = if(CloudStatus.valueOf(item.cloud).isFileInLocal) {
-                            item.file.length()
-                        } else item.size
-                        array.put(JSONObject().apply {
-                            put("id", "${item.id}")
-                            put("name", item.name)
-                            put("size", size)
-                            put("date", "${item.date}")
-                            put("creationDate", "${ItemEx.creationDate(item)}")
-                            put("duration", item.duration)
-                            put("type", if(item.type==0) "jpg" else "mp4")
-                            put("cloud", item.cloud)
-                            put("attrDate", "${item.attr_date}")
-                        })
+                    JSONArray().also { array ->
+                        visitor.visit(type, predicate) { db, item ->
+                            val size = if (CloudStatus.valueOf(item.data.cloud).isFileInLocal) {
+                                db.fileOf(item).length()
+                            } else item.size
+                            array.put(JSONObject().apply {
+                                put("id", "${item.id}")
+                                put("name", item.name)
+                                put("size", size)
+                                put("date", "${item.date}")
+                                put("creationDate", "${ItemEx.creationDate(item.data)}")
+                                put("duration", item.duration)
+                                put("type", if (item.type == 0) "jpg" else "mp4")
+                                put("cloud", item.data.cloud)
+                                put("attrDate", "${item.data.attr_date}")
+                                put("slot", "${item.slot}")
+                            })
+                        }
                     }
                 }
                 TextHttpResponse(
@@ -132,13 +161,13 @@ class TcServer(val port:Int) : AutoCloseable {
                         .put("date", "${Date().time}")
                 )
             },
-            Route("Video", HttpMethod.GET,"/video\\?.+", ::videoDownloadProc),
-            Route("Photo", HttpMethod.GET,"/photo\\?.+", ::photoDownloadProc),
-            Route("Chapter", HttpMethod.GET, "/chapter\\?.+") { _, request->
+            Route("Video", HttpMethod.GET,"(/slot\\d+)?/video\\?.+", ::videoDownloadProc),
+            Route("Photo", HttpMethod.GET,"(/slot\\d+)?/photo\\?.+", ::photoDownloadProc),
+            Route("Chapter", HttpMethod.GET, "(/slot\\d+)?/chapter\\?.+") { _, request->
                 val p = QueryParams.parse(request.url)
                 val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is required.")
                 val item = runBlocking {
-                    MetaDB.itemExAt(id)
+                    withDB(getSlot(request)) { db -> db.itemExAt(id) }
                 } ?: return@Route HttpErrorResponse.notFound()
                 TextHttpResponse(
                     StatusCode.Ok,
@@ -156,11 +185,11 @@ class TcServer(val port:Int) : AutoCloseable {
                         }?:JSONArray())
                 )
             },
-            Route("Extra Attributes", HttpMethod.GET, "/extension\\?.+") { _, request ->
+            Route("Extra Attributes", HttpMethod.GET, "(/slot\\d+)?/extension\\?.+") { _, request ->
                 val p = QueryParams.parse(request.url)
                 val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is required.")
                 val item = runBlocking {
-                    MetaDB.itemExAt(id)
+                    withDB(getSlot(request)) { db->db.itemExAt(id) }
                 } ?: return@Route HttpErrorResponse.notFound()
                 TextHttpResponse(
                     StatusCode.Ok,
@@ -179,19 +208,26 @@ class TcServer(val port:Int) : AutoCloseable {
                     return@Route HttpErrorResponse.badRequest()
                 }
                 val id = json.optInt("id", -1)
+                val slot = json.optInt("slot", -1)
                 val ids = json.optJSONArray("ids")
+                val slots = json.optJSONArray("slots")
                 val status = json.optBoolean("status")
                 logger.debug("Backup id=$id done: $status")
                 if(status) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        if(id>=0) {
-                            MetaDB.updateCloud(id, CloudStatus.Uploaded)
+                        if (id >= 0 && slot >= 0) {
+                            withDB(slot) { db ->
+                                db.updateCloud(id, CloudStatus.Uploaded)
+                            }
                         }
-                        if(ids!=null) {
-                            for(i in 0 until ids.length()) {
-                                val d = ids.optInt(i, -1)
-                                if(d>=0) {
-                                    MetaDB.updateCloud(d, CloudStatus.Uploaded)
+                        if (ids != null) {
+                            MetaDB.lockDB().use {
+                                for (i in 0 until ids.length()) {
+                                    val d = ids.optInt(i, -1)
+                                    val s = slots?.optInt(i, -1) ?: -1
+                                    if (d >= 0 && s >= 0) {
+                                        withDB(s) { db -> db.updateCloud(d, CloudStatus.Uploaded) }
+                                    }
                                 }
                             }
                         }

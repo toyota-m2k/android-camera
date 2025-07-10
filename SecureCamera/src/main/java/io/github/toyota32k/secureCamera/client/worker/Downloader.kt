@@ -21,16 +21,17 @@ object Downloader : ProgressWorkerProcessor() {
     const val KEY_FILE_PATH = "path"
     val logger = UtLog("Worker")
 
-    open class DLWorker(context: Context, params: WorkerParameters) : ProgressWorker(context, params) {
-        open suspend fun onDownloaded(itemId:Int) {
-
+    class DLWorker(context: Context, params: WorkerParameters) : ProgressWorker(context, params) {
+        private fun error(message:String):Result {
+            logger.error(message)
+            return Result.failure(workDataOf("error" to message))
         }
 
         override suspend fun doWork(): Result {
             val canceller = Canceller()
             try {
-                val url = inputData.getString(KEY_URL) ?: return Result.failure()
-                val file = File(inputData.getString(KEY_FILE_PATH) ?: return Result.failure())
+                val url = inputData.getString(KEY_URL) ?: return error("no url")
+                val file = File(inputData.getString(KEY_FILE_PATH) ?: return error("no file path"))
                 val request = Request.Builder()
                     .url(url)
                     .build()
@@ -47,9 +48,6 @@ object Downloader : ProgressWorkerProcessor() {
 
                                         while (bytes >= 0) {
                                             currentCoroutineContext().ensureActive()
-//                                            if(!currentCoroutineContext().isActive) {
-//                                                throw CancellationException()
-//                                            }
                                             outStream.write(buffer, 0, bytes)
                                             bytesCopied += bytes
 
@@ -62,27 +60,27 @@ object Downloader : ProgressWorkerProcessor() {
                                 }
                             }
                             logger.info("completed")
-                            onDownloaded(inputData.getInt(KEY_ITEM_ID, -1))
                             Result.success()
                         } else {
                             logger.error(response.message)
-                            Result.failure()
+                            error(response.message)
                         }
                     }
             } catch (_: CancellationException) {
                 logger.info("cancelled")
                 canceller.cancel()
-                return Result.failure()
+                return error("cancelled")
             } catch (e: Throwable) {
                 logger.error(e)
                 canceller.cancel()
-                return Result.failure()
+                return error(e.message ?: "unknown error")
             }
         }
     }
 
-    inline fun <reified T:DLWorker> download(context:Context, itemId:Int, url:String, path:String, noinline progress:((current:Long, total:Long)->Unit)?):IAwaiter<Boolean> {
-        return process<T>(context,
+    fun download(context:Context, itemId:Int, url:String, path:String, progress:((current:Long, total:Long)->Unit)?):IAwaiter<Boolean> {
+        logger.info("download: $itemId, $url, $path")
+        return process<DLWorker>(context,
             workDataOf(
                 KEY_URL to url,
                 KEY_FILE_PATH to path,

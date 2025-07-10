@@ -22,6 +22,9 @@ enum class SlotIndex(val index: Int, val label: String="Slot-$index") {
     SLOT3(3),
     SLOT4(4),
     ;
+
+    val slotId:String get() = "slot$index"
+
     companion object {
         fun fromIndex(index: Int): SlotIndex {
             return entries.firstOrNull { it.index == index } ?: DEFAULT
@@ -69,6 +72,9 @@ object SlotSettings {
     var slot2:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT2, "Slot-2", false, false, false), SlotInfo::class.java)
     var slot3:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT3, "Slot-3", false, false, false), SlotInfo::class.java)
     var slot4:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT4, "Slot-4", false, false, false), SlotInfo::class.java)
+
+    val activeSlots : List<SlotInfo>
+        get() = listOf(defaultSlot, slot1, slot2, slot3, slot4).filter { it.inUse }
 
     operator fun get(index: SlotIndex): SlotInfo {
         return when(index) {

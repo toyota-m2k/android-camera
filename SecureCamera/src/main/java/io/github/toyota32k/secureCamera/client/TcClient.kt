@@ -17,8 +17,10 @@ import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,14 +63,14 @@ object TcClient {
         }
     }
 
-    suspend fun getPhoto(item:ItemEx): Bitmap? {
+    suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
         if(!Authentication.authenticateAndMessage()) return null
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(item.uri)
+                .url(db.urlOf(item))
                 .build()
             try {
                 executeAsync(request, null).use { response ->
@@ -90,11 +92,11 @@ object TcClient {
         }
     }
 
-    suspend inline fun <reified T: Downloader.DLWorker> downloadFromSecureArchive(item: ItemEx):Boolean {
+    suspend fun downloadFromSecureArchive(db:ScDB, item: ItemEx):Boolean {
         return UtImmortalTask.awaitTaskResult("downloading item") {
             if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
             val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
-            val awaiter = Downloader.download<T>(SCApplication.instance, item.id, item.serverUri, item.file.absolutePath) { current, total->
+            val awaiter = Downloader.download(SCApplication.instance, item.id, item.serverUri, db.fileOf(item).absolutePath) { current, total->
                 val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
                 viewModel.progress.value = percent
                 viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
@@ -111,12 +113,12 @@ object TcClient {
         }
     }
 
-    suspend fun uploadToSecureArchive(item:ItemEx):Boolean {
+    suspend fun uploadToSecureArchive(db:ScDB, item:ItemEx):Boolean {
 
         return UtImmortalTask.awaitTaskResult("upload item") {
             if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
             val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
-            val awaiter = Uploader.upload(SCApplication.instance, item) { current, total->
+            val awaiter = Uploader.upload(SCApplication.instance, db, item) { current, total->
                 val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
                 viewModel.progress.value = percent
                 viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
@@ -134,15 +136,16 @@ object TcClient {
         }
     }
 
-    data class RepairingItem(val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
+    data class RepairingItem(val slot: Int, val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
 
-    suspend fun getListForRepair():List<RepairingItem>? {
+    suspend fun getListForRepair(slot:SlotIndex):List<RepairingItem>? {
         if(!Authentication.authenticateAndMessage()) return null
         fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
             return sequence<RepairingItem> {
                 for(i in 0..<list.length()) {
                     val o = list.getJSONObject(i)
                     yield(RepairingItem(
+                        slot = o.optInt("slot", 0),
                         id = o.optInt("id", 0),
                         originalId = o.optInt("originalId", 0),
                         name = o.optString("name", ""),
@@ -166,7 +169,7 @@ object TcClient {
         }
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
+                .url("http://${Authentication.activeHostAddress}/${slot.slotId}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
                 .get()
                 .build()
             try {

@@ -119,4 +119,10 @@
     <string name="slot_3_name">Slot-3</string>
     <string name="slot_4_name">Slot-4</string>
     <string name="slot_secure">Secure</string>
+    <string name="default_slot_name_hint">Name for Default slot</string>
+    <string name="slot_1_name_hint">Name for Slot-1</string>
+    <string name="slot_2_name_hint">Name for Slot-2</string>
+    <string name="slot_3_name_hint">Name for Slot-3</string>
+    <string name="slot_4_name_hint">Name for Slot-4</string>
+    <string name="slot_dialog_title">Slot Settings</string>
 </resources>

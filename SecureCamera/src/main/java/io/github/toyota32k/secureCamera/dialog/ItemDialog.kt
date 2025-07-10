@@ -8,6 +8,7 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -20,6 +21,7 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -27,6 +29,7 @@ import kotlinx.coroutines.launch
 class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtDialogViewModel() {
         lateinit var item:MutableStateFlow<ItemEx>
+        val metaDb = MetaDB[SlotSettings.currentSlotIndex]
 
         enum class NextAction {
             None,
@@ -45,7 +48,7 @@ class ItemDialog : UtDialogEx() {
         }
         val backupCommand = LiteUnitCommand {
             viewModelScope.launch {
-                item.value = MetaDB.backupToCloud(item.value)
+                item.value = metaDb.backupToCloud(item.value)
             }
         }
 
@@ -65,9 +68,14 @@ class ItemDialog : UtDialogEx() {
 
         suspend fun saveIfNeed():Boolean {
             return if(item.value.rating!=rating.value || item.value.mark != mark.value) {
-                item.value = MetaDB.updateMarkRating(item.value, mark.value, rating.value)
+                item.value = metaDb.updateMarkRating(item.value, mark.value, rating.value)
                 true
             } else false
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            metaDb.close()
         }
     }
 
@@ -94,6 +102,7 @@ class ItemDialog : UtDialogEx() {
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .enableBinding(controls.editVideoButton, viewModel.item.map { !it.isPhoto})
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
             .bindCommand(viewModel.actionCommand, controls.editVideoButton, ItemViewModel.NextAction.EditItem)

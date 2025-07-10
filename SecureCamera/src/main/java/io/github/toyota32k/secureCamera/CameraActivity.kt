@@ -38,7 +38,6 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcCameraManipulator
-import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
@@ -50,7 +49,9 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.android.dp
 import io.github.toyota32k.utils.android.hideActionBar
@@ -70,10 +71,7 @@ import kotlin.math.roundToInt
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
     class CameraViewModel : ViewModel() {
-        private var dbOpened:Boolean = false
-        init {
-            dbOpened = MetaDB.open()
-        }
+        val metaDb : ScDB = MetaDB[SlotSettings.currentSlotIndex]
 
         val frontCameraSelected = MutableStateFlow(true)
         val showControlPanel = MutableStateFlow(true)
@@ -106,9 +104,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         override fun onCleared() {
             super.onCleared()
             videoCapture.dispose()
-            if (dbOpened) {
-                MetaDB.close()
-            }
+            metaDb.close()
         }
 
         val pictureTakingStatus = MutableStateFlow(false)
@@ -124,7 +120,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
-                    MetaDB.register(file.name)
+                    metaDb.register(file.name)
                 } catch(e:Throwable) {
                     logger.error(e)
                 } finally {
@@ -135,10 +131,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
 
         private fun newVideoFile(): File {
-            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION))
+            return File(metaDb.filesDir, ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION))
         }
         private fun newImageFile(): File {
-            return File(TcLib.applicationContext.filesDir, ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION))
+            return File(metaDb.filesDir, ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION))
         }
 
         @SuppressLint("MissingPermission")
@@ -150,9 +146,9 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         CoroutineScope(Dispatchers.IO).launch {
                             delay(1000)
                             val len = file.length()
-                            MetaDB.register(file.name)
+                            metaDb.register(file.name)
                             if(len != file.length()) {
-                                MetaDB.register(file.name)
+                                metaDb.register(file.name)
                             }
                         }
                     }
