@@ -96,6 +96,7 @@ object Uploader : ProgressWorkerProcessor() {
                 val multipartBody = MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("OwnerId", ownerId)
+                    .addFormDataPart("Slot", slot.toString())
                     .addFormDataPart("FileDate", fileDate)
                     .addFormDataPart("CreationDate", creationDate)
                     .addFormDataPart("OriginalId", originalId)

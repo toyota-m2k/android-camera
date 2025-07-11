@@ -78,7 +78,7 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
             .bindCommand(LiteUnitCommand(::colorVariation), controls.colorsButton)
             .bindCommand(LiteUnitCommand(::setupSlots), controls.slotButton)
-            .multiEnableBinding(arrayOf(controls.cameraButton, controls.playerButton, controls.serverButton, controls.settingsButton), viewModel.busy, boolConvert = BoolConvert.Inverse)
+            .multiEnableBinding(arrayOf(controls.cameraButton, controls.playerButton, controls.serverButton, controls.settingsButton, controls.colorsButton), viewModel.busy, boolConvert = BoolConvert.Inverse)
             .textBinding(controls.slotName, SlotSettings.currentSlotFlow.map { it.safeSlotName })
     }
 
