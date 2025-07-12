@@ -219,7 +219,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        val blockingAt = MutableStateFlow(0L)              // 画面ロックした時刻
+        val blockingAt = MutableStateFlow(System.currentTimeMillis())              // 画面ロックした時刻
         val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
         val allowDelete = MutableStateFlow(Settings.PlayListSetting.allowDelete)
 
@@ -978,9 +978,9 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playerControllerModel.playerModel.play()
             }
         }
-        if(viewModel.blockingAt.value-System.currentTimeMillis()>3000) {
+        if(System.currentTimeMillis() - viewModel.blockingAt.value>3000) {
             lifecycleScope.launch {
-                if(PasswordDialog.checkPassword()) {
+                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                     afterUnblocked()
                 } else {
                     logger.error("Incorrect Password")

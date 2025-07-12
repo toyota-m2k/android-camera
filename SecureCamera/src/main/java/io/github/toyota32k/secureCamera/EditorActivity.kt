@@ -511,7 +511,7 @@ class EditorActivity : UtMortalActivity() {
         super.onResume()
         if(viewModel.blocking.value) {
             lifecycleScope.launch {
-                if(PasswordDialog.checkPassword()) {
+                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                     viewModel.blocking.value = false
                     if(viewModel.playingBeforeBlocked.value) {
                         viewModel.playingBeforeBlocked.value = false

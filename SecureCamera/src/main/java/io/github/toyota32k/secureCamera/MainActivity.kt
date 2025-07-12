@@ -100,7 +100,7 @@ class MainActivity : UtMortalActivity() {
     private fun startPlayer() {
         viewModel.busy.value = true
         lifecycleScope.launch {
-            if(PasswordDialog.checkPassword()) {
+            if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
             } else {
                 logger.error("Incorrect Password")

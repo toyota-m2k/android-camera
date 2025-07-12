@@ -74,7 +74,7 @@ object SlotSettings {
     var slot4:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT4, "Slot-4", false, false, false), SlotInfo::class.java)
 
     val activeSlots : List<SlotInfo>
-        get() = listOf(defaultSlot, slot1, slot2, slot3, slot4).filter { it.inUse }
+        get() = listOf(defaultSlot, slot1, slot2, slot3, slot4).filter { it.inUse && it.sync }
 
     operator fun get(index: SlotIndex): SlotInfo {
         return when(index) {
@@ -84,6 +84,9 @@ object SlotSettings {
             SlotIndex.SLOT3 -> slot3
             SlotIndex.SLOT4 -> slot4
         }
+    }
+    operator fun get(index: Int): SlotInfo {
+        return get(SlotIndex.fromIndex(index))
     }
     operator fun set(index: SlotIndex, value: SlotInfo) {
         fun setIfChanged(slot: SlotInfo, newValue: SlotInfo): SlotInfo {

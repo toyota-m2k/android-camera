@@ -26,6 +26,8 @@ import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -240,8 +242,8 @@ class PasswordDialog : UtDialogEx() {
     companion object {
         val logger = UtLog("PWD", null, PasswordDialog::class.java)
 
-        suspend fun checkPassword():Boolean {
-            if(!Settings.Security.enablePassword) return true
+        suspend fun checkPassword(slot:SlotIndex=SlotIndex.DEFAULT):Boolean {
+            if(!Settings.Security.enablePassword || !SlotSettings[slot].secure) return true
             return UtImmortalTask.awaitTaskResult("checkPassword") {
                 val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
                 if(showDialog(taskName) { PasswordDialog() }.status.ok) {
