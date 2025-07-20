@@ -14,6 +14,7 @@ import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.multiEnableBinding
+import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -24,10 +25,13 @@ import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.ColorVariationDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
+import io.github.toyota32k.secureCamera.dialog.SlotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.PackageUtil
 import io.github.toyota32k.utils.android.hideActionBar
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MainActivity : UtMortalActivity() {
@@ -73,7 +77,20 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand(::clearAllData), controls.clearAllButton)
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
             .bindCommand(LiteUnitCommand(::colorVariation), controls.colorsButton)
-            .multiEnableBinding(arrayOf(controls.cameraButton, controls.playerButton, controls.serverButton, controls.settingsButton), viewModel.busy, boolConvert = BoolConvert.Inverse)
+            .bindCommand(LiteUnitCommand(::setupSlots), controls.slotButton)
+            .multiEnableBinding(arrayOf(controls.cameraButton, controls.playerButton, controls.serverButton, controls.settingsButton, controls.colorsButton), viewModel.busy, boolConvert = BoolConvert.Inverse)
+            .textBinding(controls.slotName, SlotSettings.currentSlotFlow.map { it.safeSlotName })
+    }
+
+    private fun setupSlots() {
+        viewModel.busy.value = true
+        lifecycleScope.launch {
+            try {
+                SlotDialog.show()
+            } finally {
+                viewModel.busy.value = false
+            }
+        }
     }
 
     private fun startCamera() {
@@ -83,7 +100,7 @@ class MainActivity : UtMortalActivity() {
     private fun startPlayer() {
         viewModel.busy.value = true
         lifecycleScope.launch {
-            if(PasswordDialog.checkPassword()) {
+            if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
             } else {
                 logger.error("Incorrect Password")

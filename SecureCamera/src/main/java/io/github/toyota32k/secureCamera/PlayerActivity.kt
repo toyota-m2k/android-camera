@@ -67,13 +67,14 @@ import io.github.toyota32k.secureCamera.db.DBChange
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
-import io.github.toyota32k.secureCamera.db.MetaDB.toItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtSorter
@@ -146,7 +147,7 @@ class PlayerActivity : UtMortalActivity() {
         companion object {
             const val KEY_CURRENT_LIST_MODE = "ListMode"
             const val KEY_CURRENT_ITEM = "CurrentItem"
-            suspend fun takeSnapshot(item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
+            suspend fun takeSnapshot(db:ScDB, item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
                     try {
@@ -158,7 +159,7 @@ class PlayerActivity : UtMortalActivity() {
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                             it.flush()
                         }
-                        MetaDB.register(filename)
+                        db.register(filename)
                     } catch(e:Throwable) {
                         TpLib.logger.error(e)
                         if(file!=null) {
@@ -171,7 +172,7 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
-        private var dbOpened:Boolean = MetaDB.open()
+        val metaDb = MetaDB[SlotSettings.currentSlotIndex]
 
 //        private val context: Application
 //            get() = getApplication()
@@ -200,7 +201,7 @@ class PlayerActivity : UtMortalActivity() {
         val playlistSettingCommand = LiteUnitCommand {
             viewModelScope.launch {
                 data class MinMax(var min:DPDate,var max:DPDate)
-                val list = MetaDB.listEx(ListMode.ALL)
+                val list = metaDb.listEx(ListMode.ALL)
                 val mm = list.fold(MinMax(DPDate.InvalidMax, DPDate.InvalidMin)) { acc, item->
                     val dp = item.dpDate
                     if(dp<acc.min) {
@@ -218,7 +219,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        val blockingAt = MutableStateFlow(0L)              // 画面ロックした時刻
+        val blockingAt = MutableStateFlow(System.currentTimeMillis())              // 画面ロックした時刻
         val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
         val allowDelete = MutableStateFlow(Settings.PlayListSetting.allowDelete)
 
@@ -255,13 +256,13 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
-            private val file: File = item.file
+            //private val file: File = item.file
             override val name:String
                 get() = item.name
             override val id: String
                 get() = name
             override val uri: String
-                get() = item.uri
+                get() = metaDb.urlOf(item)
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -335,10 +336,10 @@ class PlayerActivity : UtMortalActivity() {
                 if(item.cloud.loadFromCloud) {
                     resetPhoto()
                     viewModelScope.launch {
-                        photoBitmap.mutable.value = TcClient.getPhoto(item)
+                        photoBitmap.mutable.value = TcClient.getPhoto(metaDb, item)
                     }
                 } else {
-                    resetPhoto(BitmapFactory.decodeFile(item.file.path))
+                    resetPhoto(BitmapFactory.decodeFile(metaDb.fileOf(item).path))
                 }
             }
 
@@ -430,7 +431,7 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private suspend fun setListMode(mode:ListMode) {
-                val newList = MetaDB.listEx(mode).filterByDateRange().run {
+                val newList = metaDb.listEx(mode).filterByDateRange().run {
                     if(Settings.PlayListSetting.onlyUnBackedUpItems) {
                         filter { !it.cloud.isFileInCloud }
                     } else {
@@ -490,14 +491,14 @@ class PlayerActivity : UtMortalActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val item = currentSelection.value ?: return@launch
                     val bitmap = photoBitmap.value ?: return@launch
-                    val file = item.file
+                    val file = metaDb.fileOf(item)
                     file.outputStream().use {
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                         it.flush()
                     }
                     photoRotation.mutable.value = 0
                     photoCropped.mutable.value = false
-                    MetaDB.updateFile(item,null)
+                    metaDb.updateFile(item,null)
                 }
             }
 
@@ -509,12 +510,12 @@ class PlayerActivity : UtMortalActivity() {
 
         init {
             viewModelScope.launch {
-                val mode = ListMode.valueOf(MetaDB.KV.get(KEY_CURRENT_LIST_MODE))
+                val mode = ListMode.valueOf(metaDb.KV.get(KEY_CURRENT_LIST_MODE))
                 if(mode!=null) {
                     playlist.listMode.value = mode
                 }
-                val name = MetaDB.KV.get(KEY_CURRENT_ITEM) ?: return@launch
-                val item = MetaDB.itemExOf(name) ?: return@launch
+                val name = metaDb.KV.get(KEY_CURRENT_ITEM) ?: return@launch
+                val item = metaDb.itemExOf(name) ?: return@launch
                 playlist.select(item)
             }
         }
@@ -525,30 +526,35 @@ class PlayerActivity : UtMortalActivity() {
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
-                val newItem = takeSnapshot(source.data, pos, bitmap) ?: return@launch
+                val newItem = takeSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
                 if (playlist.listMode.value != ListMode.VIDEO) {
-                    withContext(Dispatchers.Main) { playlist.sorter.add(ItemEx(newItem,null)) }
+                    withContext(Dispatchers.Main) { playlist.sorter.add(ItemEx(newItem,metaDb.slotIndex.index,null)) }
                 }
             }
         }
 
-        fun saveListModeAndSelection(closeDb:Boolean=false) {
+        fun saveListModeAndSelection() {
             val listMode = playlist.listMode.value
             val currentItem = playlist.currentSelection.value
+
+            // onCleared で metaDb.close() されるので、MetaDB を新たに取得しておく
+            val db = MetaDB[SlotSettings.currentSlotIndex]
             CoroutineScope(Dispatchers.IO).launch {
-                MetaDB.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
-                if(currentItem!=null) {
-                    MetaDB.KV.put(KEY_CURRENT_ITEM, currentItem.name)
-                }
-                if(dbOpened && closeDb) {
-                    MetaDB.close()
+                try {
+                    metaDb.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
+                    if (currentItem != null) {
+                        metaDb.KV.put(KEY_CURRENT_ITEM, currentItem.name)
+                    }
+                } finally {
+                    db.close()
                 }
             }
         }
 
         override fun onCleared() {
             super.onCleared()
-            saveListModeAndSelection(closeDb = true)
+            saveListModeAndSelection()
+            metaDb.close()
             playerControllerModel.close()
         }
     }
@@ -789,15 +795,15 @@ class PlayerActivity : UtMortalActivity() {
     private suspend fun onDataChanged(c:DBChange) {
         when(c.type) {
             DBChange.Type.Add -> {
-                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                val item = viewModel.metaDb.itemExAt(c.itemId) ?: return
                 viewModel.playlist.addItem(item)
             }
             DBChange.Type.Update -> {
-                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                val item = viewModel.metaDb.itemExAt(c.itemId) ?: return
                 viewModel.playlist.replaceItem(item)
             }
             DBChange.Type.Delete -> {
-                val item = MetaDB.itemAt(c.itemId)?.toItemEx() ?: return
+                val item = viewModel.metaDb.itemExAt(c.itemId) ?: return
                 viewModel.playlist.removeItem(item)
             }
             DBChange.Type.Refresh -> {
@@ -818,7 +824,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
-        val item = MetaDB.itemExOf(name) ?: return
+        val item = viewModel.metaDb.itemExOf(name) ?: return
         if(update) {
             viewModel.playlist.replaceItem(item)
         }
@@ -834,15 +840,15 @@ class PlayerActivity : UtMortalActivity() {
                 val item2 = vm.item.value
                 when(vm.nextAction) {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item2)
-                    ItemDialog.ItemViewModel.NextAction.PurgeLocal -> MetaDB.purgeLocalFile(item2)
+                    ItemDialog.ItemViewModel.NextAction.PurgeLocal -> viewModel.metaDb.purgeLocalFile(item2)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
                         if(viewModel.playlist.isVideo.value) {
                             viewModel.playlist.select(null,true)
                         }
-                        MetaDB.restoreFromCloud(item2)
+                        viewModel.metaDb.restoreFromCloud(item2)
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
-                        MetaDB.recoverFromCloud(item2)
+                        viewModel.metaDb.recoverFromCloud(item2)
                     }
                     else -> {}
                 }
@@ -925,7 +931,7 @@ class PlayerActivity : UtMortalActivity() {
             override fun commit() {
                 try {
                     TpLib.logger.debug("deleted $item")
-                    lifecycleScope.launch { MetaDB.deleteFile(item) }
+                    lifecycleScope.launch { viewModel.metaDb.deleteFile(item) }
                 } catch(e:Throwable) {
                     TpLib.logger.error(e)
                 }
@@ -972,9 +978,9 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playerControllerModel.playerModel.play()
             }
         }
-        if(viewModel.blockingAt.value-System.currentTimeMillis()>3000) {
+        if(System.currentTimeMillis() - viewModel.blockingAt.value>3000) {
             lifecycleScope.launch {
-                if(PasswordDialog.checkPassword()) {
+                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                     afterUnblocked()
                 } else {
                     logger.error("Incorrect Password")
@@ -990,7 +996,7 @@ class PlayerActivity : UtMortalActivity() {
 //    override fun onDestroy() {
 //        super.onDestroy()
 //        if(isFinishing) {
-//            MetaDB.close()
+//            metaDb.close()
 //        }
 //    }
 

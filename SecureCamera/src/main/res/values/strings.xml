@@ -110,4 +110,19 @@
     <string name="colors">Colors</string>
     <string name="reject">Reject</string>
     <string name="accept">Accept</string>
+    <string name="slot_dropdown_hint">Select Slot</string>
+    <string name="default_slot_name">Default</string>
+    <string name="slot_1_name">Slot-1</string>
+    <string name="slot_in_use">In Use</string>
+    <string name="slot_sync">Sync</string>
+    <string name="slot_2_name">Slot-2</string>
+    <string name="slot_3_name">Slot-3</string>
+    <string name="slot_4_name">Slot-4</string>
+    <string name="slot_secure">Secure</string>
+    <string name="default_slot_name_hint">Name for Default slot</string>
+    <string name="slot_1_name_hint">Name for Slot-1</string>
+    <string name="slot_2_name_hint">Name for Slot-2</string>
+    <string name="slot_3_name_hint">Name for Slot-3</string>
+    <string name="slot_4_name_hint">Name for Slot-4</string>
+    <string name="slot_dialog_title">Slot Settings</string>
 </resources>

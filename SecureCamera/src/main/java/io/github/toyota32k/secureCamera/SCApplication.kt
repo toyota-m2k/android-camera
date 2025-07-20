@@ -34,7 +34,6 @@ class SCApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Settings.initialize(this)
-        MetaDB.initialize(this)
         UtStandardString.setContext(this)
     }
 

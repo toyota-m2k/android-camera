@@ -39,7 +39,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
         val showStatusBar = MutableLiveData(false)
     }
 
-    private val permissionsBroker = UtPermissionBroker()
+    private val permissionsBroker:UtPermissionBroker by lazy { UtPermissionBroker(this@MainActivity) }
     private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
     private var currentCamera: TcCamera? = null
     private val binder = Binder()

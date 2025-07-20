@@ -33,10 +33,13 @@ import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
+import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.server.NetworkUtils
 import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -52,7 +55,7 @@ class ServerActivity : UtMortalActivity() {
         val logger = UtLog("SERVER")
     }
     class ServerViewModel(application: Application) : AndroidViewModel(application) {
-        private var dbOpened:Boolean = MetaDB.open()
+        private val metaDb:ScDB = MetaDB[SlotSettings.currentSlotIndex]
         val port = Settings.SecureArchive.myPort
         val server = TcServer(port)
         val ipAddress = MutableStateFlow("unknown")
@@ -125,7 +128,7 @@ class ServerActivity : UtMortalActivity() {
             isBusy.value = true
             viewModelScope.launch {
                 try {
-                    MetaDB.purgeAllLocalFiles()
+                    metaDb.purgeAllLocalFiles()
                 } catch(_:Throwable) {
                 } finally {
                     isBusy.value = false
@@ -137,14 +140,14 @@ class ServerActivity : UtMortalActivity() {
             isBusy.value = true
             viewModelScope.launch {
                 try {
-                    val itemsOnServer = TcClient.getListForRepair() ?: return@launch
-                    val itemsOnLocal = MetaDB.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
+                    val itemsOnServer = TcClient.getListForRepair(SlotSettings.currentSlotIndex) ?: return@launch
+                    val itemsOnLocal = metaDb.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
                     var count = 0
                     for(item in itemsOnServer) {
                         if(!itemsOnLocal.contains(item.originalId)) {
                             // サーバーにのみ存在するレコード
                             logger.debug("found target item: ${item.name} / ${item.id}")
-                            MetaDB.repairWithBackup(SCApplication.instance, item)
+                            metaDb.repairWithBackup(SCApplication.instance, item)
                             count++
                         }
                     }
@@ -191,37 +194,40 @@ class ServerActivity : UtMortalActivity() {
                     pvm.cancelCommand.bindForever { cancelled = true }
                     var count = 0
                     withContext(Dispatchers.IO) {
-                        for (entry in migration.list) {
-                            if (cancelled) {
-                                break
-                            }
-                            count++
-                            pvm.progress.value = (count * 100 / migration.list.size).toInt()
-                            pvm.progressText.value = "$count / ${migration.list.size}"
-                            // 端末側DBに移行データのエントリーを作る
-                            val data = MetaDB.migrateOne(migration.handle, entry)
-                            if (data != null) {
-                                // DB的に移行が出来たことをサーバーに知らせる
-                                var result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
-                                if (!result) {
-                                    // この状態になったら
-                                    // - この端末内に、エントリーが追加されている
-                                    // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
-                                    // つまり、表示できないエントリーができてしまう。
-                                    // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
-                                    // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
-                                    // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
-                                    logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
+                        MetaDB.dbCache().use { dbCache ->
+                            for (entry in migration.list) {
+                                if (cancelled) {
+                                    break
                                 }
-                            } else {
-                                logger.error("failed to update item in MetaDB: ${entry.name} / ${entry.originalId}")
+                                count++
+                                pvm.progress.value = (count * 100 / migration.list.size).toInt()
+                                pvm.progressText.value = "$count / ${migration.list.size}"
+                                // 端末側DBに移行データのエントリーを作る
+                                val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
+                                if (data != null) {
+                                    // DB的に移行が出来たことをサーバーに知らせる
+                                    var result =
+                                        TcClient.reportMigratedOne(migration.handle, entry, data.id)
+                                    if (!result) {
+                                        // この状態になったら
+                                        // - この端末内に、エントリーが追加されている
+                                        // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
+                                        // つまり、表示できないエントリーができてしまう。
+                                        // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
+                                        // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
+                                        // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
+                                        logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
+                                    }
+                                } else {
+                                    logger.error("failed to update item in MetaDB: ${entry.name} / ${entry.originalId}")
+                                }
                             }
                         }
+
+                        TcClient.endMigration(migration.handle)
+
+                        logger.debug("selected device: ${device.name} / ${device.clientId}")
                     }
-
-                    TcClient.endMigration(migration.handle)
-
-                    logger.debug("selected device: ${device.name} / ${device.clientId}")
                 } finally {
                     isBusy.value = false
                 }
@@ -231,9 +237,7 @@ class ServerActivity : UtMortalActivity() {
         override fun onCleared() {
             super.onCleared()
             server.close()
-            if (dbOpened) {
-                MetaDB.close()
-            }
+            metaDb.close()
             logger.debug("stop server")
         }
     }

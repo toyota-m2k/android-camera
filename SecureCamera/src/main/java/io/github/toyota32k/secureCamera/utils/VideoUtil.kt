@@ -5,12 +5,14 @@ import android.os.ParcelFileDescriptor
 import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.media.lib.format.getDuration
 import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.secureCamera.db.ScDB
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileDescriptor
 
 object VideoUtil {
     private const val WAIT_DURATION = 1000L
+    val logger = ScDB.logger
 
     private fun rawOpenFileDescriptor(file:File):ParcelFileDescriptor? {
         return try {
@@ -25,7 +27,7 @@ object VideoUtil {
         while(true) {
             val fd = rawOpenFileDescriptor(file)
             if(fd!=null) {
-                MetaDB.logger.debug("fd retrieved after ${i + 1} trial")
+                logger.debug("fd retrieved after ${i + 1} trial")
                 return fd
             }
             if(i>=retry) {
@@ -47,7 +49,7 @@ object VideoUtil {
                 }
             }
         } catch(e:Throwable) {
-            MetaDB.logger.error(e)
+            logger.error(e)
             null
         }
     }
@@ -86,7 +88,7 @@ object VideoUtil {
                     it.obj.getDuration()
                 }
             } catch (e:Throwable) {
-                MetaDB.logger.error(e)
+                logger.error(e)
                 null
             }
             if(d!=null) {

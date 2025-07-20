@@ -15,6 +15,7 @@ import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.converter.Converter
 import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
+import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.ScDef
 import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.TcClient
@@ -22,22 +23,23 @@ import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotIndex
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
+import io.github.toyota32k.utils.GenericCloseable
+import io.github.toyota32k.utils.IDisposable
+import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.Closeable
 import java.io.File
 import java.util.Date
 
-data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
-//    fun file(context: Context):File {
-//        return data.file(context)
-//    }
-    val file:File
-        get() = data.file
+data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapter>?) {
     val id:Int
         get() = data.id
     val name:String
@@ -70,23 +72,20 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
     }
 
     val dpDate: DPDate by lazy {
-//        val dp = filename2dpDate(name) ?: DPDate.Invalid
-//        MetaDB.logger.debug("$name - $dp")
-//        dp
         filename2dpDate(name) ?: DPDate.Invalid
     }
 
     val serverUri:String
-        get() = "http://${Authentication.activeHostAddress}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+        get() = "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
 
-    val uri:String
-        get() {
-            return if(cloud.loadFromCloud) {
-                serverUri
-            } else {
-                file.toUri().toString()
-            }
-        }
+//    val uri:String
+//        get() {
+//            return if(cloud.loadFromCloud) {
+//                serverUri
+//            } else {
+//                file.toUri().toString()
+//            }
+//        }
 
     private val encodedChapters:String
         get() {
@@ -170,26 +169,29 @@ data class ItemEx(val data: MetaData, val chapterList: List<IChapter>?) {
         }
     }
 }
-
-object MetaDB {
+interface IKV {
+    suspend fun put(key:String, value:String)
+    suspend fun get(key:String):String?
+}
+class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     private var dbInstance:Database? = null
     private val db:Database
         get() = synchronized(this) {
             dbInstance ?: throw IllegalStateException("DB not opened")
         }
-
+    private val dbName:String get() = if (slotIndex == SlotIndex.DEFAULT) "meta.db" else "slot${slotIndex.index}.db"
     private var refCount = 0
     fun open():Boolean {
         return synchronized(this) {
             if (dbInstance == null) {
-                dbInstance = Room.databaseBuilder(this.application, Database::class.java, "meta.db").build()
+                dbInstance = Room.databaseBuilder(this.application, Database::class.java, dbName).build()
             }
             refCount++
             true
         }
     }
 
-    fun close() {
+    override fun close() {
         synchronized(this) {
             refCount--
             if(refCount==0) {
@@ -198,10 +200,16 @@ object MetaDB {
             }
         }
     }
+    val isOpened:Boolean
+        get() = synchronized(this) {
+            dbInstance != null
+        }
 
 //    private lateinit var db:Database
     lateinit var application:Application
-    val logger = UtLog("DB", null, MetaDB::class.java)
+    companion object {
+        val logger = UtLog("DB", null, ScDB::class.java)
+    }
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -215,10 +223,10 @@ object MetaDB {
     /**
      * DBを初期化する（Applicationクラスの onCreateから呼ぶ）
      */
-    fun initialize(application: Application) {
+    private fun initialize(application: Application) {
         this.application = application
 
-        val db = Room.databaseBuilder(this.application, Database::class.java, "meta.db")
+        val db = Room.databaseBuilder(this.application, Database::class.java, dbName)
             .addMigrations(MIGRATION_1_2)
             .build()
 
@@ -253,8 +261,12 @@ object MetaDB {
         }
     }
 
-    object KV {
-        suspend fun put(key:String, value:String) {
+    init {
+        initialize(SCApplication.instance)
+    }
+
+    inner class KVImpl: IKV {
+        override suspend fun put(key:String, value:String) {
             withContext(Dispatchers.IO) {
                 val e = db.kvTable().getAt(key)
                 if (e == null) {
@@ -264,12 +276,14 @@ object MetaDB {
                 }
             }
         }
-        suspend fun get(key: String):String? {
+        override suspend fun get(key: String):String? {
             return withContext(Dispatchers.IO) {
                 db.kvTable().getAt(key)?.value
             }
         }
     }
+    val KV:IKV by lazy { KVImpl() }
+
 
     private fun filename2type(filename:String): Int? {
         return when {
@@ -279,71 +293,16 @@ object MetaDB {
         }
     }
 
-
-//    private suspend fun tryGetDuration(file:File, retry:Int):Long {
-//
-//        for(i in 0..retry) {
-//            val fd = openFile(file, if(i==0) retry else 0)
-//            if (fd == null) {
-//                logger.error("cannot open file: ${file.name}")
-//                return 0L
-//            }
-//            fd.use {
-//                try {
-//                    MediaMetadataRetriever().use { mmr ->
-//                        mmr.setDataSource(fd.fileDescriptor)
-//                        val d = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-//                        if (d != null) {
-//                            logger.debug("retrieve duration: $d after ${i + 1} trial.")
-//                            return d.toLong()
-//                        }
-//                    }
-//                } catch(e:Throwable) {
-//                    logger.error(e)
-//                    return 0L
-//                }
-//            }
-//            delay(1000)
-//        }
-//        logger.error("cannot retrieve duration")
-//        return 0L
-//
-//        return try {
-//            val mmr = MediaMetadataRetriever()
-//            mmr.setDataSource(fd.fileDescriptor)
-//            var d:String? = null
-//            for(i in 0..60) {
-//                d = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-//                if(d!=null) {
-//                    break
-//                }
-//                delay(1000)
-//            }
-//            logger.debug("duration = $d")
-//            d?.toLongOrNull() ?: 0L
-//
-//        } catch(e:Throwable) {
-//            logger.error(e)
-//            0L
-//        }
-//        return MediaMetadataRetriever().apply { setDataSource(fd.fileDescriptor) }
-//            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-
-//    }
-
     private suspend fun metaDataFromName(
         org:MetaData?,
         name:String,
-//        group: Int=org?.group?:0,
-//        mark:Int=org?.mark?:0,
-//        rating:Int=org?.rating?:0,
         cloud: Int=org?.cloud?:CloudStatus.Local.v,
         allowRetry:Int=0,
         updateAttrDate:Boolean=false
         ):MetaData? {
         return withContext(Dispatchers.IO) {
             val type = filename2type(name) ?: return@withContext null
-            val file = File(application.filesDir, name)
+            val file = File(filesDir, name)
             val size = file.length()
             val date = file.lastModified() //.filename2date(name)?.time ?: 0L
             val duration = if (type == 1) {
@@ -386,8 +345,12 @@ object MetaDB {
 
     suspend fun MetaData.toItemEx():ItemEx {
         val chapters = if(isVideo) getChaptersFor(this) else null
-        return ItemEx(this, chapters)
+        return ItemEx(this, slotIndex.index, chapters)
     }
+
+//    suspend fun toItemEx(meta:MetaData):ItemEx {
+//        return meta.toItemEx()
+//    }
 
     suspend fun listEx(mode:PlayerActivity.ListMode):List<ItemEx> {
         return withContext(Dispatchers.IO) {
@@ -409,21 +372,57 @@ object MetaDB {
     // endregion READ
 
     // region CREATION
+    val filesDir:File
+        get() = if (slotIndex == SlotIndex.DEFAULT) {
+            application.filesDir
+        } else {
+            File(application.filesDir, "slot${slotIndex.index}")
+        }
+    fun fileOf(name:String):File {
+        return File(filesDir, name)
+    }
+    fun fileOf(meta:MetaData):File {
+        return fileOf(meta.name)
+    }
+    fun fileOf(item:ItemEx):File {
+        return fileOf(item.data.name)
+    }
+    fun urlOf(item:ItemEx):String {
+        return if(item.cloud.loadFromCloud) {
+            item.serverUri
+        } else {
+            fileOf(item).toUri().toString()
+        }
+    }
 
     private suspend fun makeAll() {
         val isNeedUpdate = {m:MetaData->
             when {
                 m.isVideo && m.duration == 0L->true
-                CloudStatus.valueOf(m.cloud).isFileInLocal && m.size != m.file.length() -> {
-                    logger.info("length mismatch: ${m.name} db=${m.size} file=${m.file.length()}")
+                CloudStatus.valueOf(m.cloud).isFileInLocal && m.size != fileOf(m).length() -> {
+                    logger.info("length mismatch: ${m.name} db=${m.size} file=${fileOf(m).length()}")
                     true
                 }
                 else -> false
             }
         }
+        fun fileList():Array<String> {
+            if (slotIndex== SlotIndex.DEFAULT) {
+                return application.fileList()
+            } else {
+                val dir = filesDir
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                    return emptyArray()
+                } else {
+                    return dir.listFiles()?.filter { it.isFile }?.map { it.name }?.toTypedArray() ?: emptyArray()
+                }
+            }
+        }
+
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
-            application.fileList()?.forEach {filename->
+            fileList().forEach {filename->
                 logger.debug(filename)
                 val m = meta.getDataOf(filename)
                 if(m==null) {
@@ -467,8 +466,7 @@ object MetaDB {
                 // まず挿入
                 db.metaDataTable().insert(storedEntry.toMetaData())
                 // チャプターを設定
-                val data = db.metaDataTable().getDataOf(storedEntry.name)
-                    ?: throw IllegalStateException("no data")
+                val data = db.metaDataTable().getDataOf(storedEntry.name) ?: throw IllegalStateException("cannot retrieve inserted data")
                 db.chapterDataTable().setForOwner(
                     data.id,
                     storedEntry.toChaptersList()
@@ -503,7 +501,7 @@ object MetaDB {
     private suspend fun deleteFile(data:MetaData) {
         withContext(Dispatchers.IO) {
             try {
-                data.file.delete()
+                fileOf(data).delete()
             } catch (_: Throwable) {
             }
             db.metaDataTable().delete(data)
@@ -552,7 +550,7 @@ object MetaDB {
     }
     suspend fun updateMarkRating(item:ItemEx, mark:Mark?, rating: Rating?):ItemEx {
         val newData = updateMarkRating(item.data, mark, rating)
-        return ItemEx(newData, item.chapterList)
+        return ItemEx(newData, slotIndex.index, item.chapterList)
     }
 
     /**
@@ -569,7 +567,7 @@ object MetaDB {
 
     suspend fun updateCloud(item: ItemEx, cloud:CloudStatus):ItemEx {
         return if(item.cloud!=cloud) {
-            ItemEx(updateCloud(item.data, cloud.v), item.chapterList)
+            ItemEx(updateCloud(item.data, cloud.v), slotIndex.index, item.chapterList)
         } else item
     }
 
@@ -594,7 +592,7 @@ object MetaDB {
      */
     suspend fun updateFile(item:ItemEx, chapterList: List<IChapter>?):ItemEx {
         val newData = updateFile(item.data, chapterList)
-        return ItemEx(newData, chapterList?:item.chapterList)
+        return ItemEx(newData, slotIndex.index, chapterList?:item.chapterList)
     }
 
     suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
@@ -633,7 +631,7 @@ object MetaDB {
             attr_date = ri.extAttrDate,
             label = ri.label,
             category = ri.category
-        ), chapters)
+        ), slotIndex.index, chapters)
         withContext(Dispatchers.IO) {
             val duration = Converter.analyze(HttpInputFile(context, item.serverUri)).duration
             val newData = MetaData.modifiedEntry(item.data, duration = duration)
@@ -653,7 +651,7 @@ object MetaDB {
             return item
         }
         return withContext(Dispatchers.IO) {
-            if (TcClient.uploadToSecureArchive(item)) {
+            if (TcClient.uploadToSecureArchive(this@ScDB, item)) {
                 logger.debug("uploaded: ${item.name}")
                 updateCloud(item, CloudStatus.Uploaded)
             } else {
@@ -663,18 +661,15 @@ object MetaDB {
         }
     }
 
-    class RestoreDLWorker(context: Context, params: WorkerParameters): Downloader.DLWorker(context,params) {
-        override suspend fun onDownloaded(itemId: Int) {
-            logger.info("restored: $itemId")
-            updateCloud(itemId, CloudStatus.Uploaded, updateFileStatus = false)
-        }
-    }
     suspend fun restoreFromCloud(item: ItemEx):Boolean {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return true
         }
-        return TcClient.downloadFromSecureArchive<RestoreDLWorker>(item)
+        return TcClient.downloadFromSecureArchive(this, item).onTrue {
+            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = false)
+        }
+
 //        return withContext(Dispatchers.IO) {
 //            if (TcClient.downloadFromSecureArchive(item)) {
 //                logger.debug("downloaded: ${item.name}")
@@ -687,24 +682,10 @@ object MetaDB {
 //        }
     }
 
-    class RecoverDLWorker(context: Context, params: WorkerParameters): Downloader.DLWorker(context,params) {
-        override suspend fun onDownloaded(itemId: Int) {
-            logger.info("recovered: $itemId")
-            updateCloud(itemId, CloudStatus.Uploaded, updateFileStatus = true)
-        }
-    }
     suspend fun recoverFromCloud(item: ItemEx):Boolean {
-        return TcClient.downloadFromSecureArchive<RecoverDLWorker>(item)
-//        return withContext(Dispatchers.IO) {
-//            if (TcClient.downloadFromSecureArchive<RecoverDLWorker>(item)) {
-//                logger.debug("downloaded: ${item.name}")
-//                updateCloud(updateFile(item, null), CloudStatus.Uploaded)
-//                true
-//            } else {
-//                logger.debug("download error: ${item.name}")
-//                false
-//            }
-//        }
+        return TcClient.downloadFromSecureArchive(this, item).onTrue {
+            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = true)
+        }
     }
 
     /**
@@ -714,7 +695,7 @@ object MetaDB {
         if(item.cloud != CloudStatus.Uploaded) return
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                item.data.file.delete()
+                fileOf(item.data).delete()
                 updateCloud(item, CloudStatus.Cloud)
             } catch (_: Throwable) {
             }
@@ -726,7 +707,7 @@ object MetaDB {
             val items = listEx(PlayerActivity.ListMode.ALL).filter { it.cloud == CloudStatus.Uploaded }
             for(item in items) {
                 try {
-                    item.data.file.delete()
+                    fileOf(item.data).delete()
                     updateCloud(item, CloudStatus.Cloud)
                 } catch (_: Throwable) {
                 }
@@ -739,11 +720,11 @@ object MetaDB {
 
     // region Video File Test
 
-    private const val testItemName = "mov-2030.01.01-00:00:00.mp4"
+    private val testItemName = "mov-2030.01.01-00:00:00.mp4"
 
     private suspend fun prepareTestFile():File {
         deleteTestFile()
-        return File(application.filesDir, testItemName)
+        return File(filesDir, testItemName)
     }
 
     private suspend fun deleteTestFile() {
@@ -761,4 +742,95 @@ object MetaDB {
         }
     }
     // endregion
+}
+
+interface IDBSource : Closeable {
+    operator fun get(slotIndex: SlotIndex): ScDB
+}
+
+object MetaDB {
+    val cache = mutableMapOf<SlotIndex, ScDB>()
+    operator fun get(slotIndex: SlotIndex): ScDB {
+        return synchronized(cache) {
+            cache.getOrPut(slotIndex) { ScDB(slotIndex) }
+        }.apply { open() }
+    }
+
+    fun lockDB() : Closeable {
+        var list = SlotSettings.activeSlots.map { get(it.index) }
+        return GenericCloseable {
+            list.forEach { db ->
+                db.close()
+            }
+        }
+    }
+
+    private class DBCache : IDBSource, Closeable {
+        val cache = mutableMapOf<SlotIndex, ScDB>()
+        override operator fun get(slotIndex: SlotIndex): ScDB {
+            return synchronized(cache) {
+                cache.getOrPut(slotIndex) { MetaDB.get(slotIndex) }
+            }
+        }
+        override fun close() {
+            synchronized(cache) {
+                cache.values.forEach { it.close() }
+                cache.clear()
+            }
+        }
+    }
+    fun dbCache(): IDBSource {
+        return DBCache()
+    }
+
+
+    inline fun <T> withDB(slotIndex: SlotIndex = SlotSettings.currentSlotIndex, fn: (ScDB) -> T): T {
+        val db = get(slotIndex)
+        return try {
+            db.open()
+            fn(db)
+        } finally {
+            db.close()
+        }
+    }
+    inline fun <T> withDB(slot: Int, fn: (ScDB) -> T): T {
+        val db = get(SlotIndex.fromIndex(slot))
+        return try {
+            db.open()
+            fn(db)
+        } finally {
+            db.close()
+        }
+    }
+
+    interface IVisitor {
+        suspend fun visit(listMode:PlayerActivity.ListMode=PlayerActivity.ListMode.ALL, predicate:(item: ItemEx)->Boolean, fn:(db:ScDB, item:ItemEx)->Unit)
+    }
+
+    private class AllVisitor:  IVisitor {
+        override suspend fun visit(listMode: PlayerActivity.ListMode,predicate: (ItemEx) -> Boolean,fn: (ScDB, ItemEx) -> Unit) {
+            SlotSettings.activeSlots.forEach { slotInfo ->
+                get(slotInfo.index).use { db ->
+                    db.listEx(listMode).filter(predicate).forEach { item ->
+                        fn(db, item)
+                    }
+                }
+            }
+        }
+    }
+    private class SingleVisitor(private val slot: SlotIndex): IVisitor {
+        override suspend fun visit(listMode: PlayerActivity.ListMode, predicate: (ItemEx) -> Boolean, fn: (ScDB, ItemEx) -> Unit) {
+            get(slot).use { db ->
+                db.listEx(listMode).filter(predicate).forEach { item ->
+                    fn(db, item)
+                }
+            }
+        }
+    }
+    fun allVisitor(): IVisitor {
+        return AllVisitor()
+    }
+    fun singleVisitor(slot:SlotIndex=SlotSettings.currentSlotIndex) : IVisitor {
+        return SingleVisitor(slot)
+    }
 }

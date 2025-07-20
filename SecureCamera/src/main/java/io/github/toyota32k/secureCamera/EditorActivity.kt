@@ -31,7 +31,6 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -66,6 +65,7 @@ import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -87,6 +87,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application) {
+        val metaDb = MetaDB[SlotSettings.currentSlotIndex]
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportChapter()
             .supportSnapshot(this::onSnapshot)
@@ -101,6 +102,8 @@ class EditorActivity : UtMortalActivity() {
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
         val targetItem:ItemEx get() = videoSource.item
+        val targetFile:File get() = metaDb.fileOf(targetItem)
+        val targetUri:String get() = metaDb.urlOf(targetItem)
 
         val chapterList by lazy {
             ChapterEditor(videoSource.chapterList as IMutableChapterList)   // videoSource.chapterList は空のリスト ... setSourceでリストは初期化される。
@@ -147,9 +150,9 @@ class EditorActivity : UtMortalActivity() {
 
         private val resetableInputFile: UtLazyResetableValue<IInputMediaFile> = UtLazyResetableValue {
             if(targetItem.cloud.isFileInLocal) {
-                targetItem.file.toAndroidFile()
+                targetFile.toAndroidFile()
             } else {
-                HttpInputFile(application, OkHttpStreamSource(targetItem.uri)).apply {
+                HttpInputFile(application, OkHttpStreamSource(metaDb.urlOf(targetItem))).apply {
                     addRef()
                 }
             }
@@ -192,7 +195,7 @@ class EditorActivity : UtMortalActivity() {
             val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
             if(!source.cloud.isFileInLocal) return
             CoroutineScope(Dispatchers.IO).launch {
-                PlayerActivity.PlayerViewModel.takeSnapshot(source.data, pos, bitmap)
+                PlayerActivity.PlayerViewModel.takeSnapshot(metaDb, source.data, pos, bitmap)
             }
         }
 
@@ -211,7 +214,7 @@ class EditorActivity : UtMortalActivity() {
             override val id: String
                 get() = name
             override val uri: String
-                get() = item.uri
+                get() = metaDb.urlOf(item)
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -257,8 +260,8 @@ class EditorActivity : UtMortalActivity() {
 
         lifecycleScope.launch {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-            val item = MetaDB.itemExOf(name) ?: throw IllegalStateException("no item")
-            val chapters = MetaDB.getChaptersFor(item.data)
+            val item = viewModel.metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
+            val chapters = viewModel.metaDb.getChaptersFor(item.data)
             if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage()) {
                 UtImmortalTask.launchTask {
                     setResultAndFinish(false, item)
@@ -350,9 +353,9 @@ class EditorActivity : UtMortalActivity() {
 
     private fun showVideoProperties():Boolean {
         val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
-            viewModel.targetItem.file.toAndroidFile()
+            viewModel.targetFile.toAndroidFile()
         } else {
-            HttpFile(viewModel.targetItem.uri)
+            HttpFile(viewModel.targetUri)
         }
         val s = Converter.analyze(inFile)
         ReportTextDialog.show(viewModel.targetItem.name, s.toString())
@@ -448,19 +451,19 @@ class EditorActivity : UtMortalActivity() {
                         withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
                         val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
                         if(testOnly) {
-                            MetaDB.withTestFile { testFile ->
+                            viewModel.metaDb.withTestFile { testFile ->
                                 dstFile.renameTo(testFile)
                             }
                         } else {
-                            safeDelete(targetItem.file)
-                            dstFile.renameTo(targetItem.file)
+                            safeDelete(viewModel.metaDb.fileOf(targetItem))
+                            dstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
                             val adjustedEnabledRange = r.adjustedTrimmingRangeList?.list?.map { Range(it.startUs/1000L, it.endUs/1000L) }
                             val newChapterList = if(!adjustedEnabledRange.isNullOrEmpty()) {
                                 viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
                             } else {
                                 viewModel.chapterList.chapters
                             }
-                            MetaDB.updateFile(targetItem, newChapterList)
+                            viewModel.metaDb.updateFile(targetItem, newChapterList)
                         }
 //                        DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")
                         setResultAndFinish(true, targetItem)
@@ -508,7 +511,7 @@ class EditorActivity : UtMortalActivity() {
         super.onResume()
         if(viewModel.blocking.value) {
             lifecycleScope.launch {
-                if(PasswordDialog.checkPassword()) {
+                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
                     viewModel.blocking.value = false
                     if(viewModel.playingBeforeBlocked.value) {
                         viewModel.playingBeforeBlocked.value = false
@@ -550,7 +553,7 @@ class EditorActivity : UtMortalActivity() {
             }
             viewModel.chapterList.clearDirty()
             CoroutineScope(Dispatchers.IO).launch {
-                MetaDB.setChaptersFor(target, list)
+                viewModel.metaDb.setChaptersFor(target, list)
             }
         }
     }

@@ -33,7 +33,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.21.2"
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -75,7 +75,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.kotrinx.coroutines.core)
-
+    implementation("com.google.code.gson:gson:2.11.0")
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
