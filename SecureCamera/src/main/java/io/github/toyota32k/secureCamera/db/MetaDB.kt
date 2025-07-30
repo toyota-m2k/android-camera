@@ -21,6 +21,7 @@ import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.client.worker.Downloader2
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
@@ -661,31 +662,22 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
     }
 
-    suspend fun restoreFromCloud(item: ItemEx):Boolean {
+    suspend fun restoreFromCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
-            return true
+            return
         }
-        return TcClient.downloadFromSecureArchive(this, item).onTrue {
-            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = false)
-        }
-
-//        return withContext(Dispatchers.IO) {
-//            if (TcClient.downloadFromSecureArchive(item)) {
-//                logger.debug("downloaded: ${item.name}")
-//                updateCloud(item, CloudStatus.Uploaded)
-//                true
-//            } else {
-//                logger.debug("download error: ${item.name}")
-//                false
-//            }
+        Downloader2.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, false)
+//        TcClient.downloadFromSecureArchive(this, item).onTrue {
+//            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = false)
 //        }
     }
 
-    suspend fun recoverFromCloud(item: ItemEx):Boolean {
-        return TcClient.downloadFromSecureArchive(this, item).onTrue {
-            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = true)
-        }
+    suspend fun recoverFromCloud(item: ItemEx) {
+        Downloader2.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, true)
+//        TcClient.downloadFromSecureArchive(this, item).onTrue {
+//            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = true)
+//        }
     }
 
     /**

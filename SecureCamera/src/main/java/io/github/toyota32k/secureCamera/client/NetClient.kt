@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -51,7 +52,7 @@ object NetClient {
      * OkHttpのnewCall().execute()を置き換えるだけで使える。
      */
     suspend fun Call.executeAsync(canceller: Canceller?) : Response {
-        return suspendCoroutine {cont ->
+        return suspendCancellableCoroutine { cont ->
             try {
                 canceller?.setCall(this)
                 enqueue(object : Callback {
