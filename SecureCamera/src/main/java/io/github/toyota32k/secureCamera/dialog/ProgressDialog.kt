@@ -17,6 +17,7 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
+import io.github.toyota32k.secureCamera.client.TcClient.sizeInKb
 import io.github.toyota32k.secureCamera.databinding.DialogProgressBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -28,6 +29,11 @@ class ProgressDialog : UtDialogEx() {
         val cancelCommand = LiteUnitCommand()
         val closeCommand = ReliableCommand<Boolean>()
 
+        fun setProgress(current:Long, total:Long) {
+            val percent = if (total <= 0L) 0 else (current * 100L / total).toInt().coerceIn(0,100)
+            progress.value = percent
+            progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+        }
 //        companion object {
 //            fun create(taskName:String):ProgressViewModel {
 //                return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel() ?: throw IllegalStateException("no task")

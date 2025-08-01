@@ -17,14 +17,16 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
+import io.github.toyota32k.secureCamera.db.DBChange
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.onEach
 
 class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtDialogViewModel() {
@@ -47,18 +49,25 @@ class ItemDialog : UtDialogEx() {
             completeCommand.invoke()
         }
         val backupCommand = LiteUnitCommand {
-            viewModelScope.launch {
-                item.value = metaDb.backupToCloud(item.value)
-            }
+            metaDb.backupToCloud(item.value)
         }
 
         val completeCommand = LiteUnitCommand()
 
         val rating = MutableStateFlow(Rating.RatingNone)
         val mark = MutableStateFlow(Mark.None)
-//        val editCommand = LiteUnitCommand()
-//        val backupCommand = LiteUnitCommand()
-//        val removeLocalCommand = LiteUnitCommand()
+
+        init {
+            DBChange.observable.onEach {
+                if (it.type == DBChange.Type.Update && it.itemId == item.value.id) {
+                    // Update the item if it has changed in the database
+                    val newItem = metaDb.itemExAt(it.itemId)
+                    if (newItem!=null) {
+                        item.value = newItem
+                    }
+                }
+            }.launchIn(viewModelScope)
+        }
 
         fun initFor(item:ItemEx) {
             this.item = MutableStateFlow(item)

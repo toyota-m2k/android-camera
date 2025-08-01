@@ -6,7 +6,6 @@ import androidx.core.net.toUri
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.work.WorkerParameters
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
@@ -17,19 +16,17 @@ import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.ScDef
-import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
-import io.github.toyota32k.secureCamera.client.worker.Downloader2
+import io.github.toyota32k.secureCamera.client.worker.Downloader
+import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.GenericCloseable
-import io.github.toyota32k.utils.IDisposable
-import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -421,6 +418,13 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
 
+        // ダウンロード(repair/restore)中に終了した場合に残るtmpファイルがあれば削除
+        val tmpFiles = fileList().filter { it.endsWith(".tmp") }
+        if (tmpFiles.isNotEmpty()) {
+            logger.warn("deleting tmp files: ${tmpFiles.joinToString(",")}")
+            tmpFiles.forEach { fileOf(it).delete() }
+        }
+
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
             fileList().forEach {filename->
@@ -646,38 +650,24 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     // region Cloud Operation
 
-    suspend fun backupToCloud(item: ItemEx):ItemEx {
+    fun backupToCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Local) {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
-            return item
+            return
         }
-        return withContext(Dispatchers.IO) {
-            if (TcClient.uploadToSecureArchive(this@ScDB, item)) {
-                logger.debug("uploaded: ${item.name}")
-                updateCloud(item, CloudStatus.Uploaded)
-            } else {
-                logger.debug("upload error: ${item.name}")
-                item
-            }
-        }
+        Uploader.upload(SCApplication.instance, slotIndex, item.id)
     }
 
-    suspend fun restoreFromCloud(item: ItemEx) {
+    fun restoreFromCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return
         }
-        Downloader2.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, false)
-//        TcClient.downloadFromSecureArchive(this, item).onTrue {
-//            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = false)
-//        }
+        Downloader.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, false)
     }
 
-    suspend fun recoverFromCloud(item: ItemEx) {
-        Downloader2.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, true)
-//        TcClient.downloadFromSecureArchive(this, item).onTrue {
-//            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = true)
-//        }
+    fun recoverFromCloud(item: ItemEx) {
+        Downloader.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, true)
     }
 
     /**
