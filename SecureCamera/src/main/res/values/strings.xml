@@ -125,4 +125,5 @@
     <string name="slot_3_name_hint">Name for Slot-3</string>
     <string name="slot_4_name_hint">Name for Slot-4</string>
     <string name="slot_dialog_title">Slot Settings</string>
+    <string name="backup_db">Backup DB</string>
 </resources>

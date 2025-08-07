@@ -55,7 +55,7 @@ class TcServer(val port:Int) : AutoCloseable {
 
         private inline fun <T> withDB( fn:(db:ScDB)->T):T {
             return MetaDB[SlotSettings.currentSlotIndex].use { db->
-                return fn(db)
+                fn(db)
             }
         }
         private inline fun <T> withDB(slot:Int, fn:(db:ScDB)->T):T {
@@ -63,7 +63,7 @@ class TcServer(val port:Int) : AutoCloseable {
                 return withDB(fn)
             }
             return MetaDB[SlotIndex.fromIndex(slot)].use { db->
-                return fn(db)
+                fn(db)
             }
         }
 
@@ -234,7 +234,17 @@ class TcServer(val port:Int) : AutoCloseable {
                     }
                 }
                 TextHttpResponse(StatusCode.Ok, "ok", CT_TEXT_PLAIN)
-            }
+            },
+            Route("Request DB backup", HttpMethod.GET, "/db/backup\\?.+") { _, request ->
+                val p = QueryParams.parse(request.url)
+                if(p["auth"]!= authToken) {
+                    return@Route HttpErrorResponse.unauthorized();
+                }
+                val file = ScDB.zipDbFiles() ?: return@Route HttpErrorResponse.notFound()
+                StreamingHttpResponse(StatusCode.Ok, "application/zip", file, 0L, 0L) {
+                    file.delete()
+                }
+            },
         )
     }
 

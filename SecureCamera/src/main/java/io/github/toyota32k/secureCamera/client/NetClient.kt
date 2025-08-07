@@ -42,7 +42,7 @@ object NetClient {
     suspend fun executeAndGetJsonAsync(req: Request): JSONObject {
         return executeAsync(req, null).use { res ->
             if (res.code != 200) throw IllegalStateException("Server Response Error (${res.code})")
-            val body = res.body?.use { it.string() } ?: throw IllegalStateException("Server Response No Data.")
+            val body = res.body.use { it.string() }
             JSONObject(body)
         }
     }

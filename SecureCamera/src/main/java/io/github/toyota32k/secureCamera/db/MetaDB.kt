@@ -20,6 +20,7 @@ import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.client.worker.Downloader
+import io.github.toyota32k.secureCamera.client.worker.Downloader.Companion.safeDelete
 import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -35,7 +36,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapter>?) {
     val id:Int
@@ -177,7 +186,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         get() = synchronized(this) {
             dbInstance ?: throw IllegalStateException("DB not opened")
         }
-    private val dbName:String get() = if (slotIndex == SlotIndex.DEFAULT) "meta.db" else "slot${slotIndex.index}.db"
+    private val dbName:String get() = if (slotIndex == SlotIndex.DEFAULT) "$BASE_DB_NAME.db" else "$SLOT_DB_NAME${slotIndex.index}.db"
     private var refCount = 0
     fun open():Boolean {
         return synchronized(this) {
@@ -203,10 +212,142 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             dbInstance != null
         }
 
+    fun checkPoint() {
+        synchronized(this) {
+            dbInstance?.openHelper?.writableDatabase?.execSQL("PRAGMA wal_checkpoint(full);");
+        } ?: return
+    }
+
 //    private lateinit var db:Database
     lateinit var application:Application
     companion object {
         val logger = UtLog("DB", null, ScDB::class.java)
+        const val BASE_DB_NAME = "meta"
+        const val SLOT_DB_NAME = "slot"
+
+        /**
+         * 指定されたディレクトリ内の、特定のプレフィックスを持つファイルをzipファイルに圧縮します。
+         *
+         * @param dbDir          データベースファイルが保存されているディレクトリ
+         * @param zipFile        出力するzipファイル
+         * @param dbFilePrefix   データベースファイルのプレフィックス（例："my_database"）
+         */
+        fun zipDbFiles():File? {
+            val context = SCApplication.instance.applicationContext
+
+            val dateFormatForFilename = SimpleDateFormat("yyyy.MM.dd-HH.mm.ss",Locale.US)
+            val bupName = "db_backup_${dateFormatForFilename.format(Date())}.zip"
+
+            // データベースディレクトリを取得
+            val dbDir = context.getDatabasePath("$BASE_DB_NAME.db").parentFile ?: return null
+            logger.debug("dbDir=${dbDir.absolutePath}")
+            val xxx = dbDir.listFiles()
+            if (!xxx.isNullOrEmpty()) {
+                for (f in xxx) {
+                    logger.debug("file: ${f.name} size=${f.length()} lastModified=${Date(f.lastModified())}")
+                }
+            }
+            return try {
+                File(context.cacheDir, bupName).also { zipFile ->
+                    ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+                        val files = dbDir.listFiles { _, name ->
+                            name.startsWith(BASE_DB_NAME) || name.startsWith(SLOT_DB_NAME)
+                        }
+                        files?.forEach { file ->
+                            logger.debug("zipping ... file: ${file.name} size=${file.length()} lastModified=${Date(file.lastModified())}")
+                            FileInputStream(file).use { fis ->
+                                val zipEntry = ZipEntry(file.name)
+                                zos.putNextEntry(zipEntry)
+
+                                val buffer = ByteArray(1024)
+                                var length: Int
+                                while (fis.read(buffer).also { length = it } > 0) {
+                                    zos.write(buffer, 0, length)
+                                }
+                                zos.closeEntry()
+                            }
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                logger.error(e, "Failed to zip database files")
+                return null
+            }
+        }
+
+        /**
+         * zipファイルを解凍し、指定されたディレクトリにファイルを展開します。
+         *
+         * @param zipFile         入力するzipファイル
+         * @param destDir         ファイルを展開するディレクトリ
+         * @throws IOException    ファイル操作中にエラーが発生した場合
+         */
+        fun unzipDbFiles(zipFile: File):Boolean {
+            val context = SCApplication.instance.applicationContext
+            // データベースディレクトリを取得
+            val dbDir = context.getDatabasePath("$BASE_DB_NAME.db").parentFile ?: return false
+
+            val buffer = ByteArray(1024)
+            return try {
+                ZipInputStream(FileInputStream(zipFile)).use { zis ->
+                    var zipEntry: ZipEntry? = zis.nextEntry
+                    while (zipEntry != null) {
+                        val newFile = File(dbDir, zipEntry.name)
+                        if (zipEntry.isDirectory) {
+                            throw IOException("unexpected sub directory: $newFile")
+                        } else {
+                            if (newFile.exists()) {
+                                // 既存のファイルがある場合はバックアップを取る
+                                val backup = File(dbDir, zipEntry.name + ".bak")
+                                backup.delete()
+                                if (!newFile.renameTo(backup)) {
+                                    throw IOException("Failed to backup existing file: $newFile")
+                                }
+                            }
+                            FileOutputStream(newFile).use { fos ->
+                                var len: Int
+                                while (zis.read(buffer).also { len = it } > 0) {
+                                    fos.write(buffer, 0, len)
+                                }
+                            }
+                        }
+                        zipEntry = zis.nextEntry
+                    }
+                    zis.closeEntry()
+                }
+
+                // remove backup files
+                dbDir.listFiles { _, name ->
+                    name.endsWith(".bak")
+                }?.forEach { it.safeDelete() }
+                true
+            } catch (e: Throwable) {
+                logger.error(e)
+                // エラーが発生したらバックアップファイルからDBファイルを復元
+                dbDir.listFiles { _, name ->
+                    name.startsWith(SLOT_DB_NAME) || name.startsWith(BASE_DB_NAME)
+                }?.forEach { file ->
+                    val backupFile = File(dbDir, file.name + ".bak")
+                    if (backupFile.exists()) {
+                        try {
+                            val oldFile = File(dbDir, file.name + ".old")
+                            if (oldFile.exists()) {
+                                oldFile.delete()
+                            }
+                            file.renameTo(oldFile)
+                            if (!backupFile.renameTo(file)) {
+                                throw IOException("Failed to restore backup file: ${backupFile.name} to ${file.name}")
+                            }
+                            backupFile.delete()
+                            oldFile.delete()
+                        } catch(e: Throwable) {
+                            logger.error(e, "Failed to restore backup file: ${backupFile.name} to ${file.name}")
+                        }
+                    }
+                }
+                false
+            }
+        }
     }
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {

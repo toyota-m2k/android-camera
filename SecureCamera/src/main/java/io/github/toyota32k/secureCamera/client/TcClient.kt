@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -12,6 +13,7 @@ import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.ScDB
+import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import kotlinx.coroutines.Dispatchers
@@ -334,6 +336,54 @@ object TcClient {
                 false
             }
 
+        }
+    }
+
+    suspend fun requestBackupData(address:String): Boolean {
+        val json = JSONObject()
+            .put("id", Settings.SecureArchive.clientId)
+            .put("name", Build.MODEL)
+            .put("type", "SecureCamera")
+            .put("token", TcServer.updateAuthToken())
+            .put("address", address)
+            .toString()
+        val request = Request.Builder()
+            .url("http://${Authentication.activeHostAddress}/backup/request")
+            .put(json.toRequestBody("application/json".toMediaType()))
+            .build()
+        return withContext(Dispatchers.IO) {
+            try {
+                NetClient.executeAndGetJsonAsync(request)
+                ServerActivity.Companion.logger.info("backup started.")
+                true
+            } catch (e:Throwable) {
+                ServerActivity.Companion.logger.error(e)
+                false
+            }
+        }
+    }
+
+    suspend fun requestBackupDB(address:String):Boolean {
+        val json = JSONObject()
+            .put("id", Settings.SecureArchive.clientId)
+            .put("name", Build.MODEL)
+            .put("type", "SecureCamera")
+            .put("token", TcServer.updateAuthToken())
+            .put("address", address)
+            .toString()
+        val request = Request.Builder()
+            .url("http://${Authentication.activeHostAddress}/backup-db/request")
+            .put(json.toRequestBody("application/json".toMediaType()))
+            .build()
+        return withContext(Dispatchers.IO) {
+            try {
+                NetClient.executeAndGetJsonAsync(request)
+                logger.info("backup-db accepted.")
+                true
+            } catch (e:Throwable) {
+                logger.error(e, "backup-db request rejected")
+                false
+            }
         }
     }
 }

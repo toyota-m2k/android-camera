@@ -23,6 +23,7 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
@@ -41,6 +42,7 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -64,6 +66,7 @@ class ServerActivity : UtMortalActivity() {
         val purgeCommand = LiteUnitCommand(::purge)
         val repairCommand = LiteUnitCommand(::repair)
         val migrateCommand = LiteUnitCommand(::migrate)
+        val backupDbCommand = LiteUnitCommand(::backupDB)
         val isBusy = MutableStateFlow(false)
         val isMaintenanceMode = MutableStateFlow(false)
 
@@ -87,41 +90,38 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
-        private fun backup() {
+        private fun backupCore(title:String, message:String, backupReq:suspend (String)->Unit) {
             viewModelScope.launch {
-                if(!Authentication.authenticateAndMessage()) {
-                    return@launch
-                }
-                val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
-                    showOkCancelMessageBox(
-                        "Backup",
-                        "Backup to ${Authentication.activeHostLabel}",
-                        "OK",
-                        "Cancel"
-                    )
-                }
-                if(!decision) {
-                    return@launch
-                }
-
-                val json = JSONObject()
-                    .put("id", Settings.SecureArchive.clientId)
-                    .put("name", Build.MODEL)
-                    .put("type", "SecureCamera")
-                    .put("token", TcServer.updateAuthToken())
-                    .put("address", "${ipAddress.value}:${Settings.SecureArchive.myPort}")
-                    .toString()
-                val request = Request.Builder()
-                    .url("http://${Authentication.activeHostAddress}/backup/request")
-                    .put(json.toRequestBody("application/json".toMediaType()))
-                    .build()
+                if (isBusy.value) return@launch
+                isBusy.value = true
                 try {
-                    NetClient.executeAndGetJsonAsync(request)
-                    logger.info("backup started.")
-                } catch (e:Throwable) {
-                    logger.error(e)
+                    if (!Authentication.authenticateAndMessage()) {
+                        return@launch
+                    }
+                    val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
+                        showOkCancelMessageBox(
+                            title,
+                            message,
+                            "OK",
+                            "Cancel"
+                        )
+                    }
+                    if (!decision) {
+                        return@launch
+                    }
+                    backupReq("${ipAddress.value}:${Settings.SecureArchive.myPort}")
+                } finally {
+                    isBusy.value = false
                 }
             }
+        }
+
+        private fun backup() {
+            backupCore("Backup Media Files", "Backup all media files to ${Authentication.activeHostLabel}", TcClient::requestBackupData)
+        }
+
+        private fun backupDB() {
+            backupCore("Backup Databases", "Backup databases to ${Authentication.activeHostLabel}", TcClient::requestBackupDB)
         }
 
         private fun purge() {
@@ -158,10 +158,48 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        private fun progressDialogTest() {
+            UtImmortalTask.launchTask("progress test") {
+                if( !showOkCancelMessageBox("Progress Test", "Are you ok?")) {
+                    return@launchTask
+                }
+
+                var cancelled = false
+                val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
+                pvm.message.value = "Progress Test..."
+                pvm.cancelCommand.bindForever { cancelled = true }
+                // プログレスダイアログをモーダル表示
+                launchSubTask {
+                    showDialog(ProgressDialog())
+                }
+
+                for (i in 1..30) {
+                    if(cancelled) {
+                        logger.debug("progress test cancelled at $i")
+                        break
+                    }
+                    pvm.progress.value = i
+                    pvm.progressText.value = "$i / 100"
+                    logger.debug("progress test: $i")
+                    // ここで何か時間のかかる処理を行う
+                    delay(1000)
+                }
+                pvm.closeCommand.invoke(false)
+                if(cancelled) {
+                    showConfirmMessageBox("Progress Test", "Cancelled.")
+                } else {
+                    showConfirmMessageBox("Progress Test", "Completed.")
+                }
+            }
+        }
+
         private fun migrate() {
             isBusy.value = true
             UtImmortalTask.launchTask("migrate") {
                 try {
+                    var succeeded = false
+                    var cancelled = false
+                    var message = ""
                     fun shorten(text:String, head:Int=5, tail:Int=5):String {
                         return if(text.length>head+tail) {
                             "${text.substring(0, head)}...${text.substring(text.length-tail)}"
@@ -171,27 +209,33 @@ class ServerActivity : UtMortalActivity() {
                     }
                     val devices = TcClient.getDeviceListForMigration() ?: return@launchTask
                     if(devices.isEmpty()) {
-                        showConfirmMessageBox("Migration", "No devices found.")
+                        message = "No devices found."
                         return@launchTask
                     }
                     val index = showRadioSelectionBox("Select Device", devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(), 0)
                     val device = if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
+                        cancelled = true
                         return@launchTask
                     } else devices[index]
 
                     val migration = TcClient.startMigration(device.clientId)
                     if(migration==null) {
-                        showConfirmMessageBox("Migration", "Migration failed.")
+                        message = "Failed to start migration."
                         return@launchTask
                     }
                     if(migration.list.isEmpty()) {
-                        showConfirmMessageBox("Migration", "No data to migrate.")
+                        // サーバーの仕様上、空のリストを返すことはないが、念のためチェック
+                        message = "No data to migrate from ${device.name}."
                         return@launchTask
                     }
-                    var cancelled = false
                     val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
                     pvm.message.value = "Migrating..."
                     pvm.cancelCommand.bindForever { cancelled = true }
+                    // プログレスダイアログをモーダル表示
+                    launchSubTask {
+                        showDialog(ProgressDialog())
+                    }
+
                     var imported = 0
                     var invalid = 0     // インポートされた無効なエントリーの数
                     try {
@@ -199,6 +243,7 @@ class ServerActivity : UtMortalActivity() {
                             MetaDB.dbCache().use { dbCache ->
                                 for (entry in migration.list) {
                                     if (cancelled) {
+                                        logger.debug("migration cancelled at $imported/$invalid/${migration.list.size}")
                                         break
                                     }
                                     imported++
@@ -222,15 +267,21 @@ class ServerActivity : UtMortalActivity() {
                                 }
                             }
                             logger.debug("selected device: ${device.name} / ${device.clientId}")
+                            succeeded = true
                         }
-                    } catch(e:Throwable) {
+                    } catch (e:Throwable) {
                         logger.error(e, "migration failed")
-                        showConfirmMessageBox("Migration", "Migration failed: ${e.message ?: e.toString()}")
+                        message = e.message ?: e.toString()
                         return@launchTask
                     } finally {
                         // マイグレーション終了をサーバーに知らせる
+                        pvm.closeCommand.invoke(succeeded)
                         TcClient.endMigration(migration.handle)
-                        showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: ${migration.list.size}")
+                        if (succeeded) {
+                            showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: ${migration.list.size}")
+                        } else {
+                            showConfirmMessageBox("Migration", "Migration failed.\n$message")
+                        }
                     }
                 } finally {
                     isBusy.value = false
@@ -274,11 +325,12 @@ class ServerActivity : UtMortalActivity() {
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
             .bindCommand(viewModel.repairCommand, controls.repairButton)
             .bindCommand(viewModel.migrateCommand, controls.migrateButton)
+            .bindCommand(viewModel.backupDbCommand, controls.backupDbButton)
             .checkBinding(controls.maintenanceCheckbox, viewModel.isMaintenanceMode)
             .multiEnableBinding(arrayOf(controls.purgeButton,controls.backupButton, controls.repairButton, controls.migrateButton), viewModel.isBusy, boolConvert = BoolConvert.Inverse)
             .combinatorialVisibilityBinding(viewModel.isMaintenanceMode) {
                 inverseGone(controls.backupButton, controls.purgeButton)
-                straightGone(controls.repairButton, controls.migrateButton)
+                straightGone(controls.repairButton, controls.migrateButton, controls.backupDbButton)
             }
             .visibilityBinding(controls.progressRing, viewModel.isBusy, hiddenMode = VisibilityBinding.HiddenMode.HideByInvisible)
     }
