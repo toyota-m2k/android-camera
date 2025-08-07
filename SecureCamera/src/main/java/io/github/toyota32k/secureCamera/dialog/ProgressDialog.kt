@@ -25,24 +25,17 @@ class ProgressDialog : UtDialogEx() {
     class ProgressViewModel : UtDialogViewModel() {
         val progress = MutableStateFlow(0)
         val progressText = MutableStateFlow("")
+        val title = MutableStateFlow("")
         val message = MutableStateFlow("")
         val cancelCommand = LiteUnitCommand()
         val closeCommand = ReliableCommand<Boolean>()
 
-        fun setProgress(current:Long, total:Long) {
+        fun setProgress(current:Long, total:Long):Int {
             val percent = if (total <= 0L) 0 else (current * 100L / total).toInt().coerceIn(0,100)
             progress.value = percent
             progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+            return percent
         }
-//        companion object {
-//            fun create(taskName:String):ProgressViewModel {
-//                return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel() ?: throw IllegalStateException("no task")
-//            }
-//
-//            fun instanceFor(dlg:ProgressDialog):ProgressViewModel {
-//                return ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[ProgressViewModel::class.java]
-//            }
-//        }
     }
 
     private val viewModel by lazy { getViewModel<ProgressViewModel>() }
@@ -63,6 +56,7 @@ class ProgressDialog : UtDialogEx() {
             binder
                 .textBinding(controls.message, viewModel.message)
                 .textBinding(controls.progressText, viewModel.progressText)
+                .dialogTitle(viewModel.title)
                 .progressBarBinding(controls.progressBar, viewModel.progress)
                 .bindCommand(viewModel.cancelCommand, controls.cancelButton)
                 .bindCommand(viewModel.closeCommand) { if(it) onPositive() else onNegative() }

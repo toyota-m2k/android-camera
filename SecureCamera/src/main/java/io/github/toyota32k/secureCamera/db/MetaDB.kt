@@ -465,9 +465,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
     }
 
-    suspend fun migrateOne(handle:String, storedEntry: TcClient.StoredFileEntry):MetaData? {
+    suspend fun migrateOne(handle:String, storedEntry: TcClient.StoredFileEntry):MetaData {
         return withContext(Dispatchers.IO) {
-            db.runInTransaction<MetaData?> {
+            db.runInTransaction<MetaData> {
                 // まず挿入
                 db.metaDataTable().insert(storedEntry.toMetaData())
                 // チャプターを設定
@@ -655,7 +655,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
             return
         }
-        Uploader.upload(SCApplication.instance, slotIndex, item.id)
+        Uploader.upload(SCApplication.instance, item)
     }
 
     fun restoreFromCloud(item: ItemEx) {
@@ -663,11 +663,11 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return
         }
-        Downloader.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, false)
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false)
     }
 
     fun recoverFromCloud(item: ItemEx) {
-        Downloader.download(SCApplication.instance, item.slot, item.id, item.serverUri, fileOf(item).absolutePath, true)
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true)
     }
 
     /**

@@ -174,8 +174,8 @@ class ServerActivity : UtMortalActivity() {
                         showConfirmMessageBox("Migration", "No devices found.")
                         return@launchTask
                     }
-                    var index = showRadioSelectionBox("Select Device", devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(), 0)
-                    var device = if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
+                    val index = showRadioSelectionBox("Select Device", devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(), 0)
+                    val device = if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
                         return@launchTask
                     } else devices[index]
 
@@ -192,22 +192,22 @@ class ServerActivity : UtMortalActivity() {
                     val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
                     pvm.message.value = "Migrating..."
                     pvm.cancelCommand.bindForever { cancelled = true }
-                    var count = 0
-                    withContext(Dispatchers.IO) {
-                        MetaDB.dbCache().use { dbCache ->
-                            for (entry in migration.list) {
-                                if (cancelled) {
-                                    break
-                                }
-                                count++
-                                pvm.progress.value = (count * 100 / migration.list.size).toInt()
-                                pvm.progressText.value = "$count / ${migration.list.size}"
-                                // 端末側DBに移行データのエントリーを作る
-                                val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
-                                if (data != null) {
+                    var imported = 0
+                    var invalid = 0     // インポートされた無効なエントリーの数
+                    try {
+                        withContext(Dispatchers.IO) {
+                            MetaDB.dbCache().use { dbCache ->
+                                for (entry in migration.list) {
+                                    if (cancelled) {
+                                        break
+                                    }
+                                    imported++
+                                    pvm.progress.value = (imported * 100 / migration.list.size).toInt()
+                                    pvm.progressText.value = "$imported / ${migration.list.size}"
+                                    // 端末側DBに移行データのエントリーを作る
+                                    val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
                                     // DB的に移行が出来たことをサーバーに知らせる
-                                    var result =
-                                        TcClient.reportMigratedOne(migration.handle, entry, data.id)
+                                    val result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
                                     if (!result) {
                                         // この状態になったら
                                         // - この端末内に、エントリーが追加されている
@@ -216,17 +216,21 @@ class ServerActivity : UtMortalActivity() {
                                         // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
                                         // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
                                         // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
+                                        invalid++
                                         logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
                                     }
-                                } else {
-                                    logger.error("failed to update item in MetaDB: ${entry.name} / ${entry.originalId}")
                                 }
                             }
+                            logger.debug("selected device: ${device.name} / ${device.clientId}")
                         }
-
+                    } catch(e:Throwable) {
+                        logger.error(e, "migration failed")
+                        showConfirmMessageBox("Migration", "Migration failed: ${e.message ?: e.toString()}")
+                        return@launchTask
+                    } finally {
+                        // マイグレーション終了をサーバーに知らせる
                         TcClient.endMigration(migration.handle)
-
-                        logger.debug("selected device: ${device.name} / ${device.clientId}")
+                        showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: ${migration.list.size}")
                     }
                 } finally {
                     isBusy.value = false
