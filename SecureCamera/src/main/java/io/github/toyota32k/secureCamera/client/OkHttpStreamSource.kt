@@ -4,7 +4,6 @@ import io.github.toyota32k.media.lib.converter.IHttpStreamSource
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.internal.headersContentLength
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
@@ -39,7 +38,7 @@ class OkHttpStreamSource(val url: String) : IHttpStreamSource {
             .build()
         call = motherClient.newCall(request)
         val response = call!!.execute()
-        length = response.headersContentLength()
-        return response.body!!.byteStream().apply { stream = this }
+        length = response.headers["Content-Length"]?.toLongOrNull() ?: 0L
+        return response.body.byteStream().apply { stream = this }
     }
 }

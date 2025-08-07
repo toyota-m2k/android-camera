@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -28,7 +29,7 @@ object NetClient {
         return motherClient.newCall(req).executeAsync(canceller)
     }
 
-    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().connectTimeout(1.seconds.toJavaDuration()).readTimeout(1.seconds.toJavaDuration()).writeTimeout(1.seconds.toJavaDuration()).build()}
+    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().connectTimeout(30.seconds.toJavaDuration()).readTimeout(30.seconds.toJavaDuration()).writeTimeout(30.seconds.toJavaDuration()).build()}
     suspend fun shortCallAsync(req:Request): Response? {
         return try {
             shortClient.newCall(req).executeAsync(null)
@@ -51,7 +52,7 @@ object NetClient {
      * OkHttpのnewCall().execute()を置き換えるだけで使える。
      */
     suspend fun Call.executeAsync(canceller: Canceller?) : Response {
-        return suspendCoroutine {cont ->
+        return suspendCancellableCoroutine { cont ->
             try {
                 canceller?.setCall(this)
                 enqueue(object : Callback {

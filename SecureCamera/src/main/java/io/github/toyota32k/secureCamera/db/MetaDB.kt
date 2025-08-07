@@ -6,7 +6,6 @@ import androidx.core.net.toUri
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.work.WorkerParameters
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
@@ -17,18 +16,17 @@ import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.ScDef
-import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.client.worker.Downloader
+import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.GenericCloseable
-import io.github.toyota32k.utils.IDisposable
-import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -420,6 +418,13 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
 
+        // ダウンロード(repair/restore)中に終了した場合に残るtmpファイルがあれば削除
+        val tmpFiles = fileList().filter { it.endsWith(".tmp") }
+        if (tmpFiles.isNotEmpty()) {
+            logger.warn("deleting tmp files: ${tmpFiles.joinToString(",")}")
+            tmpFiles.forEach { fileOf(it).delete() }
+        }
+
         withContext(Dispatchers.IO) {
             val meta = db.metaDataTable()
             fileList().forEach {filename->
@@ -460,9 +465,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
     }
 
-    suspend fun migrateOne(handle:String, storedEntry: TcClient.StoredFileEntry):MetaData? {
+    suspend fun migrateOne(handle:String, storedEntry: TcClient.StoredFileEntry):MetaData {
         return withContext(Dispatchers.IO) {
-            db.runInTransaction<MetaData?> {
+            db.runInTransaction<MetaData> {
                 // まず挿入
                 db.metaDataTable().insert(storedEntry.toMetaData())
                 // チャプターを設定
@@ -645,47 +650,24 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     // region Cloud Operation
 
-    suspend fun backupToCloud(item: ItemEx):ItemEx {
+    fun backupToCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Local) {
             logger.warn("not need backup : ${item.name} (${item.cloud})")
-            return item
+            return
         }
-        return withContext(Dispatchers.IO) {
-            if (TcClient.uploadToSecureArchive(this@ScDB, item)) {
-                logger.debug("uploaded: ${item.name}")
-                updateCloud(item, CloudStatus.Uploaded)
-            } else {
-                logger.debug("upload error: ${item.name}")
-                item
-            }
-        }
+        Uploader.upload(SCApplication.instance, item)
     }
 
-    suspend fun restoreFromCloud(item: ItemEx):Boolean {
+    fun restoreFromCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
-            return true
+            return
         }
-        return TcClient.downloadFromSecureArchive(this, item).onTrue {
-            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = false)
-        }
-
-//        return withContext(Dispatchers.IO) {
-//            if (TcClient.downloadFromSecureArchive(item)) {
-//                logger.debug("downloaded: ${item.name}")
-//                updateCloud(item, CloudStatus.Uploaded)
-//                true
-//            } else {
-//                logger.debug("download error: ${item.name}")
-//                false
-//            }
-//        }
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false)
     }
 
-    suspend fun recoverFromCloud(item: ItemEx):Boolean {
-        return TcClient.downloadFromSecureArchive(this, item).onTrue {
-            updateCloud(item.id, CloudStatus.Uploaded, updateFileStatus = true)
-        }
+    fun recoverFromCloud(item: ItemEx) {
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true)
     }
 
     /**

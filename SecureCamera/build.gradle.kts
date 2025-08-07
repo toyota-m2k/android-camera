@@ -33,7 +33,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.0.1"
+        versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -55,8 +55,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -70,12 +73,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
-    implementation(libs.androidx.work.runtime)
-    implementation(libs.androidx.work.runtime.ktx)
+//    implementation(libs.androidx.work.runtime)
+//    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.kotrinx.coroutines.core)
-    implementation("com.google.code.gson:gson:2.11.0")
+    implementation(libs.gson)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
@@ -91,6 +94,7 @@ dependencies {
     implementation(libs.android.media.processor)
     implementation(libs.android.server)
     implementation(libs.android.media.player)
+    implementation(libs.android.worker)
 
     implementation(project(path=":libCamera"))
 

@@ -219,7 +219,10 @@ class EditorActivity : UtMortalActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-            override val chapterList: IChapterList = MutableChapterList()
+            val chapterList: IChapterList = MutableChapterList()
+            override suspend fun getChapterList(): IChapterList {
+                return chapterList
+            }
         }
 
         companion object {

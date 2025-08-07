@@ -1,6 +1,6 @@
 package io.github.toyota32k.secureCamera
 
-import io.github.toyota32k.shared.UtSorter
+import io.github.toyota32k.utils.UtSorter
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -15,7 +15,7 @@ class ExampleUnitTest {
     fun sorterTest() {
         val list = mutableListOf<Int>(10, 5, 30, 15, 20)
         val comparator = Comparator<Int> { a,b-> a-b }  // 昇順
-        val utSorter = io.github.toyota32k.shared.UtSorter<Int>(list, UtSorter.ActionOnDuplicate.REJECT, comparator)
+        val utSorter = UtSorter<Int>(list, UtSorter.ActionOnDuplicate.REJECT, comparator)
 
         assertEquals(5, list.first())
         assertEquals(30, list.last())

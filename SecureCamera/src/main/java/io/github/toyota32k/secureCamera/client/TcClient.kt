@@ -3,27 +3,18 @@ package io.github.toyota32k.secureCamera.client
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import io.github.toyota32k.dialog.UtDialog.ParentVisibilityOption
-import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.Authentication
-import io.github.toyota32k.secureCamera.client.worker.Downloader
-import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.ScDB
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -92,49 +83,49 @@ object TcClient {
         }
     }
 
-    suspend fun downloadFromSecureArchive(db:ScDB, item: ItemEx):Boolean {
-        return UtImmortalTask.awaitTaskResult("downloading item") {
-            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
-            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
-            val awaiter = Downloader.download(SCApplication.instance, item.id, item.serverUri, db.fileOf(item).absolutePath) { current, total->
-                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
-                viewModel.progress.value = percent
-                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-            }
-            viewModel.message.value = "Downloading..."
-            viewModel.cancelCommand.bindForever {
-                awaiter.cancel()
-            }
-            CoroutineScope(Dispatchers.IO).launch {
-                val result = awaiter.await()
-                withContext(Dispatchers.Main) {viewModel.closeCommand.invoke(result) }
-            }
-            showDialog(taskName) { ProgressDialog() }.status.ok
-        }
-    }
+//    suspend fun downloadFromSecureArchive(db:ScDB, item: ItemEx):Boolean {
+//        return UtImmortalTask.awaitTaskResult("downloading item") {
+//            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
+//            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
+//            val awaiter = Downloader_Org.download(SCApplication.instance, item.id, item.serverUri, db.fileOf(item).absolutePath) { current, total->
+//                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
+//                viewModel.progress.value = percent
+//                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+//            }
+//            viewModel.message.value = "Downloading..."
+//            viewModel.cancelCommand.bindForever {
+//                awaiter.cancel()
+//            }
+//            CoroutineScope(Dispatchers.IO).launch {
+//                val result = awaiter.await()
+//                withContext(Dispatchers.Main) {viewModel.closeCommand.invoke(result) }
+//            }
+//            showDialog(taskName) { ProgressDialog() }.status.ok
+//        }
+//    }
 
-    suspend fun uploadToSecureArchive(db:ScDB, item:ItemEx):Boolean {
-
-        return UtImmortalTask.awaitTaskResult("upload item") {
-            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
-            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
-            val awaiter = Uploader.upload(SCApplication.instance, db, item) { current, total->
-                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
-                viewModel.progress.value = percent
-                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
-            }
-
-            viewModel.message.value = "Uploading..."
-            viewModel.cancelCommand.bindForever {
-                awaiter.cancel()
-            }
-            CoroutineScope(Dispatchers.IO).launch {
-                val result = awaiter.await()
-                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(result) }
-            }
-            showDialog(taskName) { ProgressDialog().apply{ parentVisibilityOption = ParentVisibilityOption.NONE } }.status.ok
-        }
-    }
+//    suspend fun uploadToSecureArchive(db:ScDB, item:ItemEx):Boolean {
+//
+//        return UtImmortalTask.awaitTaskResult("upload item") {
+//            if(!Authentication.authenticateAndMessage()) return@awaitTaskResult false
+//            val viewModel = createViewModel<ProgressDialog.ProgressViewModel>()
+//            val awaiter = Uploader_Org.upload(SCApplication.instance, db, item) { current, total->
+//                val percent = if(total==0L) 0 else  (current * 100L / total).toInt()
+//                viewModel.progress.value = percent
+//                viewModel.progressText.value = "${sizeInKb(current)} / ${sizeInKb(total)} (${percent} %)"
+//            }
+//
+//            viewModel.message.value = "Uploading..."
+//            viewModel.cancelCommand.bindForever {
+//                awaiter.cancel()
+//            }
+//            CoroutineScope(Dispatchers.IO).launch {
+//                val result = awaiter.await()
+//                withContext(Dispatchers.Main) { viewModel.closeCommand.invoke(result) }
+//            }
+//            showDialog(taskName) { ProgressDialog().apply{ parentVisibilityOption = ParentVisibilityOption.NONE } }.status.ok
+//        }
+//    }
 
     data class RepairingItem(val slot: Int, val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
 

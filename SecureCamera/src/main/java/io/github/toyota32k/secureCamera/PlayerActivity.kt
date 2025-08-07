@@ -267,8 +267,12 @@ class PlayerActivity : UtMortalActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-            override val chapterList: IChapterList
-                = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
+//            override val chapterList: IChapterList
+//                = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
+
+            override suspend fun getChapterList(): IChapterList {
+                return if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
+            }
         }
         inner class Playlist : IMediaFeed, IUtPropOwner {
             private var sortOrder:Int = 1
