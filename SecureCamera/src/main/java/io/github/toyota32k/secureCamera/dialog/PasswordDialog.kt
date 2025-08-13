@@ -255,7 +255,10 @@ class PasswordDialog : UtDialogEx() {
                             true
                         }
                     }
-                } else false
+                } else {
+                    logger.debug { "cancelled." }
+                    false
+                }
             }
         }
 
