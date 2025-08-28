@@ -9,9 +9,9 @@ import io.github.toyota32k.secureCamera.SCApplication
 
 data class ThemeInfo(
     val label: String,
-    @StyleRes val id: Int,
-    @StyleRes val overlayMedium: Int?,
-    @StyleRes val overlayHigh: Int?,
+    @param:StyleRes val id: Int,
+    @param:StyleRes val overlayMedium: Int?,
+    @param:StyleRes val overlayHigh: Int?,
 )
 
 interface IThemeList {
@@ -86,7 +86,7 @@ class ThemeSelector(val application: Application) {
                 daltonizerMode > 0 -> ContrastLevel.High
                 else -> ContrastLevel.Normal
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             ContrastLevel.Normal
         }
     }

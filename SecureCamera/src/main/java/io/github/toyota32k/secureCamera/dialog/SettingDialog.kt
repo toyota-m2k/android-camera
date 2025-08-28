@@ -62,7 +62,7 @@ class SettingDialog : UtDialogEx() {
 //                return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
 //            }
         }
-        enum class CameraTapAction(val value:Int, @IdRes val selfieId:Int) {
+        enum class CameraTapAction(val value:Int, @param:IdRes val selfieId:Int) {
             NONE(Settings.Camera.TAP_NONE, R.id.radio_selfie_action_none),
             VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_selfie_action_video),
             PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_selfie_action_photo)
@@ -228,10 +228,10 @@ class SettingDialog : UtDialogEx() {
         scrollable = true
         cancellable = false
         gravityOption = GravityOption.CENTER
-        if(isPhone) {
-            heightOption = HeightOption.FULL
+        heightOption = if(isPhone) {
+            HeightOption.FULL
         } else {
-            heightOption = HeightOption.AUTO_SCROLL
+            HeightOption.AUTO_SCROLL
         }
     }
 

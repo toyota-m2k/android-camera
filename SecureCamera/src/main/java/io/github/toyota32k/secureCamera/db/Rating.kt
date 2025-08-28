@@ -6,7 +6,7 @@ import androidx.annotation.IdRes
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
-enum class Rating(val ytLabel:String, val v:Int, @IdRes val id:Int, @DrawableRes val icon:Int) {
+enum class Rating(val ytLabel:String, val v:Int, @param:IdRes val id:Int, @param:DrawableRes val icon:Int) {
     RatingNone("NORMAL", 3, View.NO_ID, R.drawable.ic_none),
     Rating1("DREADFUL", 1, R.id.tg_rating_1, R.drawable.ic_rating_1),
     Rating2("BAD", 2, R.id.tg_rating_2, R.drawable.ic_rating_2),
@@ -20,10 +20,10 @@ enum class Rating(val ytLabel:String, val v:Int, @IdRes val id:Int, @DrawableRes
 
     companion object {
         fun id2value(@IdRes id: Int, def: Rating = RatingNone): Rating {
-            return values().find { it.id == id } ?: def
+            return entries.find { it.id == id } ?: def
         }
         fun valueOf(v: Int, def: Rating = RatingNone): Rating {
-            return values().find { it.v == v } ?: def
+            return entries.find { it.v == v } ?: def
         }
         val idResolver: IIDValueResolver<Rating> by lazy { IDResolver() }
     }

@@ -15,7 +15,7 @@ import io.github.toyota32k.secureCamera.databinding.DialogSelectQualityBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class SelectQualityDialog : UtDialogEx() {
-    enum class VideoQuality(@IdRes val id: Int, val compact:Boolean=true) {
+    enum class VideoQuality(@param:IdRes val id: Int, val compact:Boolean=true) {
         High(R.id.radio_high, false),
         Middle(R.id.radio_middle),
         Low(R.id.radio_low);

@@ -21,9 +21,8 @@ class SCApplication : Application() {
             UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
             UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.DIM
             UtDialogConfig.showInDialogModeAsDefault = true
-            UtDialogConfig.hideStatusBarOnDialogMode = true
-            UtDialogConfig.systemBarOptionOnFragmentMode = UtDialogBase.SystemBarOptionOnFragmentMode.HIDE
             UtDialogConfig.showDialogImmediately = UtDialogConfig.ShowDialogMode.Commit
+            UtDialogConfig.draggable = true
         }
     }
 

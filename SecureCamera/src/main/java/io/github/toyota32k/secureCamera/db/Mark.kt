@@ -6,7 +6,7 @@ import androidx.annotation.IdRes
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
-enum class Mark(val v:Int, @DrawableRes val iconId:Int, @IdRes val id:Int) {
+enum class Mark(val v:Int, @param:DrawableRes val iconId:Int, @param:IdRes val id:Int) {
     None(0, R.drawable.ic_none, View.NO_ID),
     Star(1, R.drawable.ic_mark_star, R.id.tg_mark_star),
     Flag(2, R.drawable.ic_mark_flag, R.id.tg_mark_flag),
@@ -40,13 +40,13 @@ enum class Mark(val v:Int, @DrawableRes val iconId:Int, @IdRes val id:Int) {
 
     companion object {
         fun fromMarkValue(value:Int):Mark {
-            return values().firstOrNull { it.v == value } ?: None
+            return entries.firstOrNull { it.v == value } ?: None
         }
         fun id2value(@IdRes id: Int, def: Mark = None): Mark {
-            return values().find { it.id == id } ?: def
+            return entries.find { it.id == id } ?: def
         }
         fun valueOf(v: Int, def: Mark = None): Mark {
-            return values().find { it.v == v } ?: def
+            return entries.find { it.v == v } ?: def
         }
         val idResolver:IIDValueResolver<Mark> by lazy { IDResolver() }
     }
