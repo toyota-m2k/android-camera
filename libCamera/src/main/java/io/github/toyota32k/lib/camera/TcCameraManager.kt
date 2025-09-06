@@ -1,5 +1,6 @@
 package io.github.toyota32k.lib.camera
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
@@ -12,7 +13,12 @@ import androidx.camera.view.PreviewView
 import androidx.concurrent.futures.await
 import androidx.lifecycle.LifecycleOwner
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
+import io.github.toyota32k.lib.camera.usecase.TcResolution
 import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
+import io.github.toyota32k.lib.camera.usecase.TcVideoCapture.IBuilder
+import io.github.toyota32k.lib.camera.usecase.TcVideoCapture.RecordingState
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.concurrent.Executor
 
 /**
  * カメラの統括マネージャー
@@ -120,7 +126,7 @@ class TcCameraManager() {
     /**
      * cameraInfoで指定されたカメラがサポートしているQualityのリストを取得する。
      */
-    fun supportedQualityListForCamera(cameraInfo:CameraInfo?, dr:DynamicRange=DynamicRange.SDR):List<Quality> {
+    fun supportedQualityListForCamera(cameraInfo:CameraInfo?, dr:DynamicRange):List<Quality> {
         if(cameraInfo==null) return emptyList()
         return Recorder.getVideoCapabilities(cameraInfo).getSupportedQualities(dr)
     }
@@ -138,15 +144,42 @@ class TcCameraManager() {
     /**
      * フロントカメラ、または、リアカメラがサポートしているQualityのリストを取得
      */
-    fun supportedQualityList(isFront:Boolean?=null):List<Quality> {
-        val supported = when(isFront) {
-            true-> {supportedQualityListForCamera(getCameraInfo(true)).toSet() }
-            false-> {supportedQualityListForCamera(getCameraInfo(false)).toSet() }
-            null->{supportedQualityListForCamera(getCameraInfo(false)).intersect(supportedQualityListForCamera(getCameraInfo(true)))}
-        }
+    fun supportedQualityList(isFront:Boolean, dr:DynamicRange?=null):List<Quality> {
+        val supported = supportedQualityListForCamera(getCameraInfo(isFront), dr ?: DynamicRange.SDR).toSet()
         return arrayListOf (Quality.UHD, Quality.FHD, Quality.HD, Quality.SD).filter { supported.contains(it) }
     }
 
+    fun supportedQualityList(isFront:Boolean, preferHDR:Boolean):List<Quality> {
+        val dr = (if(preferHDR) supportedHDR(isFront) else null) ?:  DynamicRange.SDR
+        val supported = supportedQualityListForCamera(getCameraInfo(isFront), dr).toSet()
+        return arrayListOf (Quality.UHD, Quality.FHD, Quality.HD, Quality.SD).filter { supported.contains(it) }
+    }
+    fun supportedQualityList(cameraSelector: CameraSelector, preferHDR:Boolean):List<Quality> {
+        val dr = (if(preferHDR) supportedHDR(cameraSelector) else null) ?:  DynamicRange.SDR
+        val supported = supportedQualityListForCamera(getCameraInfo(cameraSelector), dr).toSet()
+        return arrayListOf (Quality.UHD, Quality.FHD, Quality.HD, Quality.SD).filter { supported.contains(it) }
+    }
+
+    // endregion
+
+    // region DynamicRange
+
+    /**
+     * 指定したカメラがサポートしているDynamicRangeのリストを取得
+     */
+    fun supportedDynamicRangeList(isFront:Boolean):Set<DynamicRange> {
+        return Recorder.getVideoCapabilities(getCameraInfo(isFront) ?: return emptySet()).supportedDynamicRanges
+    }
+
+    fun supportedHDR(isFront:Boolean):DynamicRange? {
+        val drs = supportedDynamicRangeList(isFront)
+        return when {
+            drs.contains(DynamicRange.HLG_10_BIT) -> DynamicRange.HLG_10_BIT
+            drs.contains(DynamicRange.HDR10_10_BIT) -> DynamicRange.HDR10_10_BIT
+            drs.contains(DynamicRange.HDR10_PLUS_10_BIT) -> DynamicRange.HDR10_PLUS_10_BIT
+            else -> drs.firstOrNull { it.bitDepth == 10 }
+        }
+    }
     // endregion
 
     // region CameraSelector (and the camera specific properties)
@@ -169,10 +202,54 @@ class TcCameraManager() {
         }.firstOrNull()
     }
 
+    fun getCameraInfo(cameraSelector: CameraSelector):CameraInfo? {
+        return cameraProvider.getCameraInfo(cameraSelector)
+    }
+    fun supportedDynamicRangeList(cameraSelector: CameraSelector):Set<DynamicRange> {
+        return Recorder.getVideoCapabilities(getCameraInfo(cameraSelector) ?: return emptySet()).supportedDynamicRanges
+    }
+    fun supportedHDR(cameraSelector: CameraSelector):DynamicRange? {
+        val drs = supportedDynamicRangeList(cameraSelector)
+        return when {
+            drs.contains(DynamicRange.HLG_10_BIT) -> DynamicRange.HLG_10_BIT
+            drs.contains(DynamicRange.HDR10_10_BIT) -> DynamicRange.HDR10_10_BIT
+            drs.contains(DynamicRange.HDR10_PLUS_10_BIT) -> DynamicRange.HDR10_PLUS_10_BIT
+            else -> drs.firstOrNull { it.bitDepth == 10 }
+        }
+    }
+    fun supportedQualityList(cameraSelector: CameraSelector, dr:DynamicRange?=null):List<Quality> {
+        val supported = supportedQualityListForCamera(getCameraInfo(cameraSelector), dr ?: DynamicRange.SDR).toSet()
+        return arrayListOf (Quality.UHD, Quality.FHD, Quality.HD, Quality.SD).filter { supported.contains(it) }
+    }
+
     val hasFrontCamera:Boolean
         get() = cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
     val hasRearCamera:Boolean
         get() = cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)
+
+    val dynamicRanges = mutableMapOf<CameraSelector,DynamicRange>()
+    fun requestHDR(cameraSelector: CameraSelector, enableHDR:Boolean) {
+        if(enableHDR) {
+            supportedHDR(cameraSelector)?.let {
+                dynamicRanges[cameraSelector] = it
+            } ?: dynamicRanges.remove(cameraSelector)
+        } else {
+            dynamicRanges.remove(cameraSelector)
+        }
+    }
+    /**
+     * @param isFront  true:フロントカメラ / false:リアカメラ
+     * @param enableHDR true: 可能なら HDR モードを選択 / false: SDRモード
+     */
+    fun requestHDR(isFront:Boolean, enableHDR:Boolean) {
+        requestHDR(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA, enableHDR)
+    }
+    fun dynamicRangeOf(cameraSelector: CameraSelector):DynamicRange? {
+        return dynamicRanges[cameraSelector]
+    }
+    fun dynamicRangeOf(isFront:Boolean):DynamicRange? {
+        return dynamicRangeOf(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
+    }
 
     // endregion
 
@@ -260,53 +337,47 @@ class TcCameraManager() {
          */
         fun errorIfNotHasCamera(errorIfNotHasCamera:Boolean): ICameraBuilder
     }
-    inner class CameraBuilder : ICameraBuilder {
+
+    private inner class CameraBuilder : ICameraBuilder {
         private var mCameraSelector: CameraSelector? = null
         private var mExtensionMode: TcCameraExtensions.Mode = TcCameraExtensions.Mode.NONE
         private var mPreview: Preview? = null
+        private var mPreviewView: PreviewView? = null
         private var mImageCapture: TcImageCapture? = null
         private var mVideoCapture: TcVideoCapture? = null
         private var mErrorIfNotHasCamera:Boolean = false    // true: build()で例外を投げる / false: front or rear にフォールバックする
 
-        override fun frontCamera(frontCamera: Boolean): CameraBuilder {
+        override fun frontCamera(frontCamera: Boolean): CameraBuilder = apply {
             mCameraSelector = if(frontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
-            return this
         }
 
-        override fun selectCamera(cameraSelector: CameraSelector): ICameraBuilder {
+        override fun selectCamera(cameraSelector: CameraSelector): ICameraBuilder = apply {
             mCameraSelector = cameraSelector
-            return this
         }
 
-        override fun extensionMode(mode: TcCameraExtensions.Mode): CameraBuilder {
+        override fun extensionMode(mode: TcCameraExtensions.Mode): CameraBuilder = apply {
             mExtensionMode = mode
-            return this
         }
-        override fun preview(preview: Preview): CameraBuilder {
+
+        override fun preview(preview: Preview): CameraBuilder = apply {
             mPreview = preview
-            return this
+            mPreviewView = null
         }
-        override fun standardPreview(previewView: PreviewView): CameraBuilder {
-            return preview(Preview.Builder().build().apply {
-                // Connect the preview to receive the surface the camera outputs the frames
-                // to. This will allow displaying the camera frames in either a TextureView
-                // or SurfaceView. The SurfaceProvider can be obtained from the PreviewView.
-                setSurfaceProvider(previewView.surfaceProvider)
-            })
+        override fun standardPreview(previewView: PreviewView): CameraBuilder = apply {
+            mPreview = null
+            mPreviewView = previewView
         }
-        override fun imageCapture(imageCapture: TcImageCapture): CameraBuilder {
+        override fun imageCapture(imageCapture: TcImageCapture): CameraBuilder = apply {
             mImageCapture = imageCapture
-            return this
         }
 
-        override fun videoCapture(videoCapture: TcVideoCapture): CameraBuilder {
+        override fun videoCapture(videoCapture: TcVideoCapture): CameraBuilder = apply {
             mVideoCapture = videoCapture
-            return this
         }
 
-        override fun errorIfNotHasCamera(errorIfNotHasCamera: Boolean): CameraBuilder {
+
+        override fun errorIfNotHasCamera(errorIfNotHasCamera: Boolean): CameraBuilder = apply {
             mErrorIfNotHasCamera = errorIfNotHasCamera
-            return this
         }
 
         fun build(lifecycleOwner: LifecycleOwner): TcCamera {
@@ -323,8 +394,121 @@ class TcCameraManager() {
             if(mExtensionMode!=TcCameraExtensions.Mode.NONE) {
                 cameraSelector = cameraExtensions.applyExtensionTo(mExtensionMode, cameraSelector)
             }
-            val camera = rawCreateCamera(lifecycleOwner, cameraSelector, *(arrayOf(mPreview, mImageCapture?.useCase, mVideoCapture?.useCase).filterNotNull().toTypedArray()))
+            // Previewの準備
+            val preview = mPreview ?: mPreviewView?.let { pv ->
+                Preview.Builder().apply {
+                    @SuppressLint("RestrictedApi")
+                    val hdr = dynamicRangeOf(cameraSelector)
+                    if (hdr!=null) {
+                        setDynamicRange(hdr)
+                    }
+                }.build().apply {
+                    surfaceProvider = pv.surfaceProvider
+                }
+            }
+            val camera = rawCreateCamera(lifecycleOwner, cameraSelector, *(arrayOf(preview, mImageCapture?.useCase, mVideoCapture?.useCase).filterNotNull().toTypedArray()))
             return TcCamera(camera, cameraSelector, mPreview, mImageCapture, mVideoCapture).apply { torch.attach(this) }
+        }
+    }
+
+    fun videoCaptureBuilder(cameraSelector: CameraSelector): IVideoCaptureBuilder {
+        return VideoCaptureBuilder(cameraSelector)
+    }
+    fun videoCaptureBuilder(isFront:Boolean): IVideoCaptureBuilder {
+        return VideoCaptureBuilder(isFront)
+    }
+
+    interface IVideoCaptureBuilder {
+        fun executor(executor: Executor): IVideoCaptureBuilder
+        fun useFixedPoolExecutor(): IVideoCaptureBuilder
+        fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IVideoCaptureBuilder
+        fun limitResolution(resolution: TcResolution): IVideoCaptureBuilder
+        fun build(): TcVideoCapture
+    }
+
+    inner class VideoCaptureBuilder(val cameraSelector: CameraSelector) : IVideoCaptureBuilder {
+        @SuppressLint("RestrictedApi")
+        constructor(isFront:Boolean) : this(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
+
+        val innerBuilder = TcVideoCapture.builder
+        private var mResolution: TcResolution? = null
+
+        override fun executor(executor: Executor): IVideoCaptureBuilder = apply {
+            innerBuilder.executor(executor)
+        }
+
+        override fun useFixedPoolExecutor(): IVideoCaptureBuilder = apply {
+            innerBuilder.useFixedPoolExecutor()
+        }
+
+        override fun recordingStateFlow(flow: MutableStateFlow<RecordingState>): IVideoCaptureBuilder = apply {
+            innerBuilder.recordingStateFlow(flow)
+        }
+
+        override fun limitResolution(resolution: TcResolution): IVideoCaptureBuilder = apply {
+            mResolution = resolution
+        }
+
+        override fun build(): TcVideoCapture {
+            val hdr = dynamicRangeOf(cameraSelector)
+            val resolution = mResolution
+            when(resolution) {
+                null -> {} // 指定なし --> Highest
+                TcResolution.LOWEST, TcResolution.HIGHEST -> innerBuilder.limitResolution(resolution)
+                else -> {
+                    val qualities = supportedQualityList(cameraSelector, hdr)
+                    val limitedQuality = qualities.filter {
+                        (TcResolution.fromQuality(it) ?: return@filter false).order <= resolution.order
+                    }
+                    if(limitedQuality.isNotEmpty()) {
+                        innerBuilder.resolutionFromQualityList(limitedQuality)
+                    } else {
+                        innerBuilder.resolutionFromQualityList(qualities)
+                    }
+                }
+            }
+            if (hdr!=null) {
+                innerBuilder.dynamicRange(hdr)
+            }
+            return innerBuilder.build()
+        }
+    }
+
+    interface IImageCaptureBuilder {
+        fun zeroLag(): IImageCaptureBuilder
+        fun minimizeLatency(): IImageCaptureBuilder
+        fun maximizeQuality(): IImageCaptureBuilder
+        fun build(): TcImageCapture
+    }
+
+    fun imageCaptureBuilder(cameraSelector: CameraSelector): IImageCaptureBuilder{
+        return ImageCaptureBuilder(cameraSelector)
+    }
+    fun imageCaptureBuilder(isFront: Boolean): IImageCaptureBuilder{
+        return ImageCaptureBuilder(isFront)
+    }
+    inner class ImageCaptureBuilder(val cameraSelector: CameraSelector) : IImageCaptureBuilder {
+        constructor(isFront:Boolean) : this(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
+        private val innerBuilder = TcImageCapture.builder
+
+        override fun zeroLag(): IImageCaptureBuilder = apply {
+            innerBuilder.zeroLag()
+        }
+
+        override fun minimizeLatency(): IImageCaptureBuilder = apply {
+            innerBuilder.minimizeLatency()
+        }
+
+        override fun maximizeQuality(): IImageCaptureBuilder = apply {
+            innerBuilder.maximizeQuality()
+        }
+
+        override fun build(): TcImageCapture {
+            val hdr = dynamicRangeOf(cameraSelector)
+            if (hdr!=null) {
+                innerBuilder.dynamicRange(hdr)
+            }
+            return innerBuilder.build()
         }
     }
 

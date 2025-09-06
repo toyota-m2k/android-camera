@@ -50,8 +50,15 @@ import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
+import io.github.toyota32k.media.lib.format.Codec
+import io.github.toyota32k.media.lib.format.Profile
+import io.github.toyota32k.media.lib.format.isHDR
+import io.github.toyota32k.media.lib.report.Summary
+import io.github.toyota32k.media.lib.strategy.IHDRSupport
+import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
+import io.github.toyota32k.media.lib.strategy.VideoStrategy
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -353,30 +360,32 @@ class EditorActivity : UtMortalActivity() {
             logger.error(e)
         }
     }
-
-    private fun showVideoProperties():Boolean {
+    private fun sourceVideoProperties(): Summary {
         val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
             viewModel.targetFile.toAndroidFile()
         } else {
             HttpFile(viewModel.targetUri)
         }
-        val s = Converter.analyze(inFile)
-        ReportTextDialog.show(viewModel.targetItem.name, s.toString())
+        return Converter.analyze(inFile)
+    }
+    private fun showVideoProperties():Boolean {
+        ReportTextDialog.show(viewModel.targetItem.name, sourceVideoProperties().toString())
         return true
     }
 
     private fun selectQualityAndSave():Boolean {
         logger.debug()
         lifecycleScope.launch {
-            val quality = SelectQualityDialog.show() ?: return@launch
+            val hdr = sourceVideoProperties().videoSummary?.profile?.isHDR() == true
+            val q = SelectQualityDialog.show(hdr) ?: return@launch
             withContext(Dispatchers.IO) {
-                trimmingAndSave(quality)
+                trimmingAndSave(q.quality, hdr, q.convertToSdr)
             }
         }
         return true
     }
 
-    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null) {
+    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null, sourceHdr: Boolean, convertToSdr:Boolean) {
         val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
 //        if(!targetItem.cloud.isFileInLocal) return
@@ -389,6 +398,7 @@ class EditorActivity : UtMortalActivity() {
             SelectQualityDialog.VideoQuality.Middle -> PresetVideoStrategies.HEVC720Profile
             SelectQualityDialog.VideoQuality.Low -> PresetVideoStrategies.HEVC720LowProfile
         }
+
         val srcFile = viewModel.inputFile
 
 //        val s = Converter.analyze(srcFile)
@@ -409,6 +419,12 @@ class EditorActivity : UtMortalActivity() {
                 .output(trimFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
                 .videoStrategy(strategy)
+                .apply {
+                    if (sourceHdr && !convertToSdr) {
+                        // HDR動画で、SDR変換しない場合は HDRの維持を指定
+                        keepHDR(true)
+                    }
+                }
                 .rotate(rotation)
                 .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
                 .setProgressHandler {

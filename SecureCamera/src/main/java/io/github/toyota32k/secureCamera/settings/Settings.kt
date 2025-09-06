@@ -45,14 +45,17 @@ object Settings {
         const val DEF_TAP_ACTION = TAP_VIDEO
         const val DEF_SELFIE_ACTION = TAP_VIDEO
         const val DEF_HIDE_PANEL_ON_START = false
+        const val DEF_PREFER_HDR = false
 
 //        var tapAction:Int by spd.pref(DEF_TAP_ACTION)
         var selfieAction:Int by spd.pref(DEF_SELFIE_ACTION)
         var hidePanelOnStart:Boolean by spd.pref(DEF_HIDE_PANEL_ON_START)
+        var preferHDR:Boolean by spd.pref(DEF_PREFER_HDR)
 
         fun reset() {
             selfieAction = Camera.DEF_SELFIE_ACTION
             hidePanelOnStart = Camera.DEF_HIDE_PANEL_ON_START
+            preferHDR = false
         }
     }
 

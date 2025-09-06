@@ -108,6 +108,7 @@ class SettingDialog : UtDialogEx() {
 
 //        val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
         val selfieAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.selfieAction)
+        val preferHDR: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.preferHDR)
         val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
         val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipForward.toFloat()))
         val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipBackward.toFloat()))
@@ -190,6 +191,7 @@ class SettingDialog : UtDialogEx() {
             Settings.apply {
 //                Settings.Camera.tapAction = cameraTapAction.value
                 Settings.Camera.selfieAction = selfieAction.value
+                Settings.Camera.preferHDR = preferHDR.value
                 Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
                 Settings.Player.spanOfSkipForward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipForward.value))
                 Settings.Player.spanOfSkipBackward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipBackward.value))
@@ -208,6 +210,7 @@ class SettingDialog : UtDialogEx() {
         fun reset() {
 //            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
             selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
+            preferHDR.value = Settings.Camera.DEF_PREFER_HDR
             cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
             playerSpanOfSkipForward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat())
             playerSpanOfSkipBackward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat())
@@ -275,6 +278,7 @@ class SettingDialog : UtDialogEx() {
                     .materialRadioButtonGroupBinding(controls.radioSelfieAction, viewModel.selfieAction,
                         SettingViewModel.CameraTapAction.SelfieActionResolver
                     )
+                    .checkBinding(controls.enableHdrCheck, viewModel.preferHDR)
 
                     .observe(viewModel.securityEnablePassword) {
                         if(it&&viewModel.securityPassword.value.isEmpty()) {

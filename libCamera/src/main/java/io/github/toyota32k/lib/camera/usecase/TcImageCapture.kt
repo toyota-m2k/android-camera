@@ -1,5 +1,6 @@
 package io.github.toyota32k.lib.camera.usecase
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.graphics.Bitmap
 import android.net.Uri
@@ -12,7 +13,6 @@ import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.core.content.ContextCompat
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.utils.ImageUtils
-import java.util.*
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -85,27 +85,54 @@ suspend fun ImageCapture.takeInMediaStore(displayName:String): Uri {
 }
 
 class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
-    @ExperimentalZeroShutterLag // region UseCases
-    constructor(highSpeed:Boolean) : this(ImageCapture.Builder().setCaptureMode(if(highSpeed) ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build())
-
-    class Builder {
+    companion object {
+        val builder: IBuilder get() = Builder()
+    }
+//    @ExperimentalZeroShutterLag // region UseCases
+//    constructor(highSpeed:Boolean) : this(ImageCapture.Builder().setCaptureMode(if(highSpeed) ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build())
+    interface IBuilder {
+        fun zeroLag(): IBuilder
+        fun minimizeLatency(): IBuilder
+        fun maximizeQuality(): IBuilder
+        fun dynamicRange(range: DynamicRange) : IBuilder
+        fun build(): TcImageCapture
+    }
+    private class Builder : IBuilder {
         @CaptureMode
-        private var mode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        private var mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        private var mDynamicRange: DynamicRange = DynamicRange.SDR
         @ExperimentalZeroShutterLag // region UseCases
-        fun zeroLag(): Builder {
-            mode = ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
+        override fun zeroLag(): IBuilder {
+            mMode = ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
             return this
         }
-        fun minimizeLatency(): Builder {
-            mode = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+        override fun minimizeLatency(): IBuilder {
+            mMode = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
             return this
         }
-        fun maximizeQuality(): Builder {
-            mode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        override fun maximizeQuality(): IBuilder {
+            mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
             return this
         }
-        fun build(): TcImageCapture {
-            return TcImageCapture(ImageCapture.Builder().setCaptureMode(mode).build())
+        override fun dynamicRange(range: DynamicRange): IBuilder {
+            mDynamicRange = range
+            return this
+        }
+        override fun build(): TcImageCapture {
+            return TcImageCapture(
+                ImageCapture.Builder()
+                    .setCaptureMode(mMode)
+                    .apply {
+                        if (mDynamicRange != DynamicRange.SDR) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                @SuppressLint("RestrictedApi")
+                                setDynamicRange(mDynamicRange)
+                            } else {
+                                TcLib.logger.warn("Dynamic range setting is not supported on this OS version.")
+                            }
+                        }
+                    }
+                    .build())
         }
     }
 
