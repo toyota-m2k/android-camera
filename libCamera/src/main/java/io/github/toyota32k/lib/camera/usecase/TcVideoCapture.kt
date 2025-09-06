@@ -7,11 +7,13 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.annotation.RequiresPermission
+import androidx.camera.core.DynamicRange
 import androidx.camera.core.UseCase
 import androidx.camera.video.*
 import androidx.camera.video.OutputOptions.FILE_SIZE_UNLIMITED
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
+import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.logger.UtLog
@@ -54,16 +56,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
     ITcVideoCamera, IUtPropOwner {
     companion object {
         val logger: UtLog = TcLib.logger
-        val builder:Builder get() = Builder()
-
-        fun create(setupMe:(builder:IBuilder)->Unit):TcVideoCapture {
-            return Builder().apply {
-                setupMe(this)
-            }.build()
-        }
-        fun default():TcVideoCapture {
-            return Builder().build()
-        }
+        val builder:IBuilder get() = Builder()
     }
     private val context: Context
         get() = TcLib.applicationContext
@@ -95,45 +88,83 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         fun executor(executor: Executor): IBuilder
         fun useFixedPoolExecutor(): IBuilder
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder
+        fun limitResolution(resolution: TcResolution): IBuilder
+        fun resolutionFromQualityList(qualities: List<Quality>): IBuilder
+        fun dynamicRange(dr: DynamicRange): IBuilder
+
+        fun build(): TcVideoCapture
     }
 
-    class Builder : IBuilder {
-        private val autoQualitySelector:QualitySelector
-            get() = QualitySelector.fromOrderedList(
-                listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
-                FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
-
+    private class Builder : IBuilder {
         private var mQualitySelector: QualitySelector? = null
         private var mExecutor: Executor? = null
         private var mRecordingState:MutableStateFlow<RecordingState>? = null
 
-        override fun qualitySelector(qualitySelector: QualitySelector): Builder {
+        private var mResolution: TcResolution? = null
+        private var mQualityList: List<Quality>? = null
+        private var mDynamicRange: DynamicRange = DynamicRange.SDR
+
+        override fun qualitySelector(qualitySelector: QualitySelector): IBuilder = apply {
             mQualitySelector = qualitySelector
-            return this
         }
-        override fun executor(executor: Executor): Builder {
+        override fun executor(executor: Executor): IBuilder = apply {
             mExecutor = executor
-            return this
         }
-        override fun useFixedPoolExecutor(): Builder {
+        override fun useFixedPoolExecutor(): IBuilder = apply {
             mExecutor = Executors.newFixedThreadPool(2)
-            return this
         }
 
-        override fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): Builder {
+        override fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder = apply {
             mRecordingState = flow
-            return this
         }
 
-        fun build(): TcVideoCapture {
+        override fun limitResolution(resolution: TcResolution): IBuilder = apply {
+            mResolution = resolution
+        }
+
+        override fun resolutionFromQualityList(qualities: List<Quality>): IBuilder = apply {
+            mQualityList = qualities
+        }
+
+        override fun dynamicRange(dr: DynamicRange): IBuilder = apply {
+            mDynamicRange = dr
+        }
+
+        private val autoQualitySelector: QualitySelector
+            get() {
+                return if (mQualityList != null) {
+                    QualitySelector.fromOrderedList(mQualityList!!, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                } else {
+                    val resolution = mResolution ?: TcResolution.HIGHEST
+                    when (resolution) {
+                        TcResolution.UHD -> QualitySelector.from(Quality.UHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                        TcResolution.FHD -> QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                        TcResolution.HD -> QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                        TcResolution.SD -> QualitySelector.from(Quality.SD)
+                        TcResolution.LOWEST -> QualitySelector.from(Quality.LOWEST)
+                        TcResolution.HIGHEST -> QualitySelector.from(Quality.HIGHEST)
+                    }
+                }
+            }
+
+
+        override fun build(): TcVideoCapture {
             val executor = mExecutor ?: Executors.newFixedThreadPool(2)
             val recorder = Recorder.Builder()
                 .setExecutor(executor)
                 .setQualitySelector( mQualitySelector?: autoQualitySelector )
                 .build()
-            return TcVideoCapture(VideoCapture.withOutput(recorder), mRecordingState)
+
+            return TcVideoCapture(
+                VideoCapture.Builder<Recorder>(recorder).apply {
+                    if(mDynamicRange!= DynamicRange.SDR) {
+                        setDynamicRange(mDynamicRange)
+                    }
+                }.build(),
+                mRecordingState)
         }
     }
+
 
     // endregion
 
@@ -294,4 +325,15 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
 
     // endregion
 
+}
+
+enum class TcResolution(val quality: Quality, val order:Int) {
+    UHD(Quality.UHD, 4), FHD(Quality.FHD, 3), HD(Quality.HD, 2), SD(Quality.SD, 1),
+    HIGHEST(Quality.HIGHEST, Int.MAX_VALUE), LOWEST(Quality.LOWEST, Int.MIN_VALUE)
+    ;
+    companion object {
+        fun fromQuality(quality: Quality):TcResolution? {
+            return entries.firstOrNull { it.quality == quality }
+        }
+    }
 }

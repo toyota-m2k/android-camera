@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -15,7 +16,7 @@ import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.view.PreviewView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
@@ -70,7 +71,8 @@ import kotlin.math.roundToInt
 
 class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
     override val logger = UtLog("CAMERA")
-    class CameraViewModel : ViewModel() {
+    class CameraViewModel(application: Application) : AndroidViewModel(application) {
+        val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(application) }
         val metaDb : ScDB = MetaDB[SlotSettings.currentSlotIndex]
 
         val frontCameraSelected = MutableStateFlow(true)
@@ -81,8 +83,13 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //        val expandPanelCommand = LiteCommand<Boolean> { fullControlPanel.value = it }
 //        val showPanelCommand = LiteCommand<Boolean> { showControlPanel.value = it }
 
-        @ExperimentalZeroShutterLag // region UseCases
-        val imageCapture by lazy { TcImageCapture.Builder().zeroLag().build() }
+
+        private var mImageCapture: TcImageCapture? = null
+        val imageCapture
+            get() = mImageCapture ?: cameraManager.imageCaptureBuilder(frontCameraSelected.value)
+                    .zeroLag()
+                    .build().apply { mImageCapture = this }
+
         // val videoCapture by lazy { TcVideoCapture.Builder().useFixedPoolExecutor().build() }
 
         // 一旦カメラに接続（bindToLifecycle）した VideoCapture は、unbindAll()しても、別のカメラに接続し直すと例外が出る。
@@ -91,14 +98,18 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         // つまり、録画中にカメラを切り替える操作は（システム的に）不可能。
         private var mVideoCapture: TcVideoCapture? = null
         val videoCapture: TcVideoCapture
-            get() = mVideoCapture ?: TcVideoCapture.Builder().useFixedPoolExecutor().recordingStateFlow(recordingState).build().apply { mVideoCapture = this }
+            get() = mVideoCapture ?: cameraManager.videoCaptureBuilder(frontCameraSelected.value)
+                    .useFixedPoolExecutor()
+                    .recordingStateFlow(recordingState)
+                    .build().apply { mVideoCapture = this }
 
         /**
          * VideoCaptureの再作成を予約。
          */
-        fun resetVideoCaptureOnFlipCamera() {
+        fun resetCameraCaptureOnFlipCamera() {
             mVideoCapture?.dispose()
             mVideoCapture = null
+            mImageCapture = null
         }
 
         override fun onCleared() {
@@ -187,12 +198,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         var exposureMax = 0f
     }
 
+    private val viewModel by viewModels<CameraViewModel>()
     private val permissionsBroker = UtMultiPermissionsBroker().apply { register(this@CameraActivity) }
-    private val cameraManager: TcCameraManager by lazy { TcCameraManager.initialize(this) }
+    private val cameraManager: TcCameraManager get() = viewModel.cameraManager
     private var currentCamera: TcCamera? = null
     private val binder = Binder()
     private val exposeBinder = Binder()
-    private val viewModel by viewModels<CameraViewModel>()
     private val cameraManipulator : TcCameraManipulator by lazy { TcCameraManipulator(this, TcCameraManipulator.FocusActionBy.Tap, rapidTap = true) }
 
     private lateinit var controls: ActivityCameraBinding
@@ -397,7 +408,8 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private fun startCamera(front: Boolean) {
         try {
-            viewModel.resetVideoCaptureOnFlipCamera()
+            viewModel.resetCameraCaptureOnFlipCamera()
+            cameraManager.requestHDR(front, Settings.Camera.preferHDR)
             val modes = cameraManager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) { acc, mode->
                 if(acc.isNotEmpty()) {
                     acc.append(",")
@@ -406,7 +418,6 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 acc
             }.insert(0,"capabilities = ").toString()
             logger.debug(modes)
-
             @ExperimentalZeroShutterLag // region UseCases
             currentCamera = cameraManager.createCamera(this) { builder->
                     builder

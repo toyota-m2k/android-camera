@@ -4,7 +4,10 @@ import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
 import io.github.toyota32k.binder.IIDValueResolver
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.checkBinding
 import io.github.toyota32k.binder.radioGroupBinding
+import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
@@ -32,6 +35,9 @@ class SelectQualityDialog : UtDialogEx() {
     }
     class QualityViewModel : UtDialogViewModel() {
         val quality = MutableStateFlow(VideoQuality.High)
+        val sourceHdr = MutableStateFlow(false)
+        val convertToSdr = MutableStateFlow(false)
+
 //        companion object {
 //            fun createBy(task: IUtImmortalTask): QualityViewModel
 //                = UtImmortalViewModelHelper.createBy(QualityViewModel::class.java, task)
@@ -57,16 +63,20 @@ class SelectQualityDialog : UtDialogEx() {
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogSelectQualityBinding.inflate(inflater.layoutInflater)
         return controls.root.also { _ ->
-            binder.radioGroupBinding(controls.qualityGroup, viewModel.quality, VideoQuality.IDResolver)
+            binder
+                .radioGroupBinding(controls.qualityGroup, viewModel.quality, VideoQuality.IDResolver)
+                .checkBinding(controls.checkConvertHdr, viewModel.convertToSdr)
+                .visibilityBinding(controls.convertHdrGroup, viewModel.sourceHdr, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
         }
     }
 
     companion object {
-        suspend fun show():VideoQuality? {
-            return UtImmortalTask.awaitTaskResult<VideoQuality?>(this::class.java.name) {
-                val vm = createViewModel<QualityViewModel>()
+        data class Result(val quality: VideoQuality, val convertToSdr: Boolean)
+        suspend fun show(hdr:Boolean):Result? {
+            return UtImmortalTask.awaitTaskResult<Result?>(this::class.java.name) {
+                val vm = createViewModel<QualityViewModel>().apply { sourceHdr.value = hdr }
                 if(showDialog(this.taskName) { SelectQualityDialog() }.status.positive) {
-                    vm.quality.value
+                    Result(vm.quality.value, vm.convertToSdr.value)
                 } else null
             }
         }

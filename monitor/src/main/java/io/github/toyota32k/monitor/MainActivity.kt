@@ -74,7 +74,12 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
         gestureScope.launch {
             if(permissionsBroker.requestPermission(Manifest.permission.CAMERA)) {
-                cameraManager.prepare()
+                cameraManager.apply {
+                    prepare()
+                    // 可能なら HDR を要求する
+                    requestHDR(true, true)
+                    requestHDR(false, true)
+                }
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as MainActivity
                 me.startCamera(viewModel.frontCameraSelected.value)
             }
