@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CaptureMode
@@ -87,7 +88,12 @@ suspend fun ImageCapture.takeInMediaStore(displayName:String): Uri {
 class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
     companion object {
         val builder: IBuilder get() = Builder()
+        @OptIn(ExperimentalImageCaptureOutputFormat::class)
+        fun isHdrJpegSupported(cameraInfo:CameraInfo):Boolean {
+            return ImageCapture.getImageCaptureCapabilities(cameraInfo).supportedOutputFormats.contains(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
+        }
     }
+
 //    @ExperimentalZeroShutterLag // region UseCases
 //    constructor(highSpeed:Boolean) : this(ImageCapture.Builder().setCaptureMode(if(highSpeed) ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build())
     interface IBuilder {
@@ -95,12 +101,15 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         fun minimizeLatency(): IBuilder
         fun maximizeQuality(): IBuilder
         fun dynamicRange(range: DynamicRange) : IBuilder
+        fun outputHdrJpeg(hdr:Boolean):IBuilder
         fun build(): TcImageCapture
     }
     private class Builder : IBuilder {
         @CaptureMode
         private var mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
         private var mDynamicRange: DynamicRange = DynamicRange.SDR
+        private var mOutputHdrJpeg:Boolean = false
+
         @ExperimentalZeroShutterLag // region UseCases
         override fun zeroLag(): IBuilder {
             mMode = ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
@@ -118,6 +127,12 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
             mDynamicRange = range
             return this
         }
+        override fun outputHdrJpeg(hdr: Boolean): IBuilder {
+            mOutputHdrJpeg = hdr
+            return this
+        }
+
+        @OptIn(ExperimentalImageCaptureOutputFormat::class)
         override fun build(): TcImageCapture {
             return TcImageCapture(
                 ImageCapture.Builder()
@@ -130,6 +145,9 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
                             } else {
                                 TcLib.logger.warn("Dynamic range setting is not supported on this OS version.")
                             }
+                        }
+                        if (mOutputHdrJpeg) {
+                            setOutputFormat(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
                         }
                     }
                     .build())

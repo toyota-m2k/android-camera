@@ -507,6 +507,10 @@ class TcCameraManager() {
             val hdr = dynamicRangeOf(cameraSelector)
             if (hdr!=null) {
                 innerBuilder.dynamicRange(hdr)
+                val cameraInfo = getCameraInfo(cameraSelector)
+                if (cameraInfo!=null && TcImageCapture.isHdrJpegSupported(cameraInfo)) {
+                    innerBuilder.outputHdrJpeg(true)
+                }
             }
             return innerBuilder.build()
         }
