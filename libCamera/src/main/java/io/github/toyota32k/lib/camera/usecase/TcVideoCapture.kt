@@ -13,9 +13,11 @@ import androidx.camera.video.*
 import androidx.camera.video.OutputOptions.FILE_SIZE_UNLIMITED
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
+import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.TcLib
+import io.github.toyota32k.lib.camera.TcResolution
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.utils.IUtPropOwner
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +92,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder
         fun limitResolution(resolution: TcResolution): IBuilder
         fun resolutionFromQualityList(qualities: List<Quality>): IBuilder
+        fun aspectRatio(aspect: TcAspect) : IBuilder
         fun dynamicRange(dr: DynamicRange): IBuilder
 
         fun build(): TcVideoCapture
@@ -101,32 +104,37 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         private var mRecordingState:MutableStateFlow<RecordingState>? = null
 
         private var mResolution: TcResolution? = null
+        private var mAspect: TcAspect = TcAspect.Default
         private var mQualityList: List<Quality>? = null
         private var mDynamicRange: DynamicRange = DynamicRange.SDR
 
-        override fun qualitySelector(qualitySelector: QualitySelector): IBuilder = apply {
+        override fun qualitySelector(qualitySelector: QualitySelector) = apply {
             mQualitySelector = qualitySelector
         }
-        override fun executor(executor: Executor): IBuilder = apply {
+        override fun executor(executor: Executor) = apply {
             mExecutor = executor
         }
-        override fun useFixedPoolExecutor(): IBuilder = apply {
+        override fun useFixedPoolExecutor() = apply {
             mExecutor = Executors.newFixedThreadPool(2)
         }
 
-        override fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder = apply {
+        override fun recordingStateFlow(flow:MutableStateFlow<RecordingState>) = apply {
             mRecordingState = flow
         }
 
-        override fun limitResolution(resolution: TcResolution): IBuilder = apply {
+        override fun limitResolution(resolution: TcResolution) = apply {
             mResolution = resolution
         }
 
-        override fun resolutionFromQualityList(qualities: List<Quality>): IBuilder = apply {
+        override fun resolutionFromQualityList(qualities: List<Quality>) = apply {
             mQualityList = qualities
         }
 
-        override fun dynamicRange(dr: DynamicRange): IBuilder = apply {
+        override fun aspectRatio(aspect: TcAspect) = apply {
+            mAspect = aspect
+        }
+
+        override fun dynamicRange(dr: DynamicRange) = apply {
             mDynamicRange = dr
         }
 
@@ -153,6 +161,11 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
             val recorder = Recorder.Builder()
                 .setExecutor(executor)
                 .setQualitySelector( mQualitySelector?: autoQualitySelector )
+                .apply {
+                    if (mAspect != TcAspect.Default) {
+                        setAspectRatio(mAspect.ratio)
+                    }
+                }
                 .build()
 
             return TcVideoCapture(
@@ -327,13 +340,3 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
 
 }
 
-enum class TcResolution(val quality: Quality, val order:Int) {
-    UHD(Quality.UHD, 4), FHD(Quality.FHD, 3), HD(Quality.HD, 2), SD(Quality.SD, 1),
-    HIGHEST(Quality.HIGHEST, Int.MAX_VALUE), LOWEST(Quality.LOWEST, Int.MIN_VALUE)
-    ;
-    companion object {
-        fun fromQuality(quality: Quality):TcResolution? {
-            return entries.firstOrNull { it.quality == quality }
-        }
-    }
-}

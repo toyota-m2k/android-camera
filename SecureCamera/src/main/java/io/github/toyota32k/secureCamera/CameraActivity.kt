@@ -37,6 +37,7 @@ import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.lib.camera.TcCamera
+import io.github.toyota32k.lib.camera.TcFacing
 import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
@@ -86,7 +87,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
         private var mImageCapture: TcImageCapture? = null
         val imageCapture
-            get() = mImageCapture ?: cameraManager.imageCaptureBuilder(frontCameraSelected.value)
+            get() = mImageCapture ?: cameraManager.imageCaptureBuilder(TcFacing.ofFront(frontCameraSelected.value))
                     .zeroLag()
                     .build().apply { mImageCapture = this }
 
@@ -98,7 +99,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         // つまり、録画中にカメラを切り替える操作は（システム的に）不可能。
         private var mVideoCapture: TcVideoCapture? = null
         val videoCapture: TcVideoCapture
-            get() = mVideoCapture ?: cameraManager.videoCaptureBuilder(frontCameraSelected.value)
+            get() = mVideoCapture ?: cameraManager.videoCaptureBuilder(TcFacing.ofFront(frontCameraSelected.value))
                     .useFixedPoolExecutor()
                     .recordingStateFlow(recordingState)
                     .build().apply { mVideoCapture = this }
@@ -294,25 +295,25 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 cameraManager.prepare()
 
                 logger.debug("Supported Qualities ------------------------------------")
-                cameraManager.supportedQualityList(isFront = true).forEach {
+                cameraManager.supportedQualityList(TcFacing.FRONT).forEach {
                     logger.debug("FRONT: $it")
                 }
-                cameraManager.supportedQualityList(isFront = false).forEach {
+                cameraManager.supportedQualityList(TcFacing.BACK).forEach {
                     logger.debug("BACK: $it")
                 }
 
                 logger.debug("Supported Modes ------------------------------------")
-                cameraManager.cameraExtensions.capabilitiesOf( isFront=true).forEach {
+                cameraManager.cameraExtensions.capabilitiesOf(TcFacing.FRONT).forEach {
                     logger.debug("FRONT: $it")
                 }
-                cameraManager.cameraExtensions.capabilitiesOf( isFront=false).forEach {
+                cameraManager.cameraExtensions.capabilitiesOf(TcFacing.BACK).forEach {
                     logger.debug("BACK: $it")
                 }
 
 
 
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? CameraActivity ?: return@launch
-                me.startCamera(viewModel.frontCameraSelected.value)
+                me.startCamera(TcFacing.ofFront(viewModel.frontCameraSelected.value))
             }
         }
     }
@@ -393,24 +394,24 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 //    }
 
     private fun toggleCamera() {
-        val current = currentCamera?.frontCamera ?: return
+        val current = currentCamera?.isFrontCamera ?: return
         changeCamera(!current)
     }
 
-    private fun changeCamera(front:Boolean) {
+    private fun changeCamera(isFront:Boolean) {
         val camera = currentCamera ?: return
-        if(camera.frontCamera!=front) {
+        if(camera.isFrontCamera!=isFront) {
             lifecycleScope.launch {
-                startCamera(front)
+                startCamera(TcFacing.ofFront(isFront))
             }
         }
     }
 
-    private fun startCamera(front: Boolean) {
+    private fun startCamera(cameraFacing: TcFacing) {
         try {
             viewModel.resetCameraCaptureOnFlipCamera()
-            cameraManager.requestHDR(front, Settings.Camera.preferHDR)
-            val modes = cameraManager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) { acc, mode->
+            cameraManager.requestHDR(cameraFacing, Settings.Camera.preferHDR)
+            val modes = cameraManager.cameraExtensions.capabilitiesOf(cameraFacing).fold(StringBuffer()) { acc, mode->
                 if(acc.isNotEmpty()) {
                     acc.append(",")
                 }
@@ -421,7 +422,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             @ExperimentalZeroShutterLag // region UseCases
             currentCamera = cameraManager.createCamera(this) { builder->
                     builder
-                    .frontCamera(front)
+                    .selectCamera(cameraFacing)
                     .standardPreview(previewView)
                     .imageCapture(viewModel.imageCapture)
                     .videoCapture(viewModel.videoCapture)

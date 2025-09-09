@@ -1,17 +1,13 @@
 package io.github.toyota32k.lib.camera
 
-import android.util.Rational
-import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalLensFacing
 import androidx.camera.core.Preview
 import androidx.concurrent.futures.await
+import io.github.toyota32k.lib.camera.TcFacing.Companion.facing
 import io.github.toyota32k.lib.camera.usecase.TcImageCapture
 import io.github.toyota32k.lib.camera.usecase.TcVideoCapture
-import java.awt.font.NumericShaper.Range
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * TcCameraManager が作成するカメラとその情報を保持するクラス
@@ -26,22 +22,11 @@ data class TcCamera(
     val cameraInfo: CameraInfo
         get() = camera.cameraInfo
 
-    enum class Position {
-        REAR,
-        FRONT,
-        EXTERNAL,
-        UNKNOWN
-    }
+    val cameraFacing: TcFacing?
+        get() = cameraInfo.facing
 
-    val cameraPosition:Position
-        get() = when(cameraInfo.lensFacing) {
-            CameraSelector.LENS_FACING_UNKNOWN-> Position.UNKNOWN
-            CameraSelector.LENS_FACING_BACK -> Position.REAR
-            CameraSelector.LENS_FACING_FRONT -> Position.FRONT
-            else -> Position.EXTERNAL
-        }
-    val frontCamera:Boolean get() = cameraPosition == Position.FRONT
-    val rearCamera:Boolean get() = cameraPosition == Position.REAR
+    val isFrontCamera:Boolean get() = cameraFacing == TcFacing.FRONT
+    val isBackCamera:Boolean get() = cameraFacing == TcFacing.BACK
 
     inner class ExposureIndex {
         val isSupported:Boolean get() = cameraInfo.exposureState.isExposureCompensationSupported

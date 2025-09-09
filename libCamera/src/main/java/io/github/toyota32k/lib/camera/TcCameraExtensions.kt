@@ -6,6 +6,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.concurrent.futures.await
+import io.github.toyota32k.lib.camera.TcFacing.Companion.cameraSelector
 import io.github.toyota32k.logger.UtLog
 
 /**
@@ -54,8 +55,8 @@ class TcCameraExtensions(val applicationContext: Context, private val cameraProv
     /**
      * フロントカメラ、または、リアカメラで利用可能な拡張モードのリストを取得
      */
-    fun capabilitiesOf(isFront:Boolean):List<Mode> {
-        return capabilitiesOf(if(isFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA)
+    fun capabilitiesOf(facing:TcFacing):List<Mode> {
+        return capabilitiesOf(facing.cameraSelector)
     }
 
     /**

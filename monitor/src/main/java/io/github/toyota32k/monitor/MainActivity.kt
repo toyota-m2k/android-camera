@@ -25,6 +25,7 @@ import io.github.toyota32k.lib.camera.TcCameraManager
 import io.github.toyota32k.lib.camera.gesture.CameraGestureManager
 import io.github.toyota32k.lib.camera.gesture.ICameraGestureOwner
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.lib.camera.TcFacing
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
@@ -77,11 +78,11 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
                 cameraManager.apply {
                     prepare()
                     // 可能なら HDR を要求する
-                    requestHDR(true, true)
-                    requestHDR(false, true)
+                    requestHDR(TcFacing.FRONT, true)
+                    requestHDR(TcFacing.BACK, true)
                 }
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as MainActivity
-                me.startCamera(viewModel.frontCameraSelected.value)
+                me.startCamera(TcFacing.ofFront(viewModel.frontCameraSelected.value))
             }
         }
 
@@ -122,16 +123,16 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
     private fun changeCamera(front:Boolean) {
         val camera = currentCamera ?: return
-        if(camera.frontCamera!=front) {
-            lifecycleScope.launch { startCamera(front) }
+        if(camera.isFrontCamera!=front) {
+            lifecycleScope.launch { startCamera(TcFacing.ofFront(front)) }
         }
     }
 
 //    var currentCamera:CameraCreator.CurrentCamera? = null
 
-    private fun startCamera(front: Boolean) {
+    private fun startCamera(cameraFacing: TcFacing) {
         try {
-            val modes = cameraManager.cameraExtensions.capabilitiesOf(front).fold(StringBuffer()) { acc, mode->
+            val modes = cameraManager.cameraExtensions.capabilitiesOf(cameraFacing).fold(StringBuffer()) { acc, mode->
                 if(acc.isNotEmpty()) {
                     acc.append(",")
                 }
@@ -142,7 +143,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
             currentCamera = cameraManager.createCamera(this) { builder->
                 builder
-                .frontCamera(front)
+                .selectCamera(cameraFacing)
                 .standardPreview(controls.previewView)
             }
         } catch (e: Throwable) {

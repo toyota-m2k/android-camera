@@ -11,7 +11,10 @@ import androidx.annotation.RequiresApi
 import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CaptureMode
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.core.content.ContextCompat
+import io.github.toyota32k.lib.camera.TcAspect
+import io.github.toyota32k.lib.camera.TcImageResolutionHint
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.utils.ImageUtils
 import kotlin.coroutines.Continuation
@@ -100,43 +103,62 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         fun zeroLag(): IBuilder
         fun minimizeLatency(): IBuilder
         fun maximizeQuality(): IBuilder
+        fun resolutionHint(hint: TcImageResolutionHint?): IBuilder
+        fun preferAspectRatio(aspect: TcAspect) : IBuilder
         fun dynamicRange(range: DynamicRange) : IBuilder
         fun outputHdrJpeg(hdr:Boolean):IBuilder
         fun build(): TcImageCapture
     }
+
     private class Builder : IBuilder {
         @CaptureMode
-        private var mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        private var mMode: Int? = null
         private var mDynamicRange: DynamicRange = DynamicRange.SDR
         private var mOutputHdrJpeg:Boolean = false
+        private var mAspect: TcAspect = TcAspect.Default
+        private var mResolutionHint: TcImageResolutionHint? = null
 
         @ExperimentalZeroShutterLag // region UseCases
-        override fun zeroLag(): IBuilder {
+        override fun zeroLag() = apply {
             mMode = ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
-            return this
         }
-        override fun minimizeLatency(): IBuilder {
+        override fun minimizeLatency() = apply {
             mMode = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
-            return this
         }
-        override fun maximizeQuality(): IBuilder {
+        override fun maximizeQuality() = apply {
             mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
-            return this
         }
-        override fun dynamicRange(range: DynamicRange): IBuilder {
+        override fun resolutionHint(hint: TcImageResolutionHint?) = apply {
+            mResolutionHint = hint
+        }
+        override fun preferAspectRatio(aspect: TcAspect) = apply {
+            mAspect = aspect
+        }
+        override fun dynamicRange(range: DynamicRange) = apply {
             mDynamicRange = range
-            return this
         }
-        override fun outputHdrJpeg(hdr: Boolean): IBuilder {
+        override fun outputHdrJpeg(hdr: Boolean) =  apply {
             mOutputHdrJpeg = hdr
-            return this
         }
 
         @OptIn(ExperimentalImageCaptureOutputFormat::class)
         override fun build(): TcImageCapture {
+            val mode = mMode ?: if(mResolutionHint == TcImageResolutionHint.PreferQuality) ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY else ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+            val resolutionSelector = if (mResolutionHint != null || mAspect.aspectStrategy != null) {
+                val builder = ResolutionSelector.Builder()
+                mResolutionHint?.let { hint->
+                    builder.setAllowedResolutionMode(hint.value)
+                }
+                mAspect.aspectStrategy?.let { strategy->
+                    builder.setAspectRatioStrategy(strategy)
+                }
+                builder.build()
+            } else {
+                null
+            }
             return TcImageCapture(
                 ImageCapture.Builder()
-                    .setCaptureMode(mMode)
+                    .setCaptureMode(mode)
                     .apply {
                         if (mDynamicRange != DynamicRange.SDR) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -148,6 +170,9 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
                         }
                         if (mOutputHdrJpeg) {
                             setOutputFormat(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
+                        }
+                        if (resolutionSelector!=null) {
+                            setResolutionSelector(resolutionSelector)
                         }
                     }
                     .build())
