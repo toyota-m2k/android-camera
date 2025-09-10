@@ -128,4 +128,6 @@
     <string name="backup_db">Backup DB</string>
     <string name="hdr_label">Prefer HDR</string>
     <string name="convert_hdr_to_sdr">Convert to SDR</string>
+    <string name="keep_hdr">Keep HDR</string>
+    <string name="test">Test</string>
 </resources>
