@@ -2,9 +2,7 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
 import androidx.core.net.toUri
-import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.awaitSubTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
@@ -19,31 +17,14 @@ import io.github.toyota32k.media.lib.converter.format
 import io.github.toyota32k.media.lib.report.Report
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
-import io.github.toyota32k.media.lib.strategy.VideoStrategy
 import io.github.toyota32k.secureCamera.EditorActivity
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
-import io.github.toyota32k.utils.FlowableEvent
+import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
-
-fun safeDeleteFile(file:File) {
-    try {
-        if (file.exists()) {
-            file.delete()
-        }
-    } catch (_:Throwable) {
-    }
-}
-
-fun File.safeDelete() {
-    safeDeleteFile(this)
-}
-
 
 class ConvertHelper(
     val inputFile: IInputMediaFile,

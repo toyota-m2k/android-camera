@@ -5,36 +5,26 @@ import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
 import androidx.core.net.toUri
-import androidx.lifecycle.ViewModelProvider
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.checkBinding
-import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.radioGroupBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtAndroidViewModel
 import io.github.toyota32k.dialog.task.UtAndroidViewModel.Companion.createAndroidViewModel
-import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
-import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
-import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSelectQualityBinding
 import io.github.toyota32k.secureCamera.utils.ConvertHelper
-import io.github.toyota32k.secureCamera.utils.safeDelete
-import io.github.toyota32k.secureCamera.utils.safeDeleteFile
+import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
-import java.lang.IllegalStateException
 
 class SelectQualityDialog : UtDialogEx() {
     enum class VideoQuality(@param:IdRes val id: Int, val strategy: IVideoStrategy) {

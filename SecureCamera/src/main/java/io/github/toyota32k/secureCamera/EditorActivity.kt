@@ -9,7 +9,6 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
-import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
@@ -28,9 +27,7 @@ import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
-import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
-import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -43,7 +40,6 @@ import io.github.toyota32k.lib.player.model.chapterAt
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
 import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.media.lib.converter.IInputMediaFile
@@ -52,7 +48,6 @@ import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.format.isHDR
 import io.github.toyota32k.media.lib.report.Summary
-import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -60,7 +55,6 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.DetailMessageDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
@@ -68,7 +62,7 @@ import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.ConvertHelper
-import io.github.toyota32k.secureCamera.utils.safeDeleteFile
+import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -77,7 +71,6 @@ import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.gesture.UtSimpleManipulationTarget
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,8 +80,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.collections.map
-import kotlin.collections.toTypedArray
 
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application) {

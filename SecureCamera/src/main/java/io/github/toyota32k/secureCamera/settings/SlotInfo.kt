@@ -45,9 +45,14 @@ data class SlotInfo(val index: SlotIndex, val slotName: String?, val inUse: Bool
         }
     }
 
+
     fun update(slotName: String? = this.slotName, inUse: Boolean = this.inUse, sync: Boolean = this.sync, secure: Boolean = this.secure): SlotInfo {
         return SlotInfo(index, slotName, inUse, sync, secure)
     }
+    fun reset(): SlotInfo {
+        return SlotInfo(index, index.label, false, false, false)
+    }
+
 
     companion object {
         val Default = SlotInfo(SlotIndex.DEFAULT, null, true, true, true)
@@ -73,6 +78,8 @@ object SlotSettings {
     var slot3:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT3, "Slot-3", false, false, false), SlotInfo::class.java)
     var slot4:SlotInfo by spd.typedPref(SlotInfo(SlotIndex.SLOT4, "Slot-4", false, false, false), SlotInfo::class.java)
 
+    val allSlots : List<SlotInfo>
+        get() = listOf(defaultSlot, slot1, slot2, slot3, slot4)
     val activeSlots : List<SlotInfo>
         get() = listOf(defaultSlot, slot1, slot2, slot3, slot4).filter { it.inUse && it.sync }
 
@@ -109,4 +116,12 @@ object SlotSettings {
         logger.debug { "Current slot changed to ${currentSlotIndex.label}" }
     }
 
+    fun resetAll() {
+        defaultSlotName = ""
+        slot1 = slot1.reset()
+        slot2 = slot2.reset()
+        slot3 = slot3.reset()
+        slot4 = slot4.reset()
+        setCurrentSlot(SlotIndex.DEFAULT)
+    }
 }

@@ -17,7 +17,7 @@
     <string name="list_all">All</string>
     <string name="file_type">File Type</string>
     <string name="clear_all">Clear All</string>
-    <string name="msg_confirm">Are you OK?</string>
+    <string name="msg_confirm">If you execute this, all your data will be deleted and cannot be recovered. \n\nAre you sure you want to do it?</string>
     <string name="security_title">Security</string>
     <string name="enable_pwd_label">Protection by Password</string>
     <string name="password">Password</string>
@@ -130,4 +130,12 @@
     <string name="convert_hdr_to_sdr">Convert to SDR</string>
     <string name="keep_hdr">Keep HDR</string>
     <string name="test">Test</string>
+    <string name="agree_statement">I agree.</string>
+    <string name="do_it">Do it.</string>
+    <string name="do_not">Don\'t.</string>
+    <string name="menu_settings">System</string>
+    <string name="system_settings">System Settings</string>
+    <string name="color_settings"><![CDATA[Look & Feel]]></string>
+    <string name="dangerous_settings">Dangerous</string>
+    <string name="bulse">バルス</string>
 </resources>
