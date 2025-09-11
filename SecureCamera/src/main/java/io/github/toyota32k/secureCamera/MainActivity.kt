@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.PopupMenu
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -14,6 +15,7 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
@@ -56,12 +58,13 @@ class MainActivity : UtMortalActivity() {
         controls = ActivityMainBinding.inflate(layoutInflater)
         setContentView(controls.root)
 
-        // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
-        ViewCompat.setOnApplyWindowInsetsListener(controls.root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        setupWindowInsetsListener(controls.root)
+//        // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
+//        ViewCompat.setOnApplyWindowInsetsListener(controls.root) { v, insets ->
+//            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+//            insets
+//        }
 
 //        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
         @SuppressLint("SetTextI18n")
@@ -74,6 +77,7 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand(::startPlayer), controls.playerButton )
             .bindCommand(LiteUnitCommand(::startServer), controls.serverButton )
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
+            .longClickBinding(controls.settingsButton, this::settingMenu)
 //            .bindCommand(LiteUnitCommand(::bulse), controls.clearAllButton)
 //            .bindCommand(LiteUnitCommand(::colorVariation), controls.colorsButton)
             .bindCommand(LiteUnitCommand(::setupSlots), controls.slotButton)
@@ -117,11 +121,18 @@ class MainActivity : UtMortalActivity() {
             viewModel.busy.value = false
         }
     }
-
     private fun setting() {
         viewModel.busy.value = true
+        lifecycleScope.launch {
+            SettingDialog.show()
+            viewModel.busy.value = false
+        }
+    }
+
+    private fun settingMenu(anchor: View):Boolean {
+        viewModel.busy.value = true
         val selection = MutableStateFlow<Int?>(null)
-        PopupMenu(this, controls.settingsButton).apply {
+        PopupMenu(this, anchor).apply {
             setOnMenuItemClickListener {
                 if (it.itemId != R.id.dangerous) {
                     selection.value = it.itemId
@@ -143,7 +154,7 @@ class MainActivity : UtMortalActivity() {
             }
             viewModel.busy.value = false
         }
-
+        return true
     }
 
     private fun colorVariation() {

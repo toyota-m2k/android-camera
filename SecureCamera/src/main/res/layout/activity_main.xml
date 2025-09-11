@@ -40,7 +40,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:paddingHorizontal="15dp"
-                android:paddingVertical="5dp"
+                android:paddingVertical="0dp"
                 android:background="@drawable/shape_round"
                 android:clipToOutline="true"
                 tools:targetApi="31">
@@ -53,15 +53,26 @@
                     android:textSize="18sp"
                     android:textColor="?attr/colorPrimary"
                     tools:text="Slot-N"/>
-                <ImageButton
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/slot_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:srcCompat="@drawable/ic_tree"
-                    app:tint="?attr/colorPrimary"
-                    android:layout_gravity="center_vertical"
-                    android:background="?attr/selectableItemBackground"
+                    android:layout_width="33dp"
+                    android:layout_height="40dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingTop="6dp"
+                    android:foregroundGravity="center"
+                    app:icon="@drawable/ic_setting"
                     />
+
+<!--                <ImageButton-->
+<!--                    android:id="@+id/slot_button"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    app:srcCompat="@drawable/ic_tree"-->
+<!--                    app:tint="?attr/colorPrimary"-->
+<!--                    android:layout_gravity="center_vertical"-->
+<!--                    android:background="?attr/selectableItemBackground"-->
+<!--                    />-->
 
             </LinearLayout>
             <Button
