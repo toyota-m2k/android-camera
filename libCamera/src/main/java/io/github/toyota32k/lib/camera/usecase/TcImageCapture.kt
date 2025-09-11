@@ -91,7 +91,6 @@ suspend fun ImageCapture.takeInMediaStore(displayName:String): Uri {
 class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
     companion object {
         val builder: IBuilder get() = Builder()
-        @OptIn(ExperimentalImageCaptureOutputFormat::class)
         fun isHdrJpegSupported(cameraInfo:CameraInfo):Boolean {
             return ImageCapture.getImageCaptureCapabilities(cameraInfo).supportedOutputFormats.contains(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
         }
@@ -141,7 +140,6 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
             mOutputHdrJpeg = hdr
         }
 
-        @OptIn(ExperimentalImageCaptureOutputFormat::class)
         override fun build(): TcImageCapture {
             val mode = mMode ?: if(mResolutionHint == TcImageResolutionHint.PreferQuality) ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY else ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
             val resolutionSelector = if (mResolutionHint != null || mAspect.aspectStrategy != null) {
