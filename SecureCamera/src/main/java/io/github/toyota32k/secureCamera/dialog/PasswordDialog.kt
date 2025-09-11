@@ -24,6 +24,7 @@ import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
+import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.HashGenerator
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
@@ -236,7 +237,7 @@ class PasswordDialog : UtDialogEx() {
     private fun onPasswordBlocked() {
         viewModel.checkResult = PasswordViewModel.CheckPasswordResult.BLOCKED
         // データを消す
-        MainActivity.resetAll(true)
+        MetaDB.bulse()
     }
 
     companion object {

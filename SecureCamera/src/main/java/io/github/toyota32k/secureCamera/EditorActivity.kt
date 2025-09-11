@@ -9,7 +9,6 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
-import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
@@ -28,9 +27,7 @@ import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
-import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
-import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -43,22 +40,14 @@ import io.github.toyota32k.lib.player.model.chapterAt
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.HttpFile
 import io.github.toyota32k.media.lib.converter.HttpInputFile
 import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.converter.IProgress
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
-import io.github.toyota32k.media.lib.format.Codec
-import io.github.toyota32k.media.lib.format.Profile
 import io.github.toyota32k.media.lib.format.isHDR
 import io.github.toyota32k.media.lib.report.Summary
-import io.github.toyota32k.media.lib.strategy.IHDRSupport
-import io.github.toyota32k.media.lib.strategy.IVideoStrategy
-import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
-import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
-import io.github.toyota32k.media.lib.strategy.VideoStrategy
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -66,13 +55,14 @@ import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.dialog.DetailMessageDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.dialog.SelectQualityDialog
 import io.github.toyota32k.secureCamera.dialog.SelectRangeDialog
 import io.github.toyota32k.secureCamera.dialog.SplitParams
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.secureCamera.utils.ConvertHelper
+import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -81,7 +71,6 @@ import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
 import io.github.toyota32k.utils.gesture.UtManipulationAgent
 import io.github.toyota32k.utils.gesture.UtSimpleManipulationTarget
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -232,11 +221,22 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
+        fun createConvertHelper(quality:SelectQualityDialog.VideoQuality=SelectQualityDialog.VideoQuality.High, keepHdr:Boolean=false): ConvertHelper {
+            return ConvertHelper(
+                inputFile,
+                quality.strategy,
+                keepHdr,
+                if(playerModel.rotation.value!=0) Rotation(playerModel.rotation.value, relative = true) else Rotation.nop,
+                chapterList.enabledRanges(Range.empty).map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray(),
+            )
+        }
+
         companion object {
             val logger = UtLog("VM", EditorActivity.logger)
         }
     }
 
+    override val logger = EditorActivity.logger
     private val binder = Binder()
     private val viewModel by viewModels<EditorViewModel>()
     private lateinit var controls: ActivityEditorBinding
@@ -353,13 +353,6 @@ class EditorActivity : UtMortalActivity() {
         return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
-    private fun safeDelete(file:File) {
-        try {
-            file.delete()
-        } catch (e:Throwable) {
-            logger.error(e)
-        }
-    }
     private fun sourceVideoProperties(): Summary {
         val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
             viewModel.targetFile.toAndroidFile()
@@ -376,28 +369,23 @@ class EditorActivity : UtMortalActivity() {
     private fun selectQualityAndSave():Boolean {
         logger.debug()
         lifecycleScope.launch {
-            val hdr = sourceVideoProperties().videoSummary?.profile?.isHDR() == true
-            val q = SelectQualityDialog.show(hdr) ?: return@launch
+            val sourceHdr = sourceVideoProperties().videoSummary?.profile?.isHDR() == true
+            val helper = viewModel.createConvertHelper()
+            val result = SelectQualityDialog.show(sourceHdr, helper) ?: return@launch
             withContext(Dispatchers.IO) {
-                trimmingAndSave(q.quality, hdr, q.convertToSdr)
+                trimmingAndSave(result.quality, sourceHdr && result.keepHdr)
             }
         }
         return true
     }
 
-    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null, sourceHdr: Boolean, convertToSdr:Boolean) {
+    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null, keepHdr:Boolean) {
         val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
-//        if(!targetItem.cloud.isFileInLocal) return
-//        val srcFile = targetItem.file
-        val trimFile = File(application.cacheDir ?: return, "trimming")
-        val optFile = File(application.cacheDir ?: return, "optimized")
-        val ranges = viewModel.chapterList.enabledRanges(Range.empty)
-        val strategy = when(quality) {
-            SelectQualityDialog.VideoQuality.High -> PresetVideoStrategies.HEVC1080LowProfile
-            SelectQualityDialog.VideoQuality.Middle -> PresetVideoStrategies.HEVC720Profile
-            SelectQualityDialog.VideoQuality.Low -> PresetVideoStrategies.HEVC720LowProfile
-        }
+//        val trimFile = File(application.cacheDir ?: return, "trimming")
+//        val optFile = File(application.cacheDir ?: return, "optimized")
+//        val ranges = viewModel.chapterList.enabledRanges(Range.empty)
+//        val strategy = quality.strategy
 
         val srcFile = viewModel.inputFile
 
@@ -411,104 +399,38 @@ class EditorActivity : UtMortalActivity() {
             withContext(Dispatchers.IO) {
                 saveChapters()
             }
-            val vm = createViewModel<ProgressDialog.ProgressViewModel>()
-            vm.message.value = "Trimming Now..."
-            val rotation = if(viewModel.playerModel.rotation.value!=0) Rotation(viewModel.playerModel.rotation.value, relative = true) else Rotation.nop
-            val converter = Converter.Factory()
-                .input(srcFile)
-                .output(trimFile)
-                .audioStrategy(PresetAudioStrategies.AACDefault)
-                .videoStrategy(strategy)
-                .apply {
-                    if (sourceHdr && !convertToSdr) {
-                        // HDR動画で、SDR変換しない場合は HDRの維持を指定
-                        keepHDR(true)
-                    }
+            val helper = viewModel.createConvertHelper(quality, keepHdr)
+            val dstFile = helper.convertAndOptimize(applicationContext)
+            if (dstFile != null) {
+                val result = helper.result
+                val report = helper.report
+                val srcLen = srcFile.getLength().let { if(it<0) targetItem.size else it }
+                val dstLen = dstFile.length()
+                logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
+                // トリミングによるchapterListの調整
+                val adjustedEnabledRange = result.adjustedTrimmingRangeList?.list?.map { Range(it.startUs / 1000L, it.endUs / 1000L) }
+                val newChapterList = if (!adjustedEnabledRange.isNullOrEmpty()) {
+                    viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
+                } else {
+                    null
                 }
-                .rotate(rotation)
-                .addTrimmingRanges(*ranges.map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray())
-                .setProgressHandler {
-                    vm.progress.value = it.percentage
-                    vm.progressText.value = it.format()
-                }
-                .build()
-            vm.cancelCommand.bindForever { converter.cancel() }
-            CoroutineScope(Dispatchers.IO).launch {
-                var result:Boolean = try {
-                    val r = converter.execute()
-                    if(!r.succeeded) {
-                        if(r.cancelled) {
-                            throw CancellationException("conversion cancelled")
-                        } else {
-                            throw r.exception ?: IllegalStateException("unknown error")
+                // 確認ダイアログ
+                if (DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", report?.toString() ?: "no information", dstFile, newChapterList)) {
+                    // OKなら上書き保存＆DB更新
+                    withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
+                    val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
+                    if (testOnly) {
+                        viewModel.metaDb.withTestFile { testFile ->
+                            dstFile.renameTo(testFile)
                         }
-                    }
-                    vm.message.value = "Optimizing Now..."
-                    val dstFile:File = if(FastStart.process(trimFile.toUri(), optFile.toUri(), applicationContext) {
-                            vm.progress.value = it.percentage
-                            vm.progressText.value = it.format()
-                        }) {
-                        safeDelete(trimFile)
-                        optFile
                     } else {
-                        safeDelete(optFile)
-                        trimFile
+                        safeDeleteFile(viewModel.metaDb.fileOf(targetItem))
+                        dstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
+                        viewModel.metaDb.updateFile(targetItem, newChapterList)
                     }
-
-                    val srcLen = srcFile.getLength().let { if(it<0) targetItem.size else it }
-                    val dstLen = dstFile.length()
-                    if (dstLen>0) {
-                        logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
-//                        if(quality.compact) {
-//                            if(!UtImmortalTask.awaitTaskResult("low quality") {
-//                                showOkCancelMessageBox("${quality.name} Quality Conversion", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}")
-//                            }) { throw CancellationException("cancelled") }
-//                        }
-                        if(!DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")) {
-                            throw CancellationException("cancelled")
-                        }
-                        withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-                        val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
-                        if(testOnly) {
-                            viewModel.metaDb.withTestFile { testFile ->
-                                dstFile.renameTo(testFile)
-                            }
-                        } else {
-                            safeDelete(viewModel.metaDb.fileOf(targetItem))
-                            dstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
-                            val adjustedEnabledRange = r.adjustedTrimmingRangeList?.list?.map { Range(it.startUs/1000L, it.endUs/1000L) }
-                            val newChapterList = if(!adjustedEnabledRange.isNullOrEmpty()) {
-                                viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
-                            } else {
-                                viewModel.chapterList.chapters
-                            }
-                            viewModel.metaDb.updateFile(targetItem, newChapterList)
-                        }
-//                        DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", r.report?.toString() ?: "no information")
-                        setResultAndFinish(true, targetItem)
-                    } else {
-                        throw IllegalStateException("no data")
-                    }
-                    true
-                } catch (e:Throwable) {
-                    if(e !is CancellationException) {
-                        logger.error(e)
-                        UtImmortalTask.launchTask("errorMessage") {
-                            showConfirmMessageBox(
-                                "Something Wrong.",
-                                e.localizedMessage ?: e.message ?: ""
-                            )
-                            true
-                        }
-                    }
-                    false
-                } finally {
-                    safeDelete(trimFile)
-                    safeDelete(optFile)
+                    setResultAndFinish(true, targetItem)
                 }
-                withContext(Dispatchers.Main) { vm.closeCommand.invoke(result) }
             }
-            showDialog(taskName) { ProgressDialog() }.status.ok
         }
     }
 

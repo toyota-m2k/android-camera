@@ -35,20 +35,19 @@
         android:id="@+id/convert_hdr_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:orientation="horizontal">
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_weight="1"
-            android:text="@string/convert_hdr_to_sdr"
+            android:text="@string/keep_hdr"
             />
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/check_convert_hdr"
+            android:id="@+id/check_keep_hdr"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             />
     </LinearLayout>
-
 </LinearLayout>

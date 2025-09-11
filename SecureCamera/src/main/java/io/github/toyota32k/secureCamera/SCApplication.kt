@@ -23,6 +23,7 @@ class SCApplication : Application() {
             UtDialogConfig.showInDialogModeAsDefault = true
             UtDialogConfig.showDialogImmediately = UtDialogConfig.ShowDialogMode.Commit
             UtDialogConfig.draggable = true
+            UtDialogConfig.showInDialogModeAsDefault = true
         }
     }
 

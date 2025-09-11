@@ -1,5 +1,6 @@
 package io.github.toyota32k.secureCamera.db
 
+import android.app.Activity
 import android.app.Application
 import android.content.Context
 import androidx.core.net.toUri
@@ -7,6 +8,9 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.binder.DPDate
+import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.dialog.task.getActivity
+import io.github.toyota32k.dialog.task.getOwnerAsActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
@@ -23,9 +27,12 @@ import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.worker.Downloader.Companion.safeDelete
 import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
+import io.github.toyota32k.secureCamera.db.ScDB.Companion.BASE_DB_NAME
+import io.github.toyota32k.secureCamera.db.ScDB.Companion.application
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.secureCamera.utils.FileUtil.deleteAllFilesInDir
 import io.github.toyota32k.secureCamera.utils.VideoUtil
 import io.github.toyota32k.utils.GenericCloseable
 import kotlinx.coroutines.CoroutineScope
@@ -130,7 +137,7 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
                 filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
                 else -> return null
             }
-            return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(e:Throwable) { Date() }
+            return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(_:Throwable) { Date() }
         }
 
         // "yyyy.MM.dd-HH:mm:ss"
@@ -180,6 +187,10 @@ interface IKV {
     suspend fun put(key:String, value:String)
     suspend fun get(key:String):String?
 }
+
+/**
+ * スロットDBクラス
+ */
 class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     private var dbInstance:Database? = null
     private val db:Database
@@ -191,7 +202,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     fun open():Boolean {
         return synchronized(this) {
             if (dbInstance == null) {
-                dbInstance = Room.databaseBuilder(this.application, Database::class.java, dbName).build()
+                dbInstance = Room.databaseBuilder(application, Database::class.java, dbName).build()
             }
             refCount++
             true
@@ -207,6 +218,18 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
     }
+
+    /**
+     * 強制終了 ... bulse 専用
+     */
+    fun forceClose() {
+        synchronized(this) {
+            refCount = 0
+            dbInstance?.close()
+            dbInstance = null
+        }
+    }
+
     val isOpened:Boolean
         get() = synchronized(this) {
             dbInstance != null
@@ -219,18 +242,15 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
 
 //    private lateinit var db:Database
-    lateinit var application:Application
     companion object {
+        val application:Application get() = SCApplication.instance
         val logger = UtLog("DB", null, ScDB::class.java)
         const val BASE_DB_NAME = "meta"
         const val SLOT_DB_NAME = "slot"
 
         /**
-         * 指定されたディレクトリ内の、特定のプレフィックスを持つファイルをzipファイルに圧縮します。
-         *
-         * @param dbDir          データベースファイルが保存されているディレクトリ
-         * @param zipFile        出力するzipファイル
-         * @param dbFilePrefix   データベースファイルのプレフィックス（例："my_database"）
+         * DBファイルをzipファイルに圧縮します。（バックアップ用）
+         * zipファイルは、"db_backup_バックアップ日時.zip" という名前で、アプリのcacheディレクトリに保存されます。
          */
         fun zipDbFiles():File? {
             val context = SCApplication.instance.applicationContext
@@ -277,10 +297,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
         /**
          * zipファイルを解凍し、指定されたディレクトリにファイルを展開します。
+         * 未使用 ... バックアップからの復元は現時点で仕様未定・未実装 ... 最悪、デバッガでやるｗ
          *
          * @param zipFile         入力するzipファイル
-         * @param destDir         ファイルを展開するディレクトリ
-         * @throws IOException    ファイル操作中にエラーが発生した場合
          */
         fun unzipDbFiles(zipFile: File):Boolean {
             val context = SCApplication.instance.applicationContext
@@ -348,6 +367,29 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
                 false
             }
         }
+
+        fun filesDir(slotIndex:SlotIndex):File {
+            return if (slotIndex == SlotIndex.DEFAULT) {
+                application.filesDir
+            } else {
+                File(application.filesDir, "slot${slotIndex.index}")
+            }
+        }
+
+        fun fileList(slotIndex:SlotIndex):Array<String> {
+            if (slotIndex== SlotIndex.DEFAULT) {
+                return application.fileList()
+            } else {
+                val dir = filesDir(slotIndex)
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                    return emptyArray()
+                } else {
+                    return dir.listFiles()?.filter { it.isFile }?.map { it.name }?.toTypedArray() ?: emptyArray()
+                }
+            }
+        }
+
     }
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -360,12 +402,11 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
 
     /**
-     * DBを初期化する（Applicationクラスの onCreateから呼ぶ）
+     * DBを初期化する
      */
-    private fun initialize(application: Application) {
-        this.application = application
+    private fun initialize() {
 
-        val db = Room.databaseBuilder(this.application, Database::class.java, dbName)
+        val db = Room.databaseBuilder(application, Database::class.java, dbName)
             .addMigrations(MIGRATION_1_2)
             .build()
 
@@ -401,7 +442,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
 
     init {
-        initialize(SCApplication.instance)
+        initialize()
     }
 
     inner class KVImpl: IKV {
@@ -512,11 +553,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     // region CREATION
     val filesDir:File
-        get() = if (slotIndex == SlotIndex.DEFAULT) {
-            application.filesDir
-        } else {
-            File(application.filesDir, "slot${slotIndex.index}")
-        }
+        get() = ScDB.filesDir(slotIndex)
     fun fileOf(name:String):File {
         return File(filesDir, name)
     }
@@ -546,17 +583,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
         fun fileList():Array<String> {
-            if (slotIndex== SlotIndex.DEFAULT) {
-                return application.fileList()
-            } else {
-                val dir = filesDir
-                if (!dir.exists()) {
-                    dir.mkdirs()
-                    return emptyArray()
-                } else {
-                    return dir.listFiles()?.filter { it.isFile }?.map { it.name }?.toTypedArray() ?: emptyArray()
-                }
-            }
+            return ScDB.fileList(slotIndex)
         }
 
         // ダウンロード(repair/restore)中に終了した場合に残るtmpファイルがあれば削除
@@ -879,8 +906,15 @@ object MetaDB {
         }.apply { open() }
     }
 
+    /**
+     * すべてのスロットDBを開いた状態にする。
+     * 戻り値のCloseableをclose()すると、すべてのDBが閉じられる。
+     * 一部のスロットだけを利用するなら dbCache() の利用を推奨。
+     *
+     * @return Closeable
+     */
     fun lockDB() : Closeable {
-        var list = SlotSettings.activeSlots.map { get(it.index) }
+        val list = SlotSettings.activeSlots.map { get(it.index) }
         return GenericCloseable {
             list.forEach { db ->
                 db.close()
@@ -888,7 +922,11 @@ object MetaDB {
         }
     }
 
-    private class DBCache : IDBSource, Closeable {
+    /**
+     * スロットDBのキャッシュ（IDBSource）の実装
+     * 初回の IDBSource#get(index)で、キャッシュに登録され、close() するとすべてのキャッシュが削除される。
+     */
+    private class DBCache : IDBSource {
         val cache = mutableMapOf<SlotIndex, ScDB>()
         override operator fun get(slotIndex: SlotIndex): ScDB {
             return synchronized(cache) {
@@ -902,11 +940,24 @@ object MetaDB {
             }
         }
     }
+
+    /**
+     * DBキャッシュを取得する。
+     * DB操作が終了したら、close()を呼んでキャッシュをクリアすること。
+     */
     fun dbCache(): IDBSource {
         return DBCache()
     }
 
 
+    /**
+     * DBを一時的に開いて、処理を実行し、DBを閉じる。
+     * slotIndexを省略した場合、現在のスロットが使われる。
+     *
+     * @param slotIndex スロットインデックス
+     * @param fn DBを開いた状態で実行する関数
+     * @return fnの戻り値
+     */
     inline fun <T> withDB(slotIndex: SlotIndex = SlotSettings.currentSlotIndex, fn: (ScDB) -> T): T {
         val db = get(slotIndex)
         return try {
@@ -916,6 +967,14 @@ object MetaDB {
             db.close()
         }
     }
+    /**
+     * DBを一時的に開いて、処理を実行し、DBを閉じる。
+     * slotIndexを省略した場合、現在のスロットが使われる。
+     *
+     * @param slot スロット番号
+     * @param fn DBを開いた状態で実行する関数
+     * @return fnの戻り値
+     */
     inline fun <T> withDB(slot: Int, fn: (ScDB) -> T): T {
         val db = get(SlotIndex.fromIndex(slot))
         return try {
@@ -927,9 +986,19 @@ object MetaDB {
     }
 
     interface IVisitor {
-        suspend fun visit(listMode:PlayerActivity.ListMode=PlayerActivity.ListMode.ALL, predicate:(item: ItemEx)->Boolean, fn:(db:ScDB, item:ItemEx)->Unit)
+        suspend fun visit(
+            listMode:PlayerActivity.ListMode=PlayerActivity.ListMode.ALL,
+            predicate:(item: ItemEx)->Boolean,
+            fn:(db:ScDB, item:ItemEx)->Unit)
     }
 
+    /**
+     * すべてのスロット内のデータを巡回するVisitor
+     *
+     * @param listMode リストモード（ALL/PHOTO/VIDEO）
+     * @param predicate 各ItemExに対して実行され、trueを返した場合に fn が実行される。
+     * @param fn 各ItemExに対して実行される関数
+     */
     private class AllVisitor:  IVisitor {
         override suspend fun visit(listMode: PlayerActivity.ListMode,predicate: (ItemEx) -> Boolean,fn: (ScDB, ItemEx) -> Unit) {
             SlotSettings.activeSlots.forEach { slotInfo ->
@@ -941,6 +1010,14 @@ object MetaDB {
             }
         }
     }
+    /**
+     * 指定されたスロット内のデータを巡回するVisitor
+     *
+     * @param slot スロットインデックス
+     * @param listMode リストモード（ALL/PHOTO/VIDEO）
+     * @param predicate 各ItemExに対して実行され、trueを返した場合に fn が実行される。
+     * @param fn 各ItemExに対して実行される関数
+     */
     private class SingleVisitor(private val slot: SlotIndex): IVisitor {
         override suspend fun visit(listMode: PlayerActivity.ListMode, predicate: (ItemEx) -> Boolean, fn: (ScDB, ItemEx) -> Unit) {
             get(slot).use { db ->
@@ -950,10 +1027,46 @@ object MetaDB {
             }
         }
     }
+
+    /**
+     * すべてのスロットを巡回するVisitorを取得する。
+     */
     fun allVisitor(): IVisitor {
         return AllVisitor()
     }
+
+    /**
+     * 指定されたスロットを巡回するVisitorを取得する。
+     * slotIndexを省略した場合、現在のスロットが使われる。
+     *
+     * @param slot スロットインデックス
+     */
     fun singleVisitor(slot:SlotIndex=SlotSettings.currentSlotIndex) : IVisitor {
         return SingleVisitor(slot)
+    }
+
+    /**
+     * アプリのデータをすべて削除する。
+     * 警告: この操作は元に戻せません。
+     */
+    fun bulse() {
+        // メディアファイルを削除
+        deleteAllFilesInDir(application.filesDir)
+        // 開いているDBがあれば強制的に閉じる
+        cache.values.forEach {
+            it.forceClose()
+        }
+        // DBファイルを削除
+        val dbDir = application.getDatabasePath("$BASE_DB_NAME.db").parentFile
+        if (dbDir!=null) {
+            deleteAllFilesInDir(dbDir)
+        }
+        // スロットの設定をクリア
+        SlotSettings.resetAll()
+        // アプリの設定をクリア
+        Settings.reset()
+
+        // アプリを終了する
+        UtImmortalTaskManager.mortalInstanceSource.getOwnerOrNull()?.asActivity()?.finishAndRemoveTask()
     }
 }

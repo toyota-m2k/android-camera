@@ -28,3 +28,5 @@ libPlayer/build
 .idea/deviceManager.xml
 .idea/emulatorDisplays.xml
 .idea/codeStyles/Project.xml
+.idea/copilot.data.migration.edit.xml
+.idea/copilot.data.migration.agent.xml
