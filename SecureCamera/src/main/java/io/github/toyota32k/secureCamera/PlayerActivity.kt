@@ -71,6 +71,7 @@ import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.db.ScDB
+import io.github.toyota32k.secureCamera.dialog.CropImageDialog
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
@@ -754,6 +755,17 @@ class PlayerActivity : UtMortalActivity() {
      * 表示中のビットマップを可視範囲でトリミングする
      */
     private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
+        UtImmortalTask.launchTask("cropBitmap") {
+            val bmp = CropImageDialog.cropBitmap(viewModel.playlist.photoBitmap.value ?: return@launchTask)
+            if (bmp != null) {
+                if (SnapshotDialog.showBitmap(bmp)) {
+                    viewModel.playlist.setCroppedBitmap(bmp)
+                    manipulator.agent.resetScrollAndScale()
+                }
+            }
+        }
+        return
+
         val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
         val rtx = controls.imageView.translationX
         val rty = controls.imageView.translationY
