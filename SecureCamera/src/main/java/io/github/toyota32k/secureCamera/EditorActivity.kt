@@ -23,6 +23,7 @@ import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
@@ -94,6 +95,7 @@ class EditorActivity : UtMortalActivity() {
             .enableSeekLarge(5000, 10000)
             .enableSliderLock(true)
             .counterInMs()
+            .snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
             .build()
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
@@ -258,11 +260,7 @@ class EditorActivity : UtMortalActivity() {
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.editor)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        setupWindowInsetsListener(controls.editor, UtDialogConfig.SystemZone.SYSTEM_BARS) // cutout はあえて除けない
         hideActionBar()
         hideStatusBar()
 

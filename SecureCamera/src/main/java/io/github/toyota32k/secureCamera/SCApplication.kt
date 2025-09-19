@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
+import android.graphics.Rect
 import android.util.Log
 import io.github.toyota32k.dialog.UtDialog
 import io.github.toyota32k.dialog.UtDialogBase
@@ -21,6 +22,8 @@ class SCApplication : Application() {
             UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
             UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.DIM
             UtDialogConfig.showInDialogModeAsDefault = true
+            UtDialogConfig.dialogMarginOnLandscape = Rect(0,0,0,0)
+            UtDialogConfig.dialogMarginOnPortrait = Rect(0,0,0,0)
             UtDialogConfig.showDialogImmediately = UtDialogConfig.ShowDialogMode.Commit
             UtDialogConfig.draggable = true
         }

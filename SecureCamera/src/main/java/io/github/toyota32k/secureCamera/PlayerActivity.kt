@@ -37,6 +37,7 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewBindingEx
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
@@ -73,6 +74,7 @@ import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
+import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
@@ -148,13 +150,17 @@ class PlayerActivity : UtMortalActivity() {
             const val KEY_CURRENT_LIST_MODE = "ListMode"
             const val KEY_CURRENT_ITEM = "CurrentItem"
             suspend fun takeSnapshot(db:ScDB, item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
+                if( !SnapshotDialog.showBitmap(bitmap)) {
+                    bitmap.recycle()
+                    return null
+                }
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
                     try {
                         val orgDate = item.date
                         val date = Date(orgDate + pos)
                         val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
-                        file = File(UtImmortalTaskManager.application.filesDir, filename)
+                        file = File(db.filesDir, filename)
                         file.outputStream().use {
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                             it.flush()
@@ -185,6 +191,7 @@ class PlayerActivity : UtMortalActivity() {
             .enableRotateRight()
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
+            .snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
             .build()
 
         val fullscreenCommand = LiteCommand<Boolean> {
@@ -585,13 +592,7 @@ class PlayerActivity : UtMortalActivity() {
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        ViewCompat.setOnApplyWindowInsetsListener(controls.player) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            logger.debug("WindowInsets:left=${systemBars.left},top=${systemBars.top},right=${systemBars.right},bottom=${systemBars.bottom}")
-            insets
-        }
-
+        setupWindowInsetsListener(controls.player, UtDialogConfig.SystemZone.NORMAL)
         hideActionBar()
         hideStatusBar()
 
