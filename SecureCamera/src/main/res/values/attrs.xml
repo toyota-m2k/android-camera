@@ -2,6 +2,7 @@
 <resources>
     <declare-styleable name="ControlPanel">
         <attr name="iconColor" format="color"/>
+        <attr name="iconAltColor" format="color"/>
         <attr name="noRecIconColor" format="color"/>
         <attr name="recIconColor" format="color"/>
         <attr name="stopIconColor" format="color"/>

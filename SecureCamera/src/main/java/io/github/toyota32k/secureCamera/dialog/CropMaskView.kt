@@ -11,27 +11,59 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.graphics.drawable.toDrawable
-import androidx.core.view.marginTop
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.dialog.CropMaskViewModel.Companion.MIN
 import io.github.toyota32k.utils.android.dp2px
 import io.github.toyota32k.utils.android.getLayoutHeight
 import io.github.toyota32k.utils.android.getLayoutWidth
-import io.github.toyota32k.utils.android.setMargin
 import kotlin.math.roundToInt
-import kotlin.text.toFloat
 
-class CropMaskViewModel(val sourceWidth:Int,val sourceHeight:Int,) {
+/**
+ * CropMaskView の位置情報を表すデータクラス
+ *
+ * rsx, rsy: mask の左上の位置 (0.0～1.0)
+ * rex, rey: mask の右下の位置 (0.0～1.0)
+ */
+data class MaskCoreParams(
+    val rsx:Float,
+    val rsy:Float,
+    val rex:Float,
+    val rey:Float,
+) {
     companion object {
-        const val MIN = 32f
+        fun fromSize(sourceWidth:Int, sourceHeight:Int, sx:Float, sy:Float, w:Float, h:Float):MaskCoreParams {
+            return MaskCoreParams(
+                (sx / sourceWidth.toFloat()).coerceIn(0f, 1f),
+                (sy / sourceHeight.toFloat()).coerceIn(0f, 1f),
+                ((sx+w) / sourceWidth.toFloat()).coerceIn(0f, 1f),
+                ((sx+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
+            )
+        }
     }
+}
+
+/**
+ * CropMask 用の ViewModel
+ * @param sourceWidth ソース画像の幅 (px)
+ * @param sourceHeight ソース画像の高さ (px)
+ */
+class CropMaskViewModel {
+    companion object {
+//        const val MIN = 32f
+    }
+    // invalidateが必要かどうか
     var isDirty: Boolean = false
+
+    // isDirty が true の場合に fn() を実行し、isDirty を false にする
+    // usage: viewModel.clearDirty { invalidate() }
     fun clearDirty(fn:()->Unit) {
         if(isDirty) {
             fn()
             isDirty = false
         }
     }
+    // Mask用位置データ
+    // 0.0～1.0 の範囲で、ソース画像に対する相対位置を表す
+    // これがコアデータで、そのほかのパラメータはこの値から導出する。
     private var rsx:Float = 0f
         set(v) {
             if(v!=field) {
@@ -62,86 +94,151 @@ class CropMaskViewModel(val sourceWidth:Int,val sourceHeight:Int,) {
             }
         }
 
-    var viewWidth:Int = 100
-        set(v) {
-            val nv = v.coerceAtLeast(MIN.roundToInt())
-            if(nv!=field) {
-                field = nv
-                isDirty = true
-            }
-        }
-    var viewHeight:Int = 100
-        set(v) {
-            val nv = v.coerceAtLeast(MIN.roundToInt())
+    // view の padding (mask のハンドルの半径に相当)
+    var padding:Int = 10
+        private set(v) {
+            val nv = v.coerceAtLeast(10)
             if(nv!=field) {
                 field = nv
                 isDirty = true
             }
         }
 
+    // padding 込みの view サイズ
+    var rawViewWidth:Int = 100
+        private set(v) {
+            if(v!=field) {
+                field = v
+                isDirty = true
+            }
+        }
+    var rawViewHeight:Int = 100
+        private set(v) {
+            if(v!=field) {
+                field = v
+                isDirty = true
+            }
+        }
+
+    // view のサイズと padding を設定する
+    fun setViewDimmension(width:Int, height:Int, padding:Int) {
+        this.rawViewWidth = width
+        this.rawViewHeight = height
+        this.padding = padding
+    }
+
+    // padding を除いた view サイズ
+    val viewWidth:Int
+        get() = (rawViewWidth - padding*2).coerceAtLeast(1)
+    val viewHeight:Int
+        get() = (rawViewHeight - padding*2).coerceAtLeast(1)
+    val minMaskWidth:Float
+        get() = padding * 2f
+
+    // View上での mask の位置 (px 単位、padding 込み)
     var maskSx:Float
-        get() = rsx * viewWidth
-        private set(v) { rsx = v / viewWidth }
+        get() = rsx * viewWidth + padding
+        private set(v) { rsx = (v-padding) / viewWidth }
     fun setMaskSx(v:Float):Float {
-        return v.coerceIn(0f, maskEx-MIN).also { maskSx = it }
+        return v.coerceIn(padding.toFloat(), maskEx-minMaskWidth+padding).also { maskSx = it }
     }
     var maskSy:Float
-        get() = rsy * viewHeight
-        private set(v) { rsy = v / viewHeight }
+        get() = rsy * viewHeight + padding
+        private set(v) { rsy = (v-padding) / viewHeight }
     fun setMaskSy(v:Float):Float {
-        return  v.coerceIn(0f, maskEy-MIN).also { maskSy = it }
+        return  v.coerceIn(padding.toFloat(), maskEy-minMaskWidth+padding).also { maskSy = it }
     }
     var maskEx:Float
-        get() = rex * viewWidth
-        private set(v) { rex = v / viewWidth }
+        get() = rex * viewWidth + padding
+        private set(v) { rex = (v-padding) / viewWidth }
     fun setMaskEx(v:Float):Float {
-        return v.coerceIn(maskSx+MIN, viewWidth.toFloat()).also { maskEx = it }
+        return v.coerceIn(maskSx+minMaskWidth+padding, viewWidth.toFloat()+padding).also { maskEx = it }
     }
     var maskEy:Float
-        get() = rey * viewHeight
-        private set(v) { rey = v / viewHeight }
+        get() = rey * viewHeight + padding
+        private set(v) { rey = (v-padding) / viewHeight }
     fun setMaskEy(v:Float):Float {
-        return v.coerceIn(maskSy+MIN, viewHeight.toFloat()).also { maskEy = it }
+        return v.coerceIn(maskSy+minMaskWidth+padding, viewHeight.toFloat()+padding).also { maskEy = it }
     }
 
-    fun moveMask(dx:Float, dy:Float) {
-        val w = maskWidth
-        val h = maskHeight
-        val newSx = (maskSx + dx).coerceIn(0f, viewWidth - w)
-        val newSy = (maskSy + dy).coerceIn(0f, viewHeight - h)
-        maskSx = newSx
-        maskSy = newSy
-        maskEx = newSx + w
-        maskEy = newSy + h
-    }
-    fun moveTo(x:Float, y:Float) {
-        val w = maskWidth
-        val h = maskHeight
-        val newSx = x.coerceIn(0f, viewWidth - w)
-        val newSy = y.coerceIn(0f, viewHeight - h)
-        maskSx = newSx
-        maskSy = newSy
-        maskEx = newSx + w
-        maskEy = newSy + h
-    }
-
+    // mask の幅と高さ
     val maskWidth:Float
         get() = maskEx - maskSx
     val maskHeight:Float
         get() = maskEy - maskSy
 
-    val cropSx: Int
-        get() = (rsx * sourceWidth.toFloat()).roundToInt()
-    val cropSy: Int
-        get() = (rsy * sourceHeight.toFloat()).roundToInt()
-    val cropWidth: Int
-        get() = ((rex-rsx) * sourceWidth.toFloat()).roundToInt()
-    val cropHeight: Int
-        get() = ((rey-rsy) * sourceHeight.toFloat()).roundToInt()
+    //    fun moveMask(dx:Float, dy:Float) {
+//        val w = maskWidth
+//        val h = maskHeight
+//        val newSx = (maskSx + dx).coerceIn(0f, viewWidth - w)
+//        val newSy = (maskSy + dy).coerceIn(0f, viewHeight - h)
+//        maskSx = newSx
+//        maskSy = newSy
+//        maskEx = newSx + w
+//        maskEy = newSy + h
+//    }
+    /**
+     * maskのサイズを維持したまま、左上の座標を (x,y) に移動する。
+     *
+     * mask が view の範囲を超える場合は、view 内に収まるように調整する。
+     * @param x mask の左上の X座標 (padding 込み)
+     * @param y mask の左上の Y座標 (padding 込み)
+     */
+    fun moveTo(x:Float, y:Float) {
+        val w = maskWidth
+        val h = maskHeight
+        val newSx = x.coerceIn(padding.toFloat(), viewWidth - w + padding)
+        val newSy = y.coerceIn(padding.toFloat(), viewHeight - h + padding)
+        maskSx = newSx
+        maskSy = newSy
+        maskEx = newSx + w
+        maskEy = newSy + h
+    }
 
+    // ソース画像に対する crop 領域 (px 単位)
+//    val cropSx: Int
+//        get() = (rsx * sourceWidth.toFloat()).roundToInt()
+//    val cropSy: Int
+//        get() = (rsy * sourceHeight.toFloat()).roundToInt()
+//    val cropWidth: Int
+//        get() = ((rex-rsx) * sourceWidth.toFloat()).roundToInt()
+//    val cropHeight: Int
+//        get() = ((rey-rsy) * sourceHeight.toFloat()).roundToInt()
+
+    data class CropRect(val sx:Int, val sy:Int, val width:Int, val height:Int)
+    fun cropRect(width:Int, height:Int):CropRect {
+        return CropRect(
+            (rsx * width.toFloat()).roundToInt(),
+            (rsy * height.toFloat()).roundToInt(),
+            ((rex-rsx) * width.toFloat()).roundToInt(),
+            ((rey-rsy) * height.toFloat()).roundToInt(),
+        )
+    }
+    fun cropRect(bitmap:Bitmap):CropRect {
+        return cropRect(bitmap.width, bitmap.height)
+    }
+
+    /**
+     * ソース画像から mask情報に従って crop 領域を切り出す
+     *
+     * @param bitmap ソース画像
+     * @return 切り出した画像 (cropWidth x cropHeight)
+     */
     fun cropBitmap(bitmap:Bitmap):Bitmap {
-        assert(bitmap.width == sourceWidth && bitmap.height == sourceHeight)
-        return Bitmap.createBitmap(bitmap, cropSx, cropSy, cropWidth, cropHeight)
+        val crop = cropRect(bitmap)
+        return Bitmap.createBitmap(bitmap, crop.sx, crop.sy, crop.width, crop.height)
+    }
+
+    fun getParams():MaskCoreParams {
+        return MaskCoreParams(rsx, rsy, rex, rey)
+    }
+
+    fun setParams(p:MaskCoreParams) {
+        rsx = p.rsx
+        rsy = p.rsy
+        rex = p.rex
+        rey = p.rey
+        isDirty = true
     }
 }
 
@@ -165,12 +262,12 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         this.isClickable = true
 
         val typedValue = TypedValue()
-        val primaryColor = if (context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimarySurface, typedValue, true)) {
+        val primaryColor = if (context.theme.resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
             typedValue.data
         } else {
             0xFFFFFFFF.toInt()
         }
-        val onPrimaryColor = if (context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnPrimarySurface, typedValue, true)) {
+        val onPrimaryColor = if (context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimaryContainer    , typedValue, true)) {
             typedValue.data
         } else {
             0xFF000000.toInt()
@@ -192,9 +289,8 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     fun bindViewModel(vm: CropMaskViewModel) {
         viewModel = vm
-        vm.viewWidth = getLayoutWidth()
-        vm.viewHeight = getLayoutHeight()
-        invalidate()
+        vm.setViewDimmension(getLayoutWidth(), getLayoutHeight(), paddingStart)
+        vm.clearDirty { invalidate() }
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -202,21 +298,19 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         val w = right - left
         val h = bottom - top
         viewModel?.let { vm->
-            if (vm.viewWidth!=w || vm.viewHeight!=h) {
-                vm.viewWidth = w
-                vm.viewHeight = h
-                invalidate()
+            if (vm.rawViewWidth!=w || vm.rawViewHeight!=h) {
+                vm.setViewDimmension(w, h, paddingStart)
+                vm.clearDirty { invalidate() }
             }
         }
     }
 
-
     override fun onDraw(canvas: Canvas) {
+        val vm = viewModel ?: return
         val saveCount = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        maskDrawable.setBounds(0, 0, width, height)
+        maskDrawable.setBounds(vm.padding, vm.padding, width-vm.padding, height-vm.padding)
         maskDrawable.draw(canvas)
 
-        val vm = viewModel ?: return
         canvas.drawRect(vm.maskSx, vm.maskSy, vm.maskEx, vm.maskEy, clearPaint)
         canvas.restoreToCount(saveCount)
 
@@ -224,19 +318,19 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         canvas.drawRect(vm.maskSx, vm.maskSy, vm.maskEx, vm.maskEy, linePaint)
 
         // mask の四隅にハンドルを描く
-        val handleSize = context.dp2px(MIN)
+        val handleSize = vm.padding*2f
         // 左上
         canvas.drawCircle(vm.maskSx, vm.maskSy, handleSize/2, handleFillPaint)
-        canvas.drawCircle(vm.maskSx, vm.maskSy, handleSize/2, handleStrokePaint)
+        canvas.drawCircle(vm.maskSx, vm.maskSy, (handleSize-handleStrokePaint.strokeWidth)/2, handleStrokePaint)
         // 右上
         canvas.drawCircle(vm.maskEx, vm.maskSy, handleSize/2, handleFillPaint)
-        canvas.drawCircle(vm.maskEx, vm.maskSy, handleSize/2, handleStrokePaint)
+        canvas.drawCircle(vm.maskEx, vm.maskSy, (handleSize-handleStrokePaint.strokeWidth)/2, handleStrokePaint)
         // 左下
         canvas.drawCircle(vm.maskSx, vm.maskEy, handleSize/2, handleFillPaint)
-        canvas.drawCircle(vm.maskSx, vm.maskEy, handleSize/2, handleStrokePaint)
+        canvas.drawCircle(vm.maskSx, vm.maskEy, (handleSize-handleStrokePaint.strokeWidth)/2, handleStrokePaint)
         // 右下
         canvas.drawCircle(vm.maskEx, vm.maskEy, handleSize/2, handleFillPaint)
-        canvas.drawCircle(vm.maskEx, vm.maskEy, handleSize/2, handleStrokePaint)
+        canvas.drawCircle(vm.maskEx, vm.maskEy, (handleSize-handleStrokePaint.strokeWidth)/2, handleStrokePaint)
     }
 
     enum class HitResult {
@@ -252,7 +346,7 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         var hit: HitResult = HitResult.None
         private fun hitTest(x:Float, y:Float): HitResult {
             val vm = viewModel ?: return HitResult.None
-            val handleSize = context.dp2px(MIN)
+            val handleSize = (vm.padding*2f).coerceAtLeast(context.dp2px(36f))
             return when {
                 // 左上
                 (x in (vm.maskSx-handleSize)..(vm.maskSx+handleSize) && y in (vm.maskSy-handleSize)..(vm.maskSy+handleSize)) -> HitResult.LeftTop

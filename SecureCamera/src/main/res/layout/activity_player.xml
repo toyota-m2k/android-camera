@@ -159,7 +159,7 @@
                     android:layout_width="@dimen/media_button_width"
                     android:layout_height="@dimen/media_button_height"
                     app:srcCompat="@drawable/ic_save"
-                    app:tint="?attr/iconColor"
+                    app:tint="?attr/iconAltColor"
                     android:background="?attr/selectableItemBackground"
                     />
 

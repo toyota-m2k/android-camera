@@ -1,6 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="BaseTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="iconColor">?attr/colorPrimary</item>
+        <item name="iconAltColor">?attr/colorTertiary</item>
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>
@@ -13,6 +14,7 @@
     </style>
     <style name="DefaultTheme" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
         <item name="iconColor">?attr/colorPrimary</item>
+        <item name="iconAltColor">?attr/colorTertiary</item>
         <item name="noRecIconColor">@color/orange_300</item>
         <item name="recIconColor">@color/pink_a400</item>
         <item name="stopIconColor">@color/blue_a400</item>

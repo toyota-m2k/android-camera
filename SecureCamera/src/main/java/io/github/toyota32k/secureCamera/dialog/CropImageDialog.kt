@@ -17,15 +17,17 @@ import io.github.toyota32k.utils.android.setLayoutSize
 class CropImageDialog : UtDialogEx() {
     class CropImageViewModel : UtDialogViewModel() {
         lateinit var targetBitmap: Bitmap
-        lateinit var maskViewModel: CropMaskViewModel
+        var maskViewModel = CropMaskViewModel()
 
         fun crop(): Bitmap {
             return maskViewModel.cropBitmap(targetBitmap)
         }
 
-        fun setup(bitmap: Bitmap): CropImageViewModel {
+        fun setup(bitmap: Bitmap, maskParams: MaskCoreParams?): CropImageViewModel {
             targetBitmap = bitmap
-            maskViewModel = CropMaskViewModel(bitmap.width, bitmap.height)
+            if (maskParams!=null) {
+                maskViewModel.setParams(maskParams)
+            }
             return this
         }
     }
@@ -69,12 +71,16 @@ class CropImageDialog : UtDialogEx() {
     }
 
     companion object {
-        suspend fun cropBitmap(bitmap: Bitmap): Bitmap? {
+        data class CropResult(
+            val bitmap: Bitmap,
+            val maskParams: MaskCoreParams
+        )
+        suspend fun cropBitmap(bitmap: Bitmap, maskParams: MaskCoreParams?): CropResult? {
             return UtImmortalTask.awaitTaskResult(this::class.java.name) {
-                val vm = createViewModel<CropImageViewModel> { setup(bitmap) }
+                val vm = createViewModel<CropImageViewModel> { setup(bitmap, maskParams) }
                 val dlg = showDialog(taskName) { CropImageDialog() }
                 if(dlg.status.ok) {
-                    vm.crop()
+                    CropResult(vm.crop(), vm.maskViewModel.getParams())
                 } else {
                     null
                 }

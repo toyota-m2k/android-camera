@@ -73,6 +73,7 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.CropImageDialog
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
+import io.github.toyota32k.secureCamera.dialog.MaskCoreParams
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
@@ -198,8 +199,7 @@ class PlayerActivity : UtMortalActivity() {
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
-        data class CropParams(val tx:Float, val ty:Float, val scale:Float)
-        var cropParams:CropParams? = null
+        var maskParams: MaskCoreParams? = null
 
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
@@ -629,7 +629,7 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .bindCommand(viewModel.undoBitmapCommand, controls.photoUndoButton)
             .clickBinding(controls.photoCropButton, ::cropBitmap)
-            .longClickBinding(controls.photoCropButton, ::applyPreviousCropParams)
+//            .longClickBinding(controls.photoCropButton, ::applyPreviousCropParams)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
@@ -740,41 +740,30 @@ class PlayerActivity : UtMortalActivity() {
     /**
      * 前回のトリミング情報（scale/translation）を復元して、トリミングを実行する
      */
-    private fun applyPreviousCropParams(v: View): Boolean {
-        viewModel.cropParams?.apply {
-            controls.imageView.scaleX = scale
-            controls.imageView.scaleY = scale
-            controls.imageView.translationX = tx
-            controls.imageView.translationY = ty
-        } ?: return false
-        cropBitmap(v)
-        return true
-    }
+//    private fun applyPreviousCropParams(v: View): Boolean {
+//        viewModel.cropParams?.apply {
+//            controls.imageView.scaleX = scale
+//            controls.imageView.scaleY = scale
+//            controls.imageView.translationX = tx
+//            controls.imageView.translationY = ty
+//        } ?: return false
+//        cropBitmap(v)
+//        return true
+//    }
 
-    /**
-     * 表示中のビットマップを可視範囲でトリミングする
-     */
-    private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
-        UtImmortalTask.launchTask("cropBitmap") {
-            val bmp = CropImageDialog.cropBitmap(viewModel.playlist.photoBitmap.value ?: return@launchTask)
-            if (bmp != null) {
-                if (SnapshotDialog.showBitmap(bmp)) {
-                    viewModel.playlist.setCroppedBitmap(bmp)
-                    manipulator.agent.resetScrollAndScale()
-                }
-            }
-        }
-        return
+    private fun getMaskParams(): MaskCoreParams? {
+        val bitmap = viewModel.playlist.photoBitmap.value ?: return null
 
         val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
+        if (scale == 1f) return viewModel.maskParams
+
         val rtx = controls.imageView.translationX
         val rty = controls.imageView.translationY
-        if (scale ==1f && rtx==0f && rty==0f) return
-        viewModel.cropParams = PlayerViewModel.CropParams(rtx, rty, scale)
+        if (rtx==0f && rty==0f) return viewModel.maskParams
+
         val tx = rtx / scale
         val ty = rty / scale
 
-        val bitmap = viewModel.playlist.photoBitmap.value ?: return
         val bw = bitmap.width                               // bitmap のサイズ
         val bh = bitmap.height
         val vw = controls.imageView.width                   // imageView のサイズ
@@ -803,9 +792,69 @@ class PlayerActivity : UtMortalActivity() {
         val w = (ex - sx) * bs
         val h = (ey - sy) * bs
 
-        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
-        viewModel.playlist.setCroppedBitmap(newBitmap)
-        manipulator.agent.resetScrollAndScale()
+        return MaskCoreParams.fromSize(bw, bh, x, y, w, h)
+
+//        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
+//        viewModel.playlist.setCroppedBitmap(newBitmap)
+//        manipulator.agent.resetScrollAndScale()
+    }
+
+    /**
+     * 表示中のビットマップを可視範囲でトリミングする
+     */
+    private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
+        val bitmap = viewModel.playlist.photoBitmap.value ?: return
+        UtImmortalTask.launchTask("cropBitmap") {
+            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams())
+            if (cropped != null) {
+                viewModel.maskParams = cropped.maskParams
+                viewModel.playlist.setCroppedBitmap(cropped.bitmap)
+                manipulator.agent.resetScrollAndScale()
+            }
+        }
+        return
+
+        // ずいぶん苦労して実装したので、削除してしまうのが忍びないｗｗｗ
+//        val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
+//        val rtx = controls.imageView.translationX
+//        val rty = controls.imageView.translationY
+//        if (scale ==1f && rtx==0f && rty==0f) return
+//        viewModel.cropParams = PlayerViewModel.CropParams(rtx, rty, scale)
+//        val tx = rtx / scale
+//        val ty = rty / scale
+//
+//        val bitmap = viewModel.playlist.photoBitmap.value ?: return
+//        val bw = bitmap.width                               // bitmap のサイズ
+//        val bh = bitmap.height
+//        val vw = controls.imageView.width                   // imageView のサイズ
+//        val vh = controls.imageView.height
+//        val fitter = UtFitter(FitMode.Inside, vw, vh)
+//        fitter.fit(bw, bh)
+//        val iw = fitter.resultWidth                         // imageView内での bitmapの表示サイズ
+//        val ih = fitter.resultHeight
+//        val mx = (vw-iw)/2                                  // imageView と bitmap のマージン
+//        val my = (vh-ih)/2
+//
+//        // scale: 画面中央をピボットとする拡大率
+//        // translation：中心座標の移動距離 x scale
+//        val sw = vw / scale                                 // scaleを補正した表示サイズ
+//        val sh = vh / scale
+//        val cx = vw/2f - tx                                 // 現在表示されている画面の中央の座標（scale前の元の座標系）
+//        val cy = vh/2f - ty
+//        val sx = max(cx - sw/2 - mx, 0f)              // 表示されている画像の座標（表示画像内の座標系）
+//        val sy = max(cy - sh/2 - my, 0f)
+//        val ex = min(cx + sw/2 - mx, iw)
+//        val ey = min(cy + sh/2 - my, ih)
+//
+//        val bs = bw.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
+//        val x = sx * bs
+//        val y = sy * bs
+//        val w = (ex - sx) * bs
+//        val h = (ey - sy) * bs
+//
+//        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
+//        viewModel.playlist.setCroppedBitmap(newBitmap)
+//        manipulator.agent.resetScrollAndScale()
     }
 
 
