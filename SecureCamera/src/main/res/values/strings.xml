@@ -138,4 +138,5 @@
     <string name="color_settings"><![CDATA[Look & Feel]]></string>
     <string name="dangerous_settings">Dangerous</string>
     <string name="bulse">バルス</string>
+    <string name="crop">Crop</string>
 </resources>

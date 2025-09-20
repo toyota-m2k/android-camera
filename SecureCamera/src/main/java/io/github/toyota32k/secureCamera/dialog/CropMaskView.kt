@@ -15,6 +15,8 @@ import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.utils.android.dp2px
 import io.github.toyota32k.utils.android.getLayoutHeight
 import io.github.toyota32k.utils.android.getLayoutWidth
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
 /**
@@ -35,7 +37,7 @@ data class MaskCoreParams(
                 (sx / sourceWidth.toFloat()).coerceIn(0f, 1f),
                 (sy / sourceHeight.toFloat()).coerceIn(0f, 1f),
                 ((sx+w) / sourceWidth.toFloat()).coerceIn(0f, 1f),
-                ((sx+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
+                ((sy+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
             )
         }
     }
@@ -59,6 +61,7 @@ class CropMaskViewModel {
         if(isDirty) {
             fn()
             isDirty = false
+            cropFlow?.update()
         }
     }
     // Mask用位置データ
@@ -195,15 +198,46 @@ class CropMaskViewModel {
         maskEy = newSy + h
     }
 
-    // ソース画像に対する crop 領域 (px 単位)
-//    val cropSx: Int
-//        get() = (rsx * sourceWidth.toFloat()).roundToInt()
-//    val cropSy: Int
-//        get() = (rsy * sourceHeight.toFloat()).roundToInt()
-//    val cropWidth: Int
-//        get() = ((rex-rsx) * sourceWidth.toFloat()).roundToInt()
-//    val cropHeight: Int
-//        get() = ((rey-rsy) * sourceHeight.toFloat()).roundToInt()
+    interface ICropFlows {
+        val cropSx: StateFlow<Int>
+        val cropSy: StateFlow<Int>
+        val cropWidth: StateFlow<Int>
+        val cropHeight: StateFlow<Int>
+    }
+    inner class CropFlows : ICropFlows {
+        override val cropSx = MutableStateFlow(0)
+        override val cropSy = MutableStateFlow(0)
+        override val cropWidth = MutableStateFlow(0)
+        override val cropHeight = MutableStateFlow(0)
+
+        var width:Float = 0f
+        var height:Float = 0f
+
+        fun setSize(width:Float, height:Float):CropFlows {
+            this.width = width
+            this.height = height
+            update()
+            return this
+        }
+
+        fun update() {
+            val sx = (rsx * width.toFloat()).roundToInt()
+            val sy = (rsy * height.toFloat()).roundToInt()
+            val w = ((rex-rsx) * width.toFloat()).roundToInt()
+            val h = ((rey-rsy) * height.toFloat()).roundToInt()
+            if(cropSx.value != sx) cropSx.value = sx
+            if(cropSy.value != sy) cropSy.value = sy
+            if(cropWidth.value != w) cropWidth.value = w
+            if(cropHeight.value != h) cropHeight.value = h
+        }
+        init {
+            update()
+        }
+    }
+    private var cropFlow :CropFlows? = null
+    fun enableCropFlow(width:Int, height:Int):ICropFlows {
+        return (cropFlow ?: CropFlows().apply {cropFlow=this}).setSize(width.toFloat(), height.toFloat())
+    }
 
     data class CropRect(val sx:Int, val sy:Int, val width:Int, val height:Int)
     fun cropRect(width:Int, height:Int):CropRect {

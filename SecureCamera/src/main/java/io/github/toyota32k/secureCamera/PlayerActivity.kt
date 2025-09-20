@@ -10,8 +10,6 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -32,7 +30,6 @@ import io.github.toyota32k.binder.genericBinding
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
-import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewBindingEx
@@ -41,7 +38,6 @@ import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
-import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
@@ -113,7 +109,6 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 
 class PlayerActivity : UtMortalActivity() {
@@ -151,9 +146,15 @@ class PlayerActivity : UtMortalActivity() {
         companion object {
             const val KEY_CURRENT_LIST_MODE = "ListMode"
             const val KEY_CURRENT_ITEM = "CurrentItem"
-            suspend fun takeSnapshot(db:ScDB, item: MetaData, pos:Long, bitmap: Bitmap):MetaData? {
-                if( !SnapshotDialog.showBitmap(bitmap)) {
-                    bitmap.recycle()
+            var maskParams: MaskCoreParams? = null
+
+            suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: Bitmap):MetaData? {
+                val bitmap = SnapshotDialog.showBitmap(snapshot, maskParams)?.let {
+                    maskParams = it.maskParams
+                    it.consume()
+                }
+                if(bitmap==null) {
+                    snapshot.recycle()
                     return null
                 }
                 return withContext(Dispatchers.IO) {
@@ -199,7 +200,6 @@ class PlayerActivity : UtMortalActivity() {
         val fullscreenCommand = LiteCommand<Boolean> {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
-        var maskParams: MaskCoreParams? = null
 
         val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
@@ -538,7 +538,7 @@ class PlayerActivity : UtMortalActivity() {
         private fun onSnapshot(pos:Long, bitmap: Bitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
-                val newItem = takeSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
+                val newItem = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
                 if (playlist.listMode.value != ListMode.VIDEO) {
                     withContext(Dispatchers.Main) { playlist.sorter.add(ItemEx(newItem,metaDb.slotIndex.index,null)) }
                 }
@@ -751,21 +751,21 @@ class PlayerActivity : UtMortalActivity() {
 //        return true
 //    }
 
-    private fun getMaskParams(): MaskCoreParams? {
-        val bitmap = viewModel.playlist.photoBitmap.value ?: return null
+    private fun getMaskParams(sourceWidth:Int, sourceHeight:Int): MaskCoreParams? {
+//        val bitmap = viewModel.playlist.photoBitmap.value ?: return null
 
         val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
-        if (scale == 1f) return viewModel.maskParams
+        if (scale == 1f) return PlayerViewModel.maskParams
 
         val rtx = controls.imageView.translationX
         val rty = controls.imageView.translationY
-        if (rtx==0f && rty==0f) return viewModel.maskParams
+        if (rtx==0f && rty==0f) return PlayerViewModel.maskParams
 
         val tx = rtx / scale
         val ty = rty / scale
 
-        val bw = bitmap.width                               // bitmap のサイズ
-        val bh = bitmap.height
+        val bw = sourceWidth
+        val bh = sourceHeight
         val vw = controls.imageView.width                   // imageView のサイズ
         val vh = controls.imageView.height
         val fitter = UtFitter(FitMode.Inside, vw, vh)
@@ -805,9 +805,9 @@ class PlayerActivity : UtMortalActivity() {
     private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
         val bitmap = viewModel.playlist.photoBitmap.value ?: return
         UtImmortalTask.launchTask("cropBitmap") {
-            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams())
+            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams(bitmap.width,bitmap.height))
             if (cropped != null) {
-                viewModel.maskParams = cropped.maskParams
+                PlayerViewModel.maskParams = cropped.maskParams
                 viewModel.playlist.setCroppedBitmap(cropped.bitmap)
                 manipulator.agent.resetScrollAndScale()
             }

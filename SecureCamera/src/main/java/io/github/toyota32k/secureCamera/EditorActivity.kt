@@ -9,8 +9,6 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
@@ -193,7 +191,7 @@ class EditorActivity : UtMortalActivity() {
             val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
             if(!source.cloud.isFileInLocal) return
             CoroutineScope(Dispatchers.IO).launch {
-                PlayerActivity.PlayerViewModel.takeSnapshot(metaDb, source.data, pos, bitmap)
+                PlayerActivity.PlayerViewModel.saveSnapshot(metaDb, source.data, pos, bitmap)
             }
         }
 

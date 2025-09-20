@@ -3,21 +3,29 @@ package io.github.toyota32k.secureCamera.dialog
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.databinding.DialogCropImageBinding
+import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.px2dp
 import io.github.toyota32k.utils.android.setLayoutSize
+import kotlinx.coroutines.flow.combine
 
 class CropImageDialog : UtDialogEx() {
     class CropImageViewModel : UtDialogViewModel() {
         lateinit var targetBitmap: Bitmap
         var maskViewModel = CropMaskViewModel()
+        private val cropFlows = maskViewModel.enableCropFlow(100, 100)
+
+        val sizeText = combine(cropFlows.cropWidth, cropFlows.cropHeight) { cw, ch->
+            "$cw x $ch (${targetBitmap.width} x ${targetBitmap.height})"
+        }
 
         fun crop(): Bitmap {
             return maskViewModel.cropBitmap(targetBitmap)
@@ -28,6 +36,7 @@ class CropImageDialog : UtDialogEx() {
             if (maskParams!=null) {
                 maskViewModel.setParams(maskParams)
             }
+            maskViewModel.enableCropFlow(bitmap.width, bitmap.height)
             return this
         }
     }
@@ -40,7 +49,7 @@ class CropImageDialog : UtDialogEx() {
         rightButtonType = ButtonType.OK
     }
 
-    lateinit var controls: DialogCropImageBinding
+    lateinit var controls: DialogSnapshotBinding
     private val viewModel: CropImageViewModel by lazy { getViewModel() }
 
     private fun Int.dp():Int {
@@ -48,9 +57,11 @@ class CropImageDialog : UtDialogEx() {
     }
 
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
-        controls = DialogCropImageBinding.inflate(inflater.layoutInflater)
+        controls = DialogSnapshotBinding.inflate(inflater.layoutInflater)
         controls.image.setImageBitmap(viewModel.targetBitmap)
         controls.cropOverlay.bindViewModel(viewModel.maskViewModel)
+        binder.owner(this).textBinding(controls.sizeText, viewModel.sizeText)
+
         var pw:Int = 0
         var ph:Int = 0
         controls.root.addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
