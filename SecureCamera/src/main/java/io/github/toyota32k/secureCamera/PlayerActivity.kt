@@ -593,7 +593,7 @@ class PlayerActivity : UtMortalActivity() {
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        setupWindowInsetsListener(controls.player, UtDialogConfig.SystemZone.NORMAL)
+        setupWindowInsetsListener(controls.player, UtDialogConfig.SystemZone.SYSTEM_BARS)
         hideActionBar()
         hideStatusBar()
 
