@@ -28,29 +28,23 @@ class SnapshotDialog : UtDialogEx() {
         var croppedBitmap = MutableStateFlow<Bitmap?>(null)
         val isCropped = croppedBitmap.map { it!=null }
         lateinit var targetBitmap:Bitmap
+        var recycleTargetBitmap:Boolean = false
         var result:CropResult? = null
         val trimmingNow = MutableStateFlow(false)
         val maskViewModel = CropMaskViewModel()
         private val cropFlows = maskViewModel.enableCropFlow(100, 100)
 
         data class CropResult(
-            val sourceBitmap: Bitmap,
             val bitmap: Bitmap,
             val maskParams: MaskCoreParams?
-        ) {
-            fun consume():Bitmap {
-                if (sourceBitmap!=bitmap) {
-                    sourceBitmap.recycle()
-                }
-                return bitmap
-            }
-        }
+        )
 
         val sizeText = combine(trimmingNow, cropFlows.cropWidth, cropFlows.cropHeight) { trimming, cw, ch->
+            val bitmap = targetBitmap ?: return@combine ""
             if(trimming) {
                 "$cw x $ch"
             } else {
-                "${targetBitmap.width} x ${targetBitmap.height}"
+                "${bitmap.width} x ${bitmap.height}"
             }
         }
 
@@ -61,8 +55,9 @@ class SnapshotDialog : UtDialogEx() {
             croppedBitmap.value = null
         }
 
-        fun setup(bitmap: Bitmap, maskParams: MaskCoreParams?): SnapshotViewModel {
+        fun setup(bitmap: Bitmap, autoRecycle:Boolean, maskParams: MaskCoreParams?): SnapshotViewModel {
             targetBitmap = bitmap
+            recycleTargetBitmap = autoRecycle
             if (maskParams!=null) {
                 maskViewModel.setParams(maskParams)
             }
@@ -78,17 +73,25 @@ class SnapshotDialog : UtDialogEx() {
 
         fun fix() {
             result = CropResult(
-                sourceBitmap = targetBitmap,
                 bitmap = croppedBitmap.value ?: targetBitmap,
                 maskParams = maskViewModel.getParams()
-            ).also {
+            )
+            if (croppedBitmap.value != null) {
                 croppedBitmap.value = null
+                if (recycleTargetBitmap) {
+                    targetBitmap.recycle()
+                    recycleTargetBitmap = false
+                }
             }
         }
 
         override fun onCleared() {
             super.onCleared()
             resetCropped()
+            if (recycleTargetBitmap) {
+                targetBitmap.recycle()
+                recycleTargetBitmap = false
+            }
         }
 
     }
@@ -166,14 +169,19 @@ class SnapshotDialog : UtDialogEx() {
                 controls.imageContainer.setLayoutSize(size.width, size.height)
             }
         }
-
         return controls.root
     }
 
+    override fun onDialogClosing() {
+        controls.image.setImageBitmap(null)
+        controls.imagePreview.setImageBitmap(null)
+        super.onDialogClosing()
+    }
+
     companion object {
-       suspend fun showBitmap(source: Bitmap, maskParams: MaskCoreParams?): SnapshotViewModel.CropResult? {
+       suspend fun showBitmap(source: Bitmap, autoRecycle:Boolean = true, maskParams: MaskCoreParams?=null): SnapshotViewModel.CropResult? {
             return UtImmortalTask.awaitTaskResult(this::class.java.name) {
-                val vm = createViewModel<SnapshotViewModel> { setup(source, maskParams) }
+                val vm = createViewModel<SnapshotViewModel> { setup(source, autoRecycle, maskParams) }
                 if (showDialog(taskName) { SnapshotDialog() }.status.ok) {
                     vm.result
                 } else {

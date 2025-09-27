@@ -149,14 +149,10 @@ class PlayerActivity : UtMortalActivity() {
             var maskParams: MaskCoreParams? = null
 
             suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: Bitmap):MetaData? {
-                val bitmap = SnapshotDialog.showBitmap(snapshot, maskParams)?.let {
+                val bitmap = SnapshotDialog.showBitmap(snapshot, maskParams = maskParams)?.let {
                     maskParams = it.maskParams
-                    it.consume()
-                }
-                if(bitmap==null) {
-                    snapshot.recycle()
-                    return null
-                }
+                    it.bitmap
+                } ?: return null
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
                     try {
