@@ -21,7 +21,7 @@ class SCApplication : Application() {
             UtLogConfig.logLevel = if(BuildConfig.DEBUG) Log.VERBOSE else Log.DEBUG
             UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
             UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.DIM
-            UtDialogConfig.showInDialogModeAsDefault = true
+            UtDialogConfig.showInDialogModeAsDefault = false    // dialogモードにすると、ダイアログを表示したときにStatusBarが表示されるため、Player/EditorActivityのサイズが変わって、スクロール位置がリセットされてしまう。
             UtDialogConfig.dialogMarginOnLandscape = Rect(0,0,0,0)
             UtDialogConfig.dialogMarginOnPortrait = Rect(0,0,0,0)
             UtDialogConfig.showDialogImmediately = UtDialogConfig.ShowDialogMode.Commit

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.clickBinding
+import io.github.toyota32k.binder.combinatorialVisibilityBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -24,24 +25,39 @@ import kotlinx.coroutines.flow.map
 
 class SnapshotDialog : UtDialogEx() {
     class SnapshotViewModel : UtDialogViewModel() {
-        var createdBitmap: Bitmap? = null
-        val targetBitmap = MutableStateFlow<Bitmap?>(null)
-        val enableTrimming = MutableStateFlow(false)
+        var croppedBitmap = MutableStateFlow<Bitmap?>(null)
+        val isCropped = croppedBitmap.map { it!=null }
+        lateinit var targetBitmap:Bitmap
+        var recycleTargetBitmap:Boolean = false
+        var result:CropResult? = null
+        val trimmingNow = MutableStateFlow(false)
         val maskViewModel = CropMaskViewModel()
         private val cropFlows = maskViewModel.enableCropFlow(100, 100)
 
-        val sizeText = combine(enableTrimming, targetBitmap, cropFlows.cropWidth, cropFlows.cropHeight) { trimming, bmp, cw, ch->
-            if(bmp==null) {
-                ""
-            } else if(trimming) {
+        data class CropResult(
+            val bitmap: Bitmap,
+            val maskParams: MaskCoreParams?
+        )
+
+        val sizeText = combine(trimmingNow, cropFlows.cropWidth, cropFlows.cropHeight) { trimming, cw, ch->
+            val bitmap = targetBitmap ?: return@combine ""
+            if(trimming) {
                 "$cw x $ch"
             } else {
-                "${bmp.width} x ${bmp.height}"
+                "${bitmap.width} x ${bitmap.height}"
             }
         }
 
-        fun setup(bitmap: Bitmap, maskParams: MaskCoreParams?): SnapshotViewModel {
-            targetBitmap.value = bitmap
+        fun resetCropped() {
+            if (croppedBitmap.value!=null && croppedBitmap.value!=targetBitmap) {
+                croppedBitmap.value?.recycle()
+            }
+            croppedBitmap.value = null
+        }
+
+        fun setup(bitmap: Bitmap, autoRecycle:Boolean, maskParams: MaskCoreParams?): SnapshotViewModel {
+            targetBitmap = bitmap
+            recycleTargetBitmap = autoRecycle
             if (maskParams!=null) {
                 maskViewModel.setParams(maskParams)
             }
@@ -49,23 +65,37 @@ class SnapshotDialog : UtDialogEx() {
             return this
         }
         fun crop(): Bitmap {
-            val bmp = targetBitmap.value ?: throw IllegalStateException("no bitmap")
-            return maskViewModel.cropBitmap(bmp).also {
-                if (createdBitmap!=null && createdBitmap!=it) {
-                    createdBitmap?.recycle()
+            return maskViewModel.cropBitmap(targetBitmap).also {
+                resetCropped()
+                croppedBitmap.value = it
+            }
+        }
+
+        fun fix() {
+            result = CropResult(
+                bitmap = croppedBitmap.value ?: targetBitmap,
+                maskParams = maskViewModel.getParams()
+            )
+            if (croppedBitmap.value != null) {
+                croppedBitmap.value = null
+                if (recycleTargetBitmap) {
+                    targetBitmap.recycle()
+                    recycleTargetBitmap = false
                 }
-                createdBitmap = it
             }
         }
 
         override fun onCleared() {
             super.onCleared()
-            if (createdBitmap!=null) {
-                createdBitmap?.recycle()
-                createdBitmap = null
+            resetCropped()
+            if (recycleTargetBitmap) {
+                targetBitmap.recycle()
+                recycleTargetBitmap = false
             }
         }
+
     }
+
     override fun preCreateBodyView() {
         heightOption = HeightOption.FULL
         widthOption = WidthOption.FULL
@@ -83,40 +113,43 @@ class SnapshotDialog : UtDialogEx() {
         inflater: IViewInflater
     ): View {
         controls = DialogSnapshotBinding.inflate(inflater.layoutInflater, null, false)
-//        controls.image.setImageBitmap(viewModel.targetBitmap.value)
         controls.cropOverlay.bindViewModel(viewModel.maskViewModel)
-
+        controls.image.setImageBitmap(viewModel.targetBitmap)
         binder
             .owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
-            .visibilityBinding(controls.cropOverlay, viewModel.enableTrimming)
-            .dialogOptionButtonVisibility(viewModel.enableTrimming, BoolConvert.Inverse)
-            .dialogLeftButtonString(viewModel.enableTrimming.map { if(it) getString(R.string.cancel) else getString(R.string.reject) })
-            .dialogRightButtonString(viewModel.enableTrimming.map { if(it) getString(R.string.crop) else getString(R.string.accept) })
-            .clickBinding(optionButton!!) { viewModel.enableTrimming.value = true }
+            .visibilityBinding(controls.cropOverlay, viewModel.trimmingNow)
+            .dialogOptionButtonVisibility(viewModel.trimmingNow, BoolConvert.Inverse)
+            .dialogLeftButtonString(viewModel.trimmingNow.map { if(it) getString(R.string.cancel) else getString(R.string.reject) })
+            .dialogRightButtonString(viewModel.trimmingNow.map { if(it) getString(R.string.crop) else getString(R.string.accept) })
+            .combinatorialVisibilityBinding(viewModel.isCropped) {
+                inverseGone(controls.image)
+                straightGone(controls.imagePreview)
+            }
+            .clickBinding(optionButton!!) {
+                viewModel.resetCropped()
+                viewModel.trimmingNow.value = true
+            }
             .clickBinding(leftButton) {
-                if (viewModel.enableTrimming.value) {
-                    viewModel.enableTrimming.value = false
+                if (viewModel.trimmingNow.value) {
+                    viewModel.trimmingNow.value = false
                 } else {
                     onNegative()
                 }
             }
             .clickBinding(rightButton) {
-                if (viewModel.enableTrimming.value) {
+                if (viewModel.trimmingNow.value) {
                     // crop
-                    val cropped = viewModel.crop()
-                    viewModel.targetBitmap.value = cropped
-                    viewModel.enableTrimming.value = false
+                    viewModel.crop()
+                    viewModel.trimmingNow.value = false
                 } else {
-                    viewModel.createdBitmap = null  // recycle しない
+                    // accept --> detatch cropped bitmap to result
+                    viewModel.fix()
                     onPositive()
                 }
             }
-            .observe(viewModel.targetBitmap) {
-                controls.image.setImageBitmap(it)
-                if (it!=null) {
-                    viewModel.maskViewModel.enableCropFlow(it.width, it.height)
-                }
+            .observe(viewModel.croppedBitmap)  { bmp->
+                controls.imagePreview.setImageBitmap(bmp)
             }
 
         var pw:Int = 0
@@ -124,7 +157,7 @@ class SnapshotDialog : UtDialogEx() {
         controls.root.addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
             var w = right - left
             var h = bottom - top
-            val bitmap = viewModel.targetBitmap.value ?: return@addOnLayoutChangeListener
+            val bitmap = viewModel.targetBitmap
             if (w > 0 && h > 0 && (pw!=w || ph!=h)) {
                 pw = w
                 ph = h
@@ -136,28 +169,21 @@ class SnapshotDialog : UtDialogEx() {
                 controls.imageContainer.setLayoutSize(size.width, size.height)
             }
         }
-
         return controls.root
     }
 
+    override fun onDialogClosing() {
+        controls.image.setImageBitmap(null)
+        controls.imagePreview.setImageBitmap(null)
+        super.onDialogClosing()
+    }
+
     companion object {
-        data class CropResult(
-            val sourceBitmap: Bitmap,
-            val bitmap: Bitmap,
-            val maskParams: MaskCoreParams?
-        ) {
-            fun consume():Bitmap {
-                if (sourceBitmap!=bitmap) {
-                    sourceBitmap.recycle()
-                }
-                return bitmap
-            }
-        }
-        suspend fun showBitmap(source: Bitmap, maskParams: MaskCoreParams?):CropResult? {
+       suspend fun showBitmap(source: Bitmap, autoRecycle:Boolean = true, maskParams: MaskCoreParams?=null): SnapshotViewModel.CropResult? {
             return UtImmortalTask.awaitTaskResult(this::class.java.name) {
-                val vm = createViewModel<SnapshotViewModel> { setup(source, maskParams) }
+                val vm = createViewModel<SnapshotViewModel> { setup(source, autoRecycle, maskParams) }
                 if (showDialog(taskName) { SnapshotDialog() }.status.ok) {
-                    CropResult(source, vm.targetBitmap.value!!, vm.maskViewModel.getParams())
+                    vm.result
                 } else {
                     null
                 }
