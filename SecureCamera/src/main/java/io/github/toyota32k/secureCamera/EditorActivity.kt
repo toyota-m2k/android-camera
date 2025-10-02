@@ -228,6 +228,7 @@ class EditorActivity : UtMortalActivity() {
                 keepHdr,
                 if(playerModel.rotation.value!=0) Rotation(playerModel.rotation.value, relative = true) else Rotation.nop,
                 chapterList.enabledRanges(Range.empty).map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray(),
+                playerModel.naturalDuration.value
             )
         }
 
@@ -364,10 +365,12 @@ class EditorActivity : UtMortalActivity() {
 
     private fun selectQualityAndSave():Boolean {
         logger.debug()
+        viewModel.playerControllerModel.commandPause.invoke()
         lifecycleScope.launch {
             val sourceHdr = sourceVideoProperties().videoSummary?.profile?.isHDR() == true
             val helper = viewModel.createConvertHelper()
-            val result = SelectQualityDialog.show(sourceHdr, helper) ?: return@launch
+            val pos = viewModel.playerModel.currentPosition
+            val result = SelectQualityDialog.show(sourceHdr, helper, pos ) ?: return@launch
             withContext(Dispatchers.IO) {
                 trimmingAndSave(result.quality, sourceHdr && result.keepHdr)
             }

@@ -10,6 +10,7 @@ import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.checkBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.radioGroupBinding
+import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtAndroidViewModel
@@ -23,6 +24,8 @@ import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSelectQualityBinding
 import io.github.toyota32k.secureCamera.utils.ConvertHelper
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
+import io.github.toyota32k.utils.TimeSpan
+import io.github.toyota32k.utils.lifecycle.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
@@ -98,9 +101,11 @@ class SelectQualityDialog : UtDialogEx() {
         }
 
         lateinit var convertHelper: ConvertHelper
+        var convertFrom:Long = 0L
         val quality = MutableStateFlow(VideoQuality.High)
         val sourceHdr = MutableStateFlow(false)
         val keepHdr = MutableStateFlow(true)
+        val durationText get() = TimeSpan(convertHelper.trimmedDuration).formatAuto()
         private val trialCache = TrialCache()
 
         override fun onCleared() {
@@ -121,7 +126,7 @@ class SelectQualityDialog : UtDialogEx() {
             convertHelper.trimFileName = trialCache.fileNameOf(quality.value, keepHdr.value) ?: return null
             convertHelper.keepHdr = keepHdr.value && sourceHdr.value
             convertHelper.videoStrategy = quality.value.strategy
-            return convertHelper.tryConvert(getApplication())?.apply {
+            return convertHelper.tryConvert(getApplication(), convertFrom)?.apply {
                 trialCache.put(quality.value, keepHdr.value, this)
             }
         }
@@ -159,17 +164,19 @@ class SelectQualityDialog : UtDialogEx() {
                 .radioGroupBinding(controls.qualityGroup, viewModel.quality, VideoQuality.IDResolver)
                 .checkBinding(controls.checkKeepHdr, viewModel.keepHdr)
                 .visibilityBinding(controls.convertHdrGroup, viewModel.sourceHdr, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+                .textBinding(controls.durationText, ConstantLiveData(viewModel.durationText))
                 .dialogOptionButtonCommand(viewModel.testCommand)
         }
     }
 
     companion object {
         data class Result(val quality: VideoQuality, val keepHdr: Boolean)
-        suspend fun show(hdr:Boolean, helper:ConvertHelper):Result? {
+        suspend fun show(hdr:Boolean, helper:ConvertHelper, pos:Long):Result? {
             return UtImmortalTask.awaitTaskResult<Result?>(this::class.java.name) {
                 val vm = createAndroidViewModel<QualityViewModel>().apply {
                     convertHelper = helper
                     sourceHdr.value = hdr
+                    convertFrom = pos
                 }
                 if(showDialog(this.taskName) { SelectQualityDialog() }.status.positive) {
                     Result(vm.quality.value, vm.keepHdr.value)
