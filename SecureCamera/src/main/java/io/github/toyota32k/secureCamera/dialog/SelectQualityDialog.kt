@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.IdRes
+import androidx.annotation.StringRes
 import androidx.core.net.toUri
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.VisibilityBinding
@@ -19,7 +20,9 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.lib.player.common.formatSize
+import io.github.toyota32k.media.lib.strategy.AudioStrategy
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
+import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSelectQualityBinding
@@ -32,10 +35,10 @@ import kotlinx.coroutines.flow.map
 import java.io.File
 
 class SelectQualityDialog : UtDialogEx() {
-    enum class VideoQuality(@param:IdRes val id: Int, val strategy: IVideoStrategy) {
-        High(R.id.radio_high, PresetVideoStrategies.HEVC1080LowProfile),
-        Middle(R.id.radio_middle, PresetVideoStrategies.HEVC720Profile),
-        Low(R.id.radio_low, PresetVideoStrategies.HEVC720LowProfile);
+    enum class VideoQuality(@param:IdRes val id: Int, @param:StringRes val strId:Int, val strategy: IVideoStrategy) {
+        High(R.id.radio_high, R.string.high_quality, PresetVideoStrategies.HEVC1080LowProfile),
+        Middle(R.id.radio_middle, R.string.middle_quality,PresetVideoStrategies.HEVC720Profile),
+        Low(R.id.radio_low, R.string.low_quality,PresetVideoStrategies.HEVC720LowProfile);
         companion object {
             fun valueOf(@IdRes id: Int): VideoQuality? {
                 return VideoQuality.entries.find { it.id == id }
@@ -48,7 +51,7 @@ class SelectQualityDialog : UtDialogEx() {
         }
 
         fun estimateSize(duration:Long):Long {
-            return strategy.bitRate.max * duration / 8000  // bytes
+            return (strategy.bitRate.max + PresetAudioStrategies.AACDefault.bitRatePerChannel.max) * duration / 8000  // bytes
         }
     }
 
@@ -213,9 +216,9 @@ class SelectQualityDialog : UtDialogEx() {
                 .checkBinding(controls.checkKeepHdr, viewModel.keepHdr)
                 .visibilityBinding(controls.convertHdrGroup, viewModel.sourceHdr, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .textBinding(controls.durationText, ConstantLiveData(viewModel.durationText))
-                .textBinding(controls.highEstimatedSize, viewModel.estimatedSizes[VideoQuality.High]!!.map(::caFormatSize))
-                .textBinding(controls.middleEstimatedSize, viewModel.estimatedSizes[VideoQuality.Middle]!!.map(::caFormatSize))
-                .textBinding(controls.lowEstimatedSize, viewModel.estimatedSizes[VideoQuality.Low]!!.map(::caFormatSize))
+                .textBinding(controls.radioHigh, viewModel.estimatedSizes[VideoQuality.High]!!.map {"${getString(VideoQuality.High.strId)}       ${caFormatSize(it)}"})
+                .textBinding(controls.radioMiddle, viewModel.estimatedSizes[VideoQuality.Middle]!!.map {"${getString(VideoQuality.Middle.strId)}       ${caFormatSize(it)}"})
+                .textBinding(controls.radioLow, viewModel.estimatedSizes[VideoQuality.Low]!!.map {"${getString(VideoQuality.Low.strId)}       ${caFormatSize(it)}"})
                 .dialogOptionButtonCommand(viewModel.testCommand)
         }
     }
