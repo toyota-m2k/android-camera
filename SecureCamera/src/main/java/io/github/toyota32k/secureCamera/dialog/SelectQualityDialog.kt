@@ -18,6 +18,7 @@ import io.github.toyota32k.dialog.task.UtAndroidViewModel.Companion.createAndroi
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
+import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies
 import io.github.toyota32k.secureCamera.R
@@ -27,6 +28,7 @@ import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.lifecycle.ConstantLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import java.io.File
 
 class SelectQualityDialog : UtDialogEx() {
@@ -43,6 +45,10 @@ class SelectQualityDialog : UtDialogEx() {
         object IDResolver : IIDValueResolver<VideoQuality> {
             override fun id2value(id: Int): VideoQuality? = valueOf(id)
             override fun value2id(v: VideoQuality): Int = v.id
+        }
+
+        fun estimateSize(duration:Long):Long {
+            return strategy.bitRate.max * duration / 8000  // bytes
         }
     }
 
@@ -100,13 +106,29 @@ class SelectQualityDialog : UtDialogEx() {
             }
         }
 
-        lateinit var convertHelper: ConvertHelper
+        lateinit var convertHelper: ConvertHelper private set
+        lateinit var durationText:String private set
+
         var convertFrom:Long = 0L
         val quality = MutableStateFlow(VideoQuality.High)
         val sourceHdr = MutableStateFlow(false)
         val keepHdr = MutableStateFlow(true)
-        val durationText get() = TimeSpan(convertHelper.trimmedDuration).formatAuto()
         private val trialCache = TrialCache()
+
+        val estimatedSizes = mapOf<VideoQuality, MutableStateFlow<Long>>(
+            VideoQuality.High to MutableStateFlow(0L),
+            VideoQuality.Middle to MutableStateFlow(0L),
+            VideoQuality.Low to MutableStateFlow(0L),
+        )
+
+        fun setConvertHelper(helper:ConvertHelper) {
+            convertHelper = helper
+            val trimmedDuration = convertHelper.trimmedDuration
+            estimatedSizes.forEach { (quality, flow) ->
+                flow.value = quality.estimateSize(trimmedDuration)
+            }
+            durationText = TimeSpan(trimmedDuration).formatAuto()
+        }
 
         override fun onCleared() {
             trialCache.clear(getApplication())
@@ -128,6 +150,17 @@ class SelectQualityDialog : UtDialogEx() {
             convertHelper.videoStrategy = quality.value.strategy
             return convertHelper.tryConvert(getApplication(), convertFrom)?.apply {
                 trialCache.put(quality.value, keepHdr.value, this)
+                val report = convertHelper.result.report
+                if (convertHelper.result.succeeded && report!=null) {
+                    var bitRate = report.output.videoSummary?.bitRate
+                    if (bitRate!=null && bitRate > 0) {
+                        val audioBitRate = report.output.audioSummary?.bitRate
+                        if (audioBitRate != null && audioBitRate > 0) {
+                            bitRate += audioBitRate
+                        }
+                        estimatedSizes[quality.value]?.value = bitRate * convertHelper.trimmedDuration / 8000
+                    }
+                }
             }
         }
 
@@ -157,6 +190,21 @@ class SelectQualityDialog : UtDialogEx() {
             .setInitialFocus(R.id.radio_high)
     }
 
+    fun caFormatSize(bytes:Long):String {
+        if(bytes>1000*1000*1000) {
+            val m = bytes / (1000*1000)
+            return "ca ${m/1000f} GB"
+        } else if(bytes>1000*1000) {
+            val k = bytes / 1000
+            return "ca ${k/1000} MB"
+        } else if(bytes>1000) {
+            return "ca ${bytes/1000} KB"
+        } else {
+            return "$bytes B"
+        }
+    }
+
+
     override fun createBodyView(savedInstanceState: Bundle?, inflater: IViewInflater): View {
         controls = DialogSelectQualityBinding.inflate(inflater.layoutInflater)
         return controls.root.also { _ ->
@@ -165,6 +213,9 @@ class SelectQualityDialog : UtDialogEx() {
                 .checkBinding(controls.checkKeepHdr, viewModel.keepHdr)
                 .visibilityBinding(controls.convertHdrGroup, viewModel.sourceHdr, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .textBinding(controls.durationText, ConstantLiveData(viewModel.durationText))
+                .textBinding(controls.highEstimatedSize, viewModel.estimatedSizes[VideoQuality.High]!!.map(::caFormatSize))
+                .textBinding(controls.middleEstimatedSize, viewModel.estimatedSizes[VideoQuality.Middle]!!.map(::caFormatSize))
+                .textBinding(controls.lowEstimatedSize, viewModel.estimatedSizes[VideoQuality.Low]!!.map(::caFormatSize))
                 .dialogOptionButtonCommand(viewModel.testCommand)
         }
     }
@@ -174,7 +225,7 @@ class SelectQualityDialog : UtDialogEx() {
         suspend fun show(hdr:Boolean, helper:ConvertHelper, pos:Long):Result? {
             return UtImmortalTask.awaitTaskResult<Result?>(this::class.java.name) {
                 val vm = createAndroidViewModel<QualityViewModel>().apply {
-                    convertHelper = helper
+                    setConvertHelper(helper)
                     sourceHdr.value = hdr
                     convertFrom = pos
                 }
