@@ -24,6 +24,7 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.lib.camera.TcImageResolution
+import io.github.toyota32k.lib.camera.TcVideoResolution
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
@@ -92,10 +93,10 @@ class SettingDialog : UtDialogEx() {
             companion object {
             }
         }
-        enum class Resolution(val value:Int, @param:IdRes val cameraResolutionButtonId:Int, @param:IdRes val snapshotResolutionButtonId:Int, val wide:TcImageResolution, val narrow:TcImageResolution) {
-            HIGH(0, R.id.radio_resolution_highest, R.id.radio_snapshot_resolution_unlimited, TcImageResolution.HIGHEST, TcImageResolution.HIGHEST),
-            MIDDLE(1, R.id.radio_resolution_fhd, R.id.radio_snapshot_resolution_fhd, TcImageResolution.FHD, TcImageResolution.UXGA),
-            LOW(2, R.id.radio_resolution_hd, R.id.radio_snapshot_resolution_hd, TcImageResolution.HD, TcImageResolution.XGA),
+        enum class Resolution(val value:Int, @param:IdRes val cameraResolutionButtonId:Int, @param:IdRes val snapshotResolutionButtonId:Int, val wide:TcImageResolution, val narrow:TcImageResolution, val video:TcVideoResolution) {
+            HIGH(0, R.id.radio_resolution_highest, R.id.radio_snapshot_resolution_unlimited, TcImageResolution.HIGHEST, TcImageResolution.HIGHEST, TcVideoResolution.HIGHEST),
+            MIDDLE(1, R.id.radio_resolution_fhd, R.id.radio_snapshot_resolution_fhd, TcImageResolution.FHD, TcImageResolution.UXGA, TcVideoResolution.FHD),
+            LOW(2, R.id.radio_resolution_hd, R.id.radio_snapshot_resolution_hd, TcImageResolution.HD, TcImageResolution.XGA, TcVideoResolution.HD),
             ;
 
             object CameraResolutionResolver : IIDValueResolver<Int> {

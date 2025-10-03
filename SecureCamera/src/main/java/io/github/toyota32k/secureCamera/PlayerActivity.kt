@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
+import android.util.Size
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -72,6 +73,7 @@ import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.MaskCoreParams
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
+import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
@@ -109,6 +111,8 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 
 class PlayerActivity : UtMortalActivity() {
@@ -149,7 +153,33 @@ class PlayerActivity : UtMortalActivity() {
             var maskParams: MaskCoreParams? = null
 
             suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: Bitmap):MetaData? {
-                val bitmap = SnapshotDialog.showBitmap(snapshot, maskParams = maskParams)?.let {
+                val resolution = Settings.Player.snapshotResolution
+                val sourceBitmap = if (resolution!=SettingDialog.SettingViewModel.Resolution.HIGH) {
+                    // 必要に応じて解像度を落とす
+                    val longSide = max(snapshot.width, snapshot.height)
+                    val shortSide = min(snapshot.width, snapshot.height)
+                    val ratio = longSide.toFloat() / shortSide.toFloat()
+                    val reqSize = if (ratio>1.4) {
+                        // 19:6
+                        resolution.wide.size
+                    } else {
+                        // 4:3
+                        resolution.narrow.size
+                    }
+                    if (longSide>reqSize.width || shortSide>reqSize.height) {
+                        val result = UtFitter(FitMode.Inside, reqSize).fit(longSide, shortSide).result
+                        val size = if (snapshot.width > snapshot.height) {
+                            result.asSize
+                        } else {
+                            Size(result.height.roundToInt(), result.width.roundToInt())
+                        }
+                        snapshot.scale(size.width, size.height).apply {
+                            snapshot.recycle()
+                        }
+                    } else snapshot
+                } else snapshot
+
+                val bitmap = SnapshotDialog.showBitmap(sourceBitmap, maskParams = maskParams)?.let {
                     maskParams = it.maskParams
                     it.bitmap
                 } ?: return null

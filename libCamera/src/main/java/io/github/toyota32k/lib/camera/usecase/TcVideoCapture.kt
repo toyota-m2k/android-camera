@@ -90,7 +90,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder
         fun limitResolution(resolution: TcVideoResolution): IBuilder
         fun resolutionFromQualityList(qualities: List<Quality>): IBuilder
-        fun aspectRatio(aspect: TcAspect) : IBuilder
+        fun preferAspectRatio(aspect: TcAspect) : IBuilder
         fun dynamicRange(dr: DynamicRange): IBuilder
 
         fun build(): TcVideoCapture
@@ -128,7 +128,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
             mQualityList = qualities
         }
 
-        override fun aspectRatio(aspect: TcAspect) = apply {
+        override fun preferAspectRatio(aspect: TcAspect) = apply {
             mAspect = aspect
         }
 

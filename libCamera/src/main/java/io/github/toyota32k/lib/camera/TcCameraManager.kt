@@ -3,12 +3,15 @@ package io.github.toyota32k.lib.camera
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.DynamicRange
+import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCase
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.Quality
 import androidx.camera.video.Recorder
@@ -450,7 +453,7 @@ class TcCameraManager() {
         fun useFixedPoolExecutor(): IVideoCaptureBuilder
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IVideoCaptureBuilder
         fun limitResolution(resolution: TcVideoResolution): IVideoCaptureBuilder
-        fun aspectRatio(aspect: TcAspect): IVideoCaptureBuilder
+        fun preferAspectRatio(aspect: TcAspect): IVideoCaptureBuilder
         fun build(): TcVideoCapture
     }
 
@@ -475,8 +478,8 @@ class TcCameraManager() {
             mResolution = resolution
         }
 
-        override fun aspectRatio(aspect: TcAspect) = apply {
-            innerBuilder.aspectRatio(aspect)
+        override fun preferAspectRatio(aspect: TcAspect) = apply {
+            innerBuilder.preferAspectRatio(aspect)
         }
 
         override fun build(): TcVideoCapture {
@@ -535,19 +538,43 @@ class TcCameraManager() {
         /**
          * 解像度選択のヒント（解像度優先 or キャプチャ速度優先）を指定
          */
-        fun resolutionHint(hint: TcImageQualityHint?): IImageCaptureBuilder
+        fun qualityHint(hint: TcImageQualityHint?): IImageCaptureBuilder
         /**
          * アスペクト比の優先設定
          */
         fun preferAspectRatio(aspect: TcAspect) : IImageCaptureBuilder
+
+        /**
+         * JPEG Quality 1-100 を設定
+         * 0 を指定するとデフォルト（CAPTURE_MODE_MINIMIZE_LATENCY, CAPTURE_MODE_MINIMIZE_LATENCY などのモードによってシステムにより決定される）
+         */
+        fun jpegQuality(q:Int): IImageCaptureBuilder
+
+        /**
+         * カメラの解像度を指定
+         * 指定しなければ、最高画質で撮影
+         */
+        fun resolution(strategy: ResolutionStrategy): IImageCaptureBuilder
+        /**
+         * カメラの解像度を指定
+         * 指定しなければ、最高画質で撮影
+         */
+        fun resolution(resolution: TcImageResolution): IImageCaptureBuilder
+
         fun build(): TcImageCapture
     }
 
-    private inner class ImageCaptureBuilder(val cameraSelector: CameraSelector) : IImageCaptureBuilder {
-        private val innerBuilder = TcImageCapture.builder
+    private inner class ImageCaptureBuilder(
+        val cameraSelector: CameraSelector,
+        val innerBuilder: TcImageCapture.IBuilder = TcImageCapture.builder) : IImageCaptureBuilder {
 
+        @OptIn(ExperimentalZeroShutterLag::class)
         override fun zeroLag() = apply {
-            innerBuilder.zeroLag()
+            if(getCameraInfo(cameraSelector)?.isZslSupported == true) {
+                innerBuilder.zeroLag()
+            } else {
+                innerBuilder.minimizeLatency()
+            }
         }
 
         override fun minimizeLatency() = apply {
@@ -558,12 +585,24 @@ class TcCameraManager() {
             innerBuilder.maximizeQuality()
         }
 
-        override fun resolutionHint(hint: TcImageQualityHint?) = apply {
+        override fun qualityHint(hint: TcImageQualityHint?) = apply {
             innerBuilder.qualityHint(hint)
         }
 
         override fun preferAspectRatio(aspect: TcAspect) = apply {
             innerBuilder.preferAspectRatio(aspect)
+        }
+
+        override fun jpegQuality(q: Int) = apply {
+            innerBuilder.jpegQuality(q)
+        }
+
+        override fun resolution(strategy: ResolutionStrategy) = apply {
+            innerBuilder.resolution(strategy)
+        }
+
+        override fun resolution(resolution: TcImageResolution) = apply {
+            innerBuilder.resolution(resolution)
         }
 
         override fun build(): TcImageCapture {
