@@ -139,4 +139,17 @@
     <string name="dangerous_settings">Dangerous</string>
     <string name="bulse">バルス</string>
     <string name="crop">Crop</string>
+    <string name="resolution">Resolution</string>
+    <string name="resolution_highest">Highest\n</string>
+    <string name="resolution_fhd">FHD</string>
+    <string name="resolution_hd">HD</string>
+    <string name="resolution_uxga">UXGA</string>
+    <string name="resolution_xga">XGA</string>
+    <string name="aspect">Aspect</string>
+    <string name="aspect_default">Default</string>
+    <string name="aspect_4_3">4:3</string>
+    <string name="aspect_16_9">16:9</string>
+    <string name="capture_resolution">Snapshot</string>
+    <string name="snapshot_resolution">Snapshot</string>
+    <string name="prefer_quality">Prefer Quality</string>
 </resources>

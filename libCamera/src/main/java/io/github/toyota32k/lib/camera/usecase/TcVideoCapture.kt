@@ -14,10 +14,8 @@ import androidx.camera.video.OutputOptions.FILE_SIZE_UNLIMITED
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import io.github.toyota32k.lib.camera.TcAspect
-import io.github.toyota32k.lib.camera.TcCameraManager
-import io.github.toyota32k.lib.camera.TcCameraManipulator
 import io.github.toyota32k.lib.camera.TcLib
-import io.github.toyota32k.lib.camera.TcResolution
+import io.github.toyota32k.lib.camera.TcVideoResolution
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.utils.IUtPropOwner
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +88,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         fun executor(executor: Executor): IBuilder
         fun useFixedPoolExecutor(): IBuilder
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IBuilder
-        fun limitResolution(resolution: TcResolution): IBuilder
+        fun limitResolution(resolution: TcVideoResolution): IBuilder
         fun resolutionFromQualityList(qualities: List<Quality>): IBuilder
         fun aspectRatio(aspect: TcAspect) : IBuilder
         fun dynamicRange(dr: DynamicRange): IBuilder
@@ -103,7 +101,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
         private var mExecutor: Executor? = null
         private var mRecordingState:MutableStateFlow<RecordingState>? = null
 
-        private var mResolution: TcResolution? = null
+        private var mResolution: TcVideoResolution? = null
         private var mAspect: TcAspect = TcAspect.Default
         private var mQualityList: List<Quality>? = null
         private var mDynamicRange: DynamicRange = DynamicRange.SDR
@@ -122,7 +120,7 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
             mRecordingState = flow
         }
 
-        override fun limitResolution(resolution: TcResolution) = apply {
+        override fun limitResolution(resolution: TcVideoResolution) = apply {
             mResolution = resolution
         }
 
@@ -143,14 +141,14 @@ class TcVideoCapture(val videoCapture: VideoCapture<Recorder>, private var recor
                 return if (mQualityList != null) {
                     QualitySelector.fromOrderedList(mQualityList!!, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
                 } else {
-                    val resolution = mResolution ?: TcResolution.HIGHEST
+                    val resolution = mResolution ?: TcVideoResolution.HIGHEST
                     when (resolution) {
-                        TcResolution.UHD -> QualitySelector.from(Quality.UHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
-                        TcResolution.FHD -> QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
-                        TcResolution.HD -> QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
-                        TcResolution.SD -> QualitySelector.from(Quality.SD)
-                        TcResolution.LOWEST -> QualitySelector.from(Quality.LOWEST)
-                        TcResolution.HIGHEST -> QualitySelector.from(Quality.HIGHEST)
+                        TcVideoResolution.UHD -> QualitySelector.from(Quality.UHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.UHD))
+                        TcVideoResolution.FHD -> QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.FHD))
+                        TcVideoResolution.HD -> QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD))
+                        TcVideoResolution.SD -> QualitySelector.from(Quality.SD)
+                        TcVideoResolution.LOWEST -> QualitySelector.from(Quality.LOWEST)
+                        TcVideoResolution.HIGHEST -> QualitySelector.from(Quality.HIGHEST)
                     }
                 }
             }

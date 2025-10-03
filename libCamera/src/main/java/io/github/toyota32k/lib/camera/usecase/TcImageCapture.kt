@@ -6,15 +6,16 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CaptureMode
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
 import io.github.toyota32k.lib.camera.TcAspect
-import io.github.toyota32k.lib.camera.TcImageResolutionHint
+import io.github.toyota32k.lib.camera.TcImageQualityHint
+import io.github.toyota32k.lib.camera.TcImageResolution
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.utils.ImageUtils
 import kotlin.coroutines.Continuation
@@ -102,10 +103,13 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         fun zeroLag(): IBuilder
         fun minimizeLatency(): IBuilder
         fun maximizeQuality(): IBuilder
-        fun resolutionHint(hint: TcImageResolutionHint?): IBuilder
+        fun qualityHint(hint: TcImageQualityHint?): IBuilder
         fun preferAspectRatio(aspect: TcAspect) : IBuilder
         fun dynamicRange(range: DynamicRange) : IBuilder
         fun outputHdrJpeg(hdr:Boolean):IBuilder
+        fun jpegQuality(q:Int):IBuilder
+        fun resolution(strategy: ResolutionStrategy):IBuilder
+        fun resolution(resolution: TcImageResolution):IBuilder
         fun build(): TcImageCapture
     }
 
@@ -115,7 +119,9 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         private var mDynamicRange: DynamicRange = DynamicRange.SDR
         private var mOutputHdrJpeg:Boolean = false
         private var mAspect: TcAspect = TcAspect.Default
-        private var mResolutionHint: TcImageResolutionHint? = null
+        private var mQualityHint: TcImageQualityHint? = null
+        private var mJpegQuality:Int = 0     // <= 0 :default
+        private var mResolutionStrategy: ResolutionStrategy? = null
 
         @ExperimentalZeroShutterLag // region UseCases
         override fun zeroLag() = apply {
@@ -127,8 +133,8 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
         override fun maximizeQuality() = apply {
             mMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
         }
-        override fun resolutionHint(hint: TcImageResolutionHint?) = apply {
-            mResolutionHint = hint
+        override fun qualityHint(hint: TcImageQualityHint?) = apply {
+            mQualityHint = hint
         }
         override fun preferAspectRatio(aspect: TcAspect) = apply {
             mAspect = aspect
@@ -140,15 +146,30 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
             mOutputHdrJpeg = hdr
         }
 
+        override fun jpegQuality(q: Int): IBuilder = apply {
+            mJpegQuality = q
+        }
+
+        override fun resolution(strategy: ResolutionStrategy) = apply {
+            mResolutionStrategy = strategy
+        }
+
+        override fun resolution(resolution: TcImageResolution) = apply {
+            mResolutionStrategy = resolution.toResolutionStrategy()
+        }
+
         override fun build(): TcImageCapture {
-            val mode = mMode ?: if(mResolutionHint == TcImageResolutionHint.PreferQuality) ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY else ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
-            val resolutionSelector = if (mResolutionHint != null || mAspect.aspectStrategy != null) {
+            val mode = mMode ?: if(mQualityHint == TcImageQualityHint.PreferQuality) ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY else ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+            val resolutionSelector = if (mQualityHint != null || mAspect.aspectStrategy != null) {
                 val builder = ResolutionSelector.Builder()
-                mResolutionHint?.let { hint->
+                mQualityHint?.let { hint->
                     builder.setAllowedResolutionMode(hint.value)
                 }
                 mAspect.aspectStrategy?.let { strategy->
                     builder.setAspectRatioStrategy(strategy)
+                }
+                mResolutionStrategy?.let { strategy->
+                    builder.setResolutionStrategy(strategy)
                 }
                 builder.build()
             } else {
@@ -159,8 +180,8 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
                     .setCaptureMode(mode)
                     .apply {
                         if (mDynamicRange != DynamicRange.SDR) {
+                            @SuppressLint("RestrictedApi")
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                @SuppressLint("RestrictedApi")
                                 setDynamicRange(mDynamicRange)
                             } else {
                                 TcLib.logger.warn("Dynamic range setting is not supported on this OS version.")
@@ -168,6 +189,9 @@ class TcImageCapture(val imageCapture: ImageCapture) : ITcStillCamera {
                         }
                         if (mOutputHdrJpeg) {
                             setOutputFormat(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
+                        }
+                        if (mJpegQuality in 1..100) {
+                            setJpegQuality(mJpegQuality)
                         }
                         if (resolutionSelector!=null) {
                             setResolutionSelector(resolutionSelector)

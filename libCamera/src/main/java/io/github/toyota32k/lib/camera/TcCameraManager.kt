@@ -449,14 +449,14 @@ class TcCameraManager() {
         fun executor(executor: Executor): IVideoCaptureBuilder
         fun useFixedPoolExecutor(): IVideoCaptureBuilder
         fun recordingStateFlow(flow:MutableStateFlow<RecordingState>): IVideoCaptureBuilder
-        fun limitResolution(resolution: TcResolution): IVideoCaptureBuilder
+        fun limitResolution(resolution: TcVideoResolution): IVideoCaptureBuilder
         fun aspectRatio(aspect: TcAspect): IVideoCaptureBuilder
         fun build(): TcVideoCapture
     }
 
     private inner class VideoCaptureBuilder(val cameraSelector: CameraSelector) : IVideoCaptureBuilder {
         val innerBuilder = TcVideoCapture.builder
-        private var mResolution: TcResolution? = null
+        private var mResolution: TcVideoResolution? = null
         private var mAspect: TcAspect = TcAspect.Default
 
         override fun executor(executor: Executor): IVideoCaptureBuilder = apply {
@@ -471,7 +471,7 @@ class TcCameraManager() {
             innerBuilder.recordingStateFlow(flow)
         }
 
-        override fun limitResolution(resolution: TcResolution) = apply {
+        override fun limitResolution(resolution: TcVideoResolution) = apply {
             mResolution = resolution
         }
 
@@ -481,14 +481,13 @@ class TcCameraManager() {
 
         override fun build(): TcVideoCapture {
             val hdr = dynamicRangeOf(cameraSelector)
-            val resolution = mResolution
-            when(resolution) {
+            when(val resolution = mResolution) {
                 null -> {} // 指定なし --> Highest
-                TcResolution.LOWEST, TcResolution.HIGHEST -> innerBuilder.limitResolution(resolution)
+                TcVideoResolution.LOWEST, TcVideoResolution.HIGHEST -> innerBuilder.limitResolution(resolution)
                 else -> {
                     val qualities = supportedQualityList(cameraSelector, hdr)
                     val limitedQuality = qualities.filter {
-                        (TcResolution.fromQuality(it) ?: return@filter false).order <= resolution.order
+                        (TcVideoResolution.fromQuality(it) ?: return@filter false).order <= resolution.order
                     }
                     if(limitedQuality.isNotEmpty()) {
                         innerBuilder.resolutionFromQualityList(limitedQuality)
@@ -536,7 +535,7 @@ class TcCameraManager() {
         /**
          * 解像度選択のヒント（解像度優先 or キャプチャ速度優先）を指定
          */
-        fun resolutionHint(hint: TcImageResolutionHint?): IImageCaptureBuilder
+        fun resolutionHint(hint: TcImageQualityHint?): IImageCaptureBuilder
         /**
          * アスペクト比の優先設定
          */
@@ -559,8 +558,8 @@ class TcCameraManager() {
             innerBuilder.maximizeQuality()
         }
 
-        override fun resolutionHint(hint: TcImageResolutionHint?) = apply {
-            innerBuilder.resolutionHint(hint)
+        override fun resolutionHint(hint: TcImageQualityHint?) = apply {
+            innerBuilder.qualityHint(hint)
         }
 
         override fun preferAspectRatio(aspect: TcAspect) = apply {

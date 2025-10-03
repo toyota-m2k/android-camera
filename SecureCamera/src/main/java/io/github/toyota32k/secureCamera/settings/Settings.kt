@@ -4,7 +4,9 @@ import android.app.Application
 import android.os.Build
 import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.binder.DPDate
+import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.utils.IThemeList
 import io.github.toyota32k.secureCamera.utils.ThemeInfo
 import io.github.toyota32k.secureCamera.utils.ThemeSelector
@@ -46,28 +48,49 @@ object Settings {
         const val DEF_SELFIE_ACTION = TAP_VIDEO
         const val DEF_HIDE_PANEL_ON_START = false
         const val DEF_PREFER_HDR = false
+        const val DEF_PREFER_QUALITY = false
+        const val DEF_RESOLUTION = 0
 
 //        var tapAction:Int by spd.pref(DEF_TAP_ACTION)
         var selfieAction:Int by spd.pref(DEF_SELFIE_ACTION)
         var hidePanelOnStart:Boolean by spd.pref(DEF_HIDE_PANEL_ON_START)
         var preferHDR:Boolean by spd.pref(DEF_PREFER_HDR)
+        var preferQuality:Boolean by spd.pref(DEF_PREFER_QUALITY)
+        private var rawAspect:Int by spd.pref(TcAspect.Default.ratio)
+        private var rawResolution:Int by spd.pref(DEF_RESOLUTION)
+
+        var aspect:TcAspect
+            get() = TcAspect.fromRatio(rawAspect)
+            set(v) { rawAspect = v.ratio }
+        var resolution: SettingDialog.SettingViewModel.Resolution
+            get() = SettingDialog.SettingViewModel.Resolution.fromValue(rawResolution)
+            set(v) { rawResolution = v.value }
 
         fun reset() {
             selfieAction = Camera.DEF_SELFIE_ACTION
             hidePanelOnStart = Camera.DEF_HIDE_PANEL_ON_START
             preferHDR = false
+            rawAspect = TcAspect.Default.ratio
+            rawResolution = 0
         }
     }
 
     object Player {
         const val DEF_SPAN_OF_SKIP_FORWARD = 15000L
         const val DEF_SPAN_OF_SKIP_BACKWARD = 5000L
+        const val DEF_RESOLUTION = 0
+
         var spanOfSkipForward:Long by spd.pref(DEF_SPAN_OF_SKIP_FORWARD)
         var spanOfSkipBackward:Long by spd.pref(DEF_SPAN_OF_SKIP_BACKWARD)
+        private var rawSnapshotResolution:Int by spd.pref(DEF_RESOLUTION)
+        var snapshotResolution: SettingDialog.SettingViewModel.Resolution
+            get() = SettingDialog.SettingViewModel.Resolution.fromValue(rawSnapshotResolution)
+            set(v) { rawSnapshotResolution = v.value }
 
         fun reset() {
             spanOfSkipForward = Player.DEF_SPAN_OF_SKIP_FORWARD
             spanOfSkipBackward = Player.DEF_SPAN_OF_SKIP_BACKWARD
+            rawSnapshotResolution = 0
         }
     }
 
