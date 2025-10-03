@@ -39,11 +39,11 @@ class SnapshotDialog : UtDialogEx() {
             val maskParams: MaskCoreParams?
         )
 
-        val sizeText = combine(trimmingNow, cropFlows.cropWidth, cropFlows.cropHeight) { trimming, cw, ch->
-            val bitmap = targetBitmap ?: return@combine ""
-            if(trimming) {
+        val sizeText = combine(trimmingNow, cropFlows.cropWidth, cropFlows.cropHeight, croppedBitmap) { trimming, cw, ch, bmp->
+            if (trimming) {
                 "$cw x $ch"
             } else {
+                val bitmap = bmp ?: targetBitmap ?: return@combine ""
                 "${bitmap.width} x ${bitmap.height}"
             }
         }
