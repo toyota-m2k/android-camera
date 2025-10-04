@@ -3,13 +3,12 @@ package io.github.toyota32k.secureCamera.dialog
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
-import androidx.core.graphics.scale
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.observe
-import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
@@ -17,88 +16,18 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
 import io.github.toyota32k.utils.Disposer
-import io.github.toyota32k.utils.IDisposable
-import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.px2dp
 import io.github.toyota32k.utils.android.setLayoutSize
 import io.github.toyota32k.utils.lifecycle.disposableObserve
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
 
 class CropImageDialog : UtDialogEx() {
-    class RealTimeBitmapScaler(val sourceBitmap:Bitmap): IUtPropOwner, IDisposable {
-        private val busy = AtomicBoolean(false)
-        private var scaledBitmap:Bitmap? = null
-        private var scaledWidth:Int = sourceBitmap.width
-        private var scaledHeight:Int = sourceBitmap.height
-        val bitmap: StateFlow<Bitmap> = MutableStateFlow<Bitmap>(sourceBitmap)
-        val scale = MutableStateFlow<Float>(100f)
-        var tryAgain = false
-        var job: Job? = null
-
-
-
-        fun start(coroutineScope: CoroutineScope) {
-            job = coroutineScope.launch {
-                scale.collect {
-                    deflateBitmap(it/100f)
-                }
-            }
-        }
-
-        override fun dispose() {
-            job?.cancel()
-            job = null
-            scaledBitmap?.recycle()
-            scaledBitmap = null
-        }
-
-        private suspend fun deflateBitmap(newScale:Float) {
-            if (busy.getAndSet(true)) {
-                var s = newScale
-                try {
-                    while (true) {
-                        tryAgain = false
-                        val w = (sourceBitmap.width * s).toInt()
-                        val h = (sourceBitmap.height * s).toInt()
-                        if (w != scaledWidth || h != scaledHeight) {
-                            if (w == sourceBitmap.width && h == sourceBitmap.height) {
-                                scaledBitmap?.recycle()
-                                scaledBitmap = null
-                                bitmap.mutable.value = sourceBitmap
-                            } else {
-                                val bmp = withContext(Dispatchers.IO) { sourceBitmap.scale(w, h) }
-                                bitmap.mutable.value = bmp
-                                scaledBitmap?.recycle()
-                                scaledBitmap = bmp
-                                scaledWidth = w
-                                scaledHeight = h
-                            }
-                        }
-                        if (!tryAgain) break
-                        s = scale.value /100f
-                    }
-                } finally {
-                    busy.set(false)
-                }
-            } else {
-                tryAgain = true
-            }
-        }
-    }
 
 
     class CropImageViewModel : UtDialogViewModel() {
-        //lateinit var targetBitmap: Bitmap
         lateinit var bitmapScaler: RealTimeBitmapScaler
         val targetBitmap get() = bitmapScaler.bitmap.value
         var maskViewModel = CropMaskViewModel()
@@ -143,6 +72,7 @@ class CropImageDialog : UtDialogEx() {
         widthOption = WidthOption.FULL
         leftButtonType = ButtonType.CANCEL
         rightButtonType = ButtonType.OK
+        systemZoneOption = UtDialogConfig.SystemZoneOption.CUSTOM_INSETS
     }
 
     lateinit var controls: DialogSnapshotBinding
@@ -170,13 +100,9 @@ class CropImageDialog : UtDialogEx() {
             .clickBinding(controls.resolutionButton) {
                 viewModel.deflating.value = !viewModel.deflating.value
             }
-            .clickBinding(controls.buttonPlus) {
-                viewModel.bitmapScaler.scale.value = (viewModel.bitmapScaler.scale.value + 1f).coerceAtMost(100f)
+            .apply {
+                viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus)
             }
-            .clickBinding(controls.buttonMinus) {
-                viewModel.bitmapScaler.scale.value = (viewModel.bitmapScaler.scale.value - 1f).coerceAtLeast(10f)
-            }
-            .sliderBinding(controls.resolutionSlider, viewModel.bitmapScaler.scale)
             .observe(viewModel.bitmapScaler.bitmap) {
                 controls.image.setImageBitmap(it)
                 fitBitmap(it, controls.root.width, controls.root.height)
