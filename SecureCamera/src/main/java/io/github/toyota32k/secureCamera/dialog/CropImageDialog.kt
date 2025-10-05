@@ -101,7 +101,8 @@ class CropImageDialog : UtDialogEx() {
                 viewModel.deflating.value = !viewModel.deflating.value
             }
             .apply {
-                viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus)
+                viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,
+                    mapOf(480 to controls.button480, 720 to controls.button720, 1280 to controls.button1280, 1920 to controls.button1920))
             }
             .observe(viewModel.bitmapScaler.bitmap) {
                 controls.image.setImageBitmap(it)

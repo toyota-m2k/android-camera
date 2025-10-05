@@ -67,36 +67,83 @@
 
     <LinearLayout
         android:id="@+id/resolution_panel"
-        android:layout_width="300dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingVertical="10dp"
+        android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/resize_button_container"
-        android:clickable="true"
         android:visibility="gone"
         tools:visibility="visible"
         >
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/button_minus"
-            style="@style/CameraActivityIconButton"
-            app:icon="@drawable/ic_minus"
-            />
-        <com.google.android.material.slider.Slider
-            android:id="@+id/resolution_slider"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="300dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:valueFrom="10"
-            android:valueTo="100"
-            android:value="100"
-            android:stepSize="1"
-            />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/button_plus"
-            style="@style/CameraActivityIconButton"
-            app:icon="@drawable/ic_plus"
-            />
+            android:paddingVertical="10dp"
+            android:clickable="true"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_minus"
+                style="@style/CameraActivityIconButton"
+                app:icon="@drawable/ic_minus"
+                />
+            <com.google.android.material.slider.Slider
+                android:id="@+id/resolution_slider"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:valueFrom="10"
+                android:valueTo="100"
+                android:value="100"
+                android:stepSize="1"
+                />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_plus"
+                style="@style/CameraActivityIconButton"
+                app:icon="@drawable/ic_plus"
+                />
 
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            >
+            <Button
+                android:id="@+id/button_480"
+                android:layout_width="70dp"
+                android:paddingHorizontal="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/resolution_480"
+                style="@style/Widget.MaterialComponents.Button"
+                />
+            <Button
+                android:id="@+id/button_720"
+                android:layout_width="70dp"
+                android:paddingHorizontal="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/resolution_720"
+                android:layout_marginStart="5dp"
+                style="@style/Widget.MaterialComponents.Button"
+                />
+            <Button
+                android:id="@+id/button_1280"
+                android:layout_width="70dp"
+                android:paddingHorizontal="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/resolution_1280"
+                android:layout_marginStart="5dp"
+                style="@style/Widget.MaterialComponents.Button"
+                />
+            <Button
+                android:id="@+id/button_1920"
+                android:layout_width="70dp"
+                android:paddingHorizontal="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/resolution_1920"
+                android:layout_marginStart="5dp"
+                style="@style/Widget.MaterialComponents.Button"
+                />
+        </LinearLayout>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

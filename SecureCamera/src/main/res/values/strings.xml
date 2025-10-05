@@ -152,4 +152,9 @@
     <string name="capture_resolution">Snapshot</string>
     <string name="snapshot_resolution">Snapshot</string>
     <string name="prefer_quality">Prefer Quality</string>
+    <string name="resolution_640">640</string>
+    <string name="resolution_1280">1280</string>
+    <string name="resolution_1920">1920</string>
+    <string name="resolution_720">720</string>
+    <string name="resolution_480">480</string>
 </resources>

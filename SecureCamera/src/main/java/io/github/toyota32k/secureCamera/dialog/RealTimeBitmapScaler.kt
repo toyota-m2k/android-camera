@@ -7,9 +7,11 @@ import com.google.android.material.slider.Slider
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.clickBinding
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.IUtPropOwner
+import io.github.toyota32k.utils.lifecycle.ConstantLiveData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,7 +54,7 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
         scaledBitmap = null
     }
 
-    fun bindToSlider(binder: Binder, slider: Slider, minus: Button, plus: Button) {
+    fun bindToSlider(binder: Binder, slider: Slider, minus: Button, plus: Button, presetButtons:Map<Int, Button>) {
         slider.stepSize = 1f
         binder
             .sliderBinding(view=slider, data=longSideLength, mode= BindingMode.TwoWay, min= MutableStateFlow<Float>(MIN_LENGTH), max= MutableStateFlow(orgLongSideLength))
@@ -63,6 +65,14 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
             .clickBinding(plus) {
                 val len = (longSideLength.value.roundToInt()/8)*8 + 8
                 longSideLength.value = len.toFloat().coerceAtMost(orgLongSideLength)
+            }
+            .apply {
+                for ((k, v) in presetButtons) {
+                    clickBinding(v) {
+                        longSideLength.value = k.toFloat()
+                    }
+                    enableBinding(v, ConstantLiveData(orgLongSideLength.roundToInt() >= k))
+                }
             }
     }
 
