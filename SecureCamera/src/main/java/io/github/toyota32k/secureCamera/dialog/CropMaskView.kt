@@ -260,6 +260,7 @@ class CropMaskViewModel {
      */
     fun cropBitmap(bitmap:Bitmap):Bitmap {
         val crop = cropRect(bitmap)
+        if (crop.sx==0 && crop.sy == 0 && crop.width == bitmap.width && crop.height == bitmap.height) return bitmap
         return Bitmap.createBitmap(bitmap, crop.sx, crop.sy, crop.width, crop.height)
     }
 

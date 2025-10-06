@@ -637,6 +637,7 @@ class PlayerActivity : UtMortalActivity() {
         fun icCloud() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
         fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
+        var prevBitmap:Bitmap? = null
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
@@ -660,6 +661,10 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
                 view.setImageBitmap(bitmap)
+                if (prevBitmap != bitmap) {
+                    prevBitmap?.recycle()
+                    prevBitmap = bitmap
+                }
             }
             .headlessBinding(viewModel.playlist.currentSelection) {
                 manipulator.agent.resetScrollAndScale()

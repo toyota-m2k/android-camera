@@ -9,6 +9,7 @@ import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.sliderBinding
+import io.github.toyota32k.secureCamera.utils.BitmapStore
 import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.lifecycle.ConstantLiveData
@@ -23,12 +24,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable {
+class RealTimeBitmapScaler(val sourceBitmap: Bitmap, val bitmapStore: BitmapStore): IUtPropOwner, IDisposable {
     companion object {
         const val MIN_LENGTH = 100f // px
     }
     private val busy = AtomicBoolean(false)
     private var scaledBitmap: Bitmap? = null
+        get() = field
+        set(v) { field = bitmapStore.replaceNullable(field, v) }
+
     private var scaledWidth:Int = sourceBitmap.width
     private var scaledHeight:Int = sourceBitmap.height
     val bitmap: StateFlow<Bitmap> = MutableStateFlow<Bitmap>(sourceBitmap)
@@ -42,7 +46,7 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
     fun start(coroutineScope: CoroutineScope) {
         job = coroutineScope.launch {
             longSideLength.collect {
-                deflateBitmap(it.toFloat() / orgLongSideLength.toFloat())
+                deflateBitmap(it / orgLongSideLength)
             }
         }
     }
@@ -50,8 +54,6 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
     override fun dispose() {
         job?.cancel()
         job = null
-        scaledBitmap?.recycle()
-        scaledBitmap = null
     }
 
     fun bindToSlider(binder: Binder, slider: Slider, minus: Button, plus: Button, presetButtons:Map<Int, Button>) {
@@ -71,7 +73,7 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
                     clickBinding(v) {
                         longSideLength.value = k.toFloat()
                     }
-                    enableBinding(v, ConstantLiveData(orgLongSideLength.roundToInt() >= k))
+                    enableBinding(v, ConstantLiveData( MIN_LENGTH*2<orgLongSideLength && orgLongSideLength.roundToInt() >= k))
                 }
             }
     }
@@ -86,20 +88,18 @@ class RealTimeBitmapScaler(val sourceBitmap: Bitmap): IUtPropOwner, IDisposable 
                     val h = (sourceBitmap.height * s).toInt()
                     if (w != scaledWidth || h != scaledHeight) {
                         if (w == sourceBitmap.width && h == sourceBitmap.height) {
-                            scaledBitmap?.recycle()
                             scaledBitmap = null
                             bitmap.mutable.value = sourceBitmap
                         } else {
                             val bmp = withContext(Dispatchers.IO) { sourceBitmap.scale(w, h) }
                             bitmap.mutable.value = bmp
-                            scaledBitmap?.recycle()
                             scaledBitmap = bmp
                         }
                         scaledWidth = w
                         scaledHeight = h
                     }
                     if (!tryAgain) break
-                    s = longSideLength.value.toFloat() / orgLongSideLength.toFloat()
+                    s = longSideLength.value / orgLongSideLength
                 }
             } finally {
                 busy.set(false)

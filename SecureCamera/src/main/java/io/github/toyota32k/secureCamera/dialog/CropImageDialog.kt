@@ -15,6 +15,7 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
+import io.github.toyota32k.secureCamera.utils.BitmapStore
 import io.github.toyota32k.utils.Disposer
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.UtFitter
@@ -28,11 +29,13 @@ class CropImageDialog : UtDialogEx() {
 
 
     class CropImageViewModel : UtDialogViewModel() {
+        val bitmapStore = BitmapStore()
         lateinit var bitmapScaler: RealTimeBitmapScaler
+        val deflating = MutableStateFlow(false)
+
         val targetBitmap get() = bitmapScaler.bitmap.value
         var maskViewModel = CropMaskViewModel()
         private val cropFlows = maskViewModel.enableCropFlow(100, 100)
-        val deflating = MutableStateFlow(false)
 
         val sizeText by lazy {
             combine(cropFlows.cropWidth, cropFlows.cropHeight, bitmapScaler.bitmap) { cw, ch, bmp ->
@@ -47,12 +50,13 @@ class CropImageDialog : UtDialogEx() {
         private val disposer = Disposer()
 
         fun setup(bitmap: Bitmap, maskParams: MaskCoreParams?): CropImageViewModel {
-            bitmapScaler = RealTimeBitmapScaler(bitmap)
+            bitmapScaler = RealTimeBitmapScaler(bitmap, bitmapStore)
             if (maskParams!=null) {
                 maskViewModel.setParams(maskParams)
             }
             disposer.register(
-                bitmapScaler.apply {start(viewModelScope)},
+                bitmapStore,
+                bitmapScaler.apply { start(viewModelScope) },
                 bitmapScaler.bitmap.disposableObserve {
                     maskViewModel.enableCropFlow(it.width, it.height)
                 }
@@ -121,6 +125,12 @@ class CropImageDialog : UtDialogEx() {
             }
         }
         return controls.root
+    }
+
+    override fun onDialogClosing() {
+        controls.image.setImageBitmap(null)
+        controls.imagePreview.setImageBitmap(null)
+        super.onDialogClosing()
     }
 
     companion object {
