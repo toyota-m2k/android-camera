@@ -168,7 +168,7 @@ class CropImageDialog : UtDialogEx() {
                 }
             }
         }
-        private suspend fun popupAspectMenu(context: Context, anchor: View):CropMaskViewModel.AspectMode? {
+        suspend fun popupAspectMenu(context: Context, anchor: View):CropMaskViewModel.AspectMode? {
             val selection = MutableStateFlow<Int?>(null)
             PopupMenu(context, anchor).apply {
                 setOnMenuItemClickListener {

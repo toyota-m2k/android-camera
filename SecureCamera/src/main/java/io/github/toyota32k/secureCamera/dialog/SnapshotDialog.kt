@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera.dialog
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.clickBinding
@@ -17,6 +18,7 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
+import io.github.toyota32k.secureCamera.dialog.CropImageDialog.Companion.popupAspectMenu
 import io.github.toyota32k.secureCamera.utils.BitmapStore
 import io.github.toyota32k.utils.Disposer
 import io.github.toyota32k.utils.android.FitMode
@@ -26,6 +28,7 @@ import io.github.toyota32k.utils.lifecycle.disposableObserve
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class SnapshotDialog : UtDialogEx() {
     class SnapshotViewModel : UtDialogViewModel() {
@@ -145,6 +148,7 @@ class SnapshotDialog : UtDialogEx() {
         binder
             .owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
+            .textBinding(controls.aspectButton, viewModel.maskViewModel.aspectMode.map { it.label })
             .visibilityBinding(controls.cropOverlay, viewModel.trimmingNow)
             .visibilityBinding(controls.resolutionPanel, viewModel.deflating)
             .dialogOptionButtonVisibility(viewModel.trimmingNow, BoolConvert.Inverse)
@@ -154,9 +158,24 @@ class SnapshotDialog : UtDialogEx() {
                 inverseGone(controls.image)
                 straightGone(controls.imagePreview)
             }
+            .combinatorialVisibilityBinding(viewModel.trimmingNow) {
+                straightGone(controls.cropOverlay,controls.aspectButton, controls.maxButton)
+                inverseGone(optionButton!!)
+            }
             .apply {
                 viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,
                     mapOf(480 to controls.button480, 720 to controls.button720, 1280 to controls.button1280, 1920 to controls.button1920))
+            }
+            .clickBinding(controls.maxButton) {
+                controls.cropOverlay.resetCrop()
+            }
+            .clickBinding(controls.aspectButton) {
+                lifecycleScope.launch {
+                    val aspect = CropImageDialog.popupAspectMenu(context, it)
+                    if(aspect!=null) {
+                        viewModel.maskViewModel.aspectMode.value = aspect
+                    }
+                }
             }
             .clickBinding(controls.resolutionButton) {
                 viewModel.deflating.value = !viewModel.deflating.value
