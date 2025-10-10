@@ -80,6 +80,7 @@ class CropImageDialog : UtDialogEx() {
     }
 
     override fun preCreateBodyView() {
+        cancellable = false
         noHeader = true
         heightOption = HeightOption.FULL
         widthOption = WidthOption.FULL

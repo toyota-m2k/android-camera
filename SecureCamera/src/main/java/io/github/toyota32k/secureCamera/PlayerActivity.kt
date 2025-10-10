@@ -652,8 +652,6 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
             .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
             .bindCommand(viewModel.undoBitmapCommand, controls.photoUndoButton)
-            .clickBinding(controls.photoCropButton, ::cropBitmap)
-//            .longClickBinding(controls.photoCropButton, ::applyPreviousCropParams)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
@@ -824,7 +822,7 @@ class PlayerActivity : UtMortalActivity() {
     /**
      * 表示中のビットマップを可視範囲でトリミングする
      */
-    private fun cropBitmap(@Suppress("UNUSED_PARAMETER") v:View) {
+    private fun cropBitmap() {
         val bitmap = viewModel.playlist.photoBitmap.value ?: return
         UtImmortalTask.launchTask("cropBitmap") {
             val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams(bitmap.width,bitmap.height))
@@ -945,13 +943,24 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     private suspend fun UtImmortalTaskBase.editItem(item:ItemEx) {
-        viewModel.saveListModeAndSelection()
-        viewModel.playlist.select(null)
-        viewModel.playerControllerModel.playerModel.killPlayer()
-        controls.videoViewer.dissociatePlayer()
-        val name = editorActivityBroker.invoke(item.name)
-        (getActivity() as? PlayerActivity)?.let { _ ->
-            ensureSelectItem(item.name, name != null)
+        if (item.isVideo) {
+            viewModel.saveListModeAndSelection()
+            viewModel.playlist.select(null)
+            viewModel.playerControllerModel.playerModel.killPlayer()
+            controls.videoViewer.dissociatePlayer()
+            val name = editorActivityBroker.invoke(item.name)
+            (getActivity() as? PlayerActivity)?.let { _ ->
+                ensureSelectItem(item.name, name != null)
+            }
+        } else {
+            val bitmap = viewModel.playlist.photoBitmap.value ?: return
+            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams(bitmap.width,bitmap.height))
+            if (cropped != null) {
+                PlayerViewModel.maskParams = cropped.maskParams
+                viewModel.playlist.setCroppedBitmap(cropped.bitmap)
+                manipulator.agent.resetScrollAndScale()
+                viewModel.saveBitmapCommand.invoke()
+            }
         }
     }
 

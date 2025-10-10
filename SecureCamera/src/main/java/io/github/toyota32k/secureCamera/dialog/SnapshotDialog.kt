@@ -128,6 +128,7 @@ class SnapshotDialog : UtDialogEx() {
     }
 
     override fun preCreateBodyView() {
+        cancellable = false
         heightOption = HeightOption.FULL
         widthOption = WidthOption.FULL
         noHeader = true
