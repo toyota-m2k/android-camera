@@ -14,6 +14,7 @@ import io.github.toyota32k.media.lib.converter.FastStart
 import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.format
+import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.report.Report
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
@@ -42,7 +43,7 @@ class ConvertHelper(
         private set
     val report: Report? get() = result.report
 
-   /**
+    /**
      * トリミング実行後の再生時間
      */
     val trimmedDuration:Long
@@ -86,7 +87,7 @@ class ConvertHelper(
                         trimFile
                     } else {
                         vm.message.value = "Optimizing Now..."
-                        if (FastStart.process(trimFile.toUri(), optFile.toUri(), applicationContext) {
+                        if (FastStart.process(trimFile.toAndroidFile(), optFile.toAndroidFile(), removeFree = true) {
                                 vm.progress.value = it.percentage
                                 vm.progressText.value = it.format()
                             }) {

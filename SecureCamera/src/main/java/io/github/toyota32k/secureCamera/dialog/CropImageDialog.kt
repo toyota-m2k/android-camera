@@ -44,7 +44,7 @@ class CropImageDialog : UtDialogEx() {
         }
 
         fun crop(): Bitmap {
-            return maskViewModel.cropBitmap(bitmapScaler.bitmap.value)
+            return bitmapStore.detach(maskViewModel.cropBitmap(bitmapScaler.bitmap.value))
         }
 
         private val disposer = Disposer()

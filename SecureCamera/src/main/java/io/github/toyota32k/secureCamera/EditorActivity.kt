@@ -27,6 +27,8 @@ import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.getActivity
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
@@ -47,6 +49,8 @@ import io.github.toyota32k.media.lib.converter.Rotation
 import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.format.isHDR
 import io.github.toyota32k.media.lib.report.Summary
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -62,6 +66,7 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.ConvertHelper
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
+import io.github.toyota32k.secureCamera.utils.SplitHelper
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -73,10 +78,12 @@ import io.github.toyota32k.utils.gesture.UtSimpleManipulationTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
@@ -100,6 +107,11 @@ class EditorActivity : UtMortalActivity() {
         val targetItem:ItemEx get() = videoSource.item
         val targetFile:File get() = metaDb.fileOf(targetItem)
         val targetUri:String get() = metaDb.urlOf(targetItem)
+
+        val canSplit = combine(playerModel.playerSeekPosition, playerModel.naturalDuration) { pos, duration ->
+            pos in 1000 .. duration-1000
+        }
+
 
         val chapterList by lazy {
             ChapterEditor(videoSource.chapterList as IMutableChapterList)   // videoSource.chapterList は空のリスト ... setSourceでリストは初期化される。
@@ -289,6 +301,7 @@ class EditorActivity : UtMortalActivity() {
                 .bindCommand(viewModel.commandToggleSkip, controls.makeRegionSkip)
                 .clickBinding(controls.saveVideo) { selectQualityAndSave() }
                 .longClickBinding(controls.saveVideo) { showVideoProperties() }
+                .clickBinding(controls.chop) { chopAt(viewModel.playerModel.currentPosition) }
                 .enableBinding(controls.splitMode, viewModel.playerModel.naturalDuration.map { it>SelectRangeDialog.MIN_DURATION })
                 .bindCommand(viewModel.commandUndo, controls.undo)
                 .bindCommand(viewModel.commandRedo, controls.redo)
@@ -378,19 +391,67 @@ class EditorActivity : UtMortalActivity() {
         return true
     }
 
+    private fun chopAt(pos:Long) {
+        viewModel.playerControllerModel.playerModel.pause()
+        val duration = viewModel.playerModel.naturalDuration.value
+        val targetItem = viewModel.targetItem
+        val helper = SplitHelper(viewModel.inputFile)
+        UtImmortalTask.launchTask {
+            // トリミング開始前に編集内容を一旦セーブ // ..トリミング中に強制終了したとき（主にデバッグ中）に編集内容が消えてしまうのを回避
+            withContext(Dispatchers.IO) {
+                saveChapters()
+            }
+
+            val result = helper.chop(this@EditorActivity, pos)
+            if (result!=null) {
+                // 分割成功
+                // chapter list を分割
+                val chapters = viewModel.chapterList.chapters
+                val firstChapterList = MutableChapterList()
+                val lastChapterList = MutableChapterList()
+                var lastOfFirst: IChapter? = null
+                for(c in chapters) {
+                    if (c.position < 0 || duration < c.position) continue   // invalid position
+                    if (c.position <= result.actualSplitPosMs) {
+                        firstChapterList.addChapter(c.position, c.label, c.skip)
+                        lastOfFirst = c
+                    } else {
+                        val corrPos = c.position - result.actualSplitPosMs
+                        if (lastOfFirst!=null && corrPos!=0L) {
+                            lastChapterList.addChapter(0, lastOfFirst.label, lastOfFirst.skip)
+                        }
+                        lastChapterList.addChapter(corrPos, c.label, c.skip)
+                    }
+                }
+
+                // 後半ファイルを追加
+                val date = targetItem.creationDate + pos
+                val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
+                val file = File(viewModel.metaDb.filesDir, name)
+                safeDeleteFile(file)
+                result.lastFile.renameTo(file)
+                val newItem = viewModel.metaDb.register(name)!!
+                viewModel.metaDb.setChaptersFor(newItem, lastChapterList.chapters)
+
+                // 前半ファイルで、ターゲットをリプレース
+                safeDeleteFile(viewModel.metaDb.fileOf(targetItem))
+                result.firstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
+                val replacedItem = viewModel.metaDb.updateFile(targetItem, firstChapterList.chapters)
+
+                // 編集画面を終了してプレーヤー画面に戻る
+                setResultAndFinish(true, replacedItem)
+            } else {
+                if (!helper.cancelled) {
+                    showConfirmMessageBox("Split File","Error: ${helper.error?.message ?: "unknown"}")
+                }
+            }
+        }
+    }
+
     private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null, keepHdr:Boolean) {
         val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
         val targetItem = viewModel.targetItem
-//        val trimFile = File(application.cacheDir ?: return, "trimming")
-//        val optFile = File(application.cacheDir ?: return, "optimized")
-//        val ranges = viewModel.chapterList.enabledRanges(Range.empty)
-//        val strategy = quality.strategy
-
         val srcFile = viewModel.inputFile
-
-//        val s = Converter.analyze(srcFile)
-//        logger.debug("input:\n$s")
-
 
         UtImmortalTask.launchTask("trimming") {
             // トリミング開始前に編集内容を一旦セーブ

@@ -57,9 +57,11 @@ class SnapshotDialog : UtDialogEx() {
         )
 
         private val croppedSize =
-            combine(trimmingNow, cropFlows.cropWidth, cropFlows.cropHeight) { trimmingNow, w, h ->
+            combine(trimmingNow, croppedBitmapFlow, cropFlows.cropWidth, cropFlows.cropHeight) { trimmingNow, cropped, w, h ->
                 if (trimmingNow) {
                     "$w x $h"
+                } else if (cropped!=null) {
+                    "${cropped.width} x ${cropped.height}"
                 } else {
                     null
                 }
