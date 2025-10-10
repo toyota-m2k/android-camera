@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.combinatorialVisibilityBinding
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -149,9 +150,8 @@ class SnapshotDialog : UtDialogEx() {
             .owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
             .textBinding(controls.aspectButton, viewModel.maskViewModel.aspectMode.map { it.label })
-            .visibilityBinding(controls.cropOverlay, viewModel.trimmingNow)
             .visibilityBinding(controls.resolutionPanel, viewModel.deflating)
-            .dialogOptionButtonVisibility(viewModel.trimmingNow, BoolConvert.Inverse)
+            .enableBinding(controls.memoryRead, viewModel.maskViewModel.memory.map { it!=null }, BoolConvert.Straight, alphaOnDisabled=0.4f)
             .dialogLeftButtonString(viewModel.trimmingNow.map { if(it) getString(R.string.cancel) else getString(R.string.reject) })
             .dialogRightButtonString(viewModel.trimmingNow.map { if(it) getString(R.string.crop) else getString(R.string.accept) })
             .combinatorialVisibilityBinding(viewModel.isCropped) {
@@ -159,7 +159,7 @@ class SnapshotDialog : UtDialogEx() {
                 straightGone(controls.imagePreview)
             }
             .combinatorialVisibilityBinding(viewModel.trimmingNow) {
-                straightGone(controls.cropOverlay,controls.aspectButton, controls.maxButton)
+                straightGone(controls.cropOverlay,controls.aspectButton, controls.maxButton, controls.memoryPlus, controls.memoryRead)
                 inverseGone(optionButton!!)
             }
             .apply {
@@ -176,6 +176,12 @@ class SnapshotDialog : UtDialogEx() {
                         viewModel.maskViewModel.aspectMode.value = aspect
                     }
                 }
+            }
+            .clickBinding(controls.memoryPlus) {
+                viewModel.maskViewModel.pushMemory()
+            }
+            .clickBinding(controls.memoryRead) {
+                controls.cropOverlay.applyCropFromMemory()
             }
             .clickBinding(controls.resolutionButton) {
                 viewModel.deflating.value = !viewModel.deflating.value

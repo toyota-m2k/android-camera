@@ -7,7 +7,9 @@ import android.view.View
 import android.widget.PopupMenu
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import io.github.toyota32k.binder.BoolConvert
 import io.github.toyota32k.binder.clickBinding
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -109,6 +111,7 @@ class CropImageDialog : UtDialogEx() {
             .textBinding(controls.sizeText, viewModel.sizeText)
             .textBinding(controls.aspectButton, viewModel.maskViewModel.aspectMode.map { it.label })
             .visibilityBinding(controls.resolutionPanel, viewModel.deflating)
+            .enableBinding(controls.memoryRead, viewModel.maskViewModel.memory.map { it!=null },  BoolConvert.Straight, alphaOnDisabled=0.4f)
             .clickBinding(controls.resolutionButton) {
                 viewModel.deflating.value = !viewModel.deflating.value
             }
@@ -122,6 +125,12 @@ class CropImageDialog : UtDialogEx() {
                         viewModel.maskViewModel.aspectMode.value = aspect
                     }
                 }
+            }
+            .clickBinding(controls.memoryPlus) {
+                viewModel.maskViewModel.pushMemory()
+            }
+            .clickBinding(controls.memoryRead) {
+                controls.cropOverlay.applyCropFromMemory()
             }
             .apply {
                 viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,

@@ -50,6 +50,7 @@ class CropMaskViewModel {
     companion object {
 //        const val MIN = 32f
         var previousAspectMode = AspectMode.FREE
+        var memorizedCoreParams:MaskCoreParams? = null
     }
     enum class AspectMode(val label:String, val longSide:Float, val shortSide:Float) {
         FREE("Free", 0f, 0f),
@@ -60,6 +61,12 @@ class CropMaskViewModel {
     // invalidateが必要かどうか
     var isDirty: Boolean = false
     var aspectMode = MutableStateFlow(previousAspectMode)
+    var memory:StateFlow<MaskCoreParams?> = MutableStateFlow(memorizedCoreParams)
+    fun pushMemory() {
+        val p = getParams()
+        (memory as MutableStateFlow<MaskCoreParams?>).value = p
+        memorizedCoreParams = p
+    }
 
     // isDirty が true の場合に fn() を実行し、isDirty を false にする
     // usage: viewModel.clearDirty { invalidate() }
@@ -428,6 +435,15 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         viewModel?.apply {
             resetCrop()
             clearDirty { invalidate() }
+        }
+    }
+
+    fun applyCropFromMemory() {
+        viewModel?.apply {
+            memory.value?.also {
+                setParams(it)
+                clearDirty { invalidate() }
+            }
         }
     }
 
