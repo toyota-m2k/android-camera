@@ -11,6 +11,7 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.scale
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -107,12 +108,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import java.util.EnumSet
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import androidx.core.graphics.scale
 
 
 class PlayerActivity : UtMortalActivity() {
@@ -227,7 +226,7 @@ class PlayerActivity : UtMortalActivity() {
             playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
         }
 
-        val rotateCommand = LiteCommand<Rotation>(playlist::rotateBitmap)
+        val rotateCommand = LiteCommand(playlist::rotateBitmap)
         val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
         val undoBitmapCommand = LiteUnitCommand(playlist::reloadBitmap)
 //        val cropBitmapCommand = LiteUnitCommand()
@@ -331,8 +330,8 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
-            var photoSelection:ItemEx? = null
-            var videoSelection:ItemEx? = null
+            private var photoSelection:ItemEx? = null
+            private var videoSelection:ItemEx? = null
             val isVideo: StateFlow<Boolean> = currentSelection.map { it?.isVideo==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
             val isPhoto: StateFlow<Boolean> = currentSelection.map { it?.isPhoto==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
             val listMode = MutableStateFlow(ListMode.ALL)
@@ -344,7 +343,7 @@ class PlayerActivity : UtMortalActivity() {
             val photoRotation : StateFlow<Int> = MutableStateFlow(0)
             val photoCropped : StateFlow<Boolean> = MutableStateFlow(false)
 
-            var dateRange = DateRange()
+            private var dateRange = DateRange()
             private fun List<ItemEx>.filterByDateRange():List<ItemEx> {
                 return this.filter { dateRange.contained(it.dpDate) }
             }
@@ -382,8 +381,8 @@ class PlayerActivity : UtMortalActivity() {
             }
 
 
-            fun select(item_:ItemEx?, force:Boolean=true) {
-                if(!force && item_ == currentSelection.value) return
+            fun select(requestItem:ItemEx?, force:Boolean=true) {
+                if(!force && requestItem == currentSelection.value) return
                 if(collection.isEmpty()) {
                     hasNext.value = false
                     hasPrevious.value = false
@@ -393,14 +392,14 @@ class PlayerActivity : UtMortalActivity() {
                     return
                 }
 
-                if(item_==null) {
+                if(requestItem==null) {
                     currentSource.value = null
                     currentSelection.mutable.value = null
                     resetPhoto()
                     return
                 }
 
-                val index = collection.indexOfFirst{ it.id == item_.id }
+                val index = collection.indexOfFirst{ it.id == requestItem.id }
                 if(index<0) {
                     // 要求されたアイテムが存在しない
                     select(null, true)
@@ -578,13 +577,11 @@ class PlayerActivity : UtMortalActivity() {
             // onCleared で metaDb.close() されるので、MetaDB を新たに取得しておく
             val db = MetaDB[SlotSettings.currentSlotIndex]
             CoroutineScope(Dispatchers.IO).launch {
-                try {
+                db.use { _ ->
                     metaDb.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
                     if (currentItem != null) {
                         metaDb.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                     }
-                } finally {
-                    db.close()
                 }
             }
         }
@@ -638,7 +635,7 @@ class PlayerActivity : UtMortalActivity() {
         fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
         var prevBitmap:Bitmap? = null
-        controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).getOrientation()))
+        controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).orientation))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
@@ -678,7 +675,7 @@ class PlayerActivity : UtMortalActivity() {
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .recyclerViewBindingEx(controls.listView) {
+            .recyclerViewBindingEx<ItemEx,ListItemBinding>(controls.listView) {
                 list(viewModel.playlist.collection)
                 gestureParams(viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,::onDeletingItem)})
                 inflate { ListItemBinding.inflate(layoutInflater, it, false) }
@@ -795,12 +792,10 @@ class PlayerActivity : UtMortalActivity() {
         val tx = rtx / scale
         val ty = rty / scale
 
-        val bw = sourceWidth
-        val bh = sourceHeight
         val vw = controls.imageView.width                   // imageView のサイズ
         val vh = controls.imageView.height
         val fitter = UtFitter(FitMode.Inside, vw, vh)
-        fitter.fit(bw, bh)
+        fitter.fit(sourceWidth, sourceHeight)
         val iw = fitter.resultWidth                         // imageView内での bitmapの表示サイズ
         val ih = fitter.resultHeight
         val mx = (vw-iw)/2                                  // imageView と bitmap のマージン
@@ -817,17 +812,13 @@ class PlayerActivity : UtMortalActivity() {
         val ex = min(cx + sw/2 - mx, iw)
         val ey = min(cy + sh/2 - my, ih)
 
-        val bs = bw.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
+        val bs = sourceWidth.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
         val x = sx * bs
         val y = sy * bs
         val w = (ex - sx) * bs
         val h = (ey - sy) * bs
 
-        return MaskCoreParams.fromSize(bw, bh, x, y, w, h)
-
-//        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
-//        viewModel.playlist.setCroppedBitmap(newBitmap)
-//        manipulator.agent.resetScrollAndScale()
+        return MaskCoreParams.fromSize(sourceWidth, sourceHeight, x, y, w, h)
     }
 
     /**
@@ -916,9 +907,9 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    private fun sizeInKb(size: Long): String {
-        return String.format(Locale.US, "%,d KB", size / 1000L)
-    }
+//    private fun sizeInKb(size: Long): String {
+//        return String.format(Locale.US, "%,d KB", size / 1000L)
+//    }
 
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
         val item = viewModel.metaDb.itemExOf(name) ?: return

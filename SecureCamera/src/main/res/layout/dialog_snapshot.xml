@@ -46,14 +46,32 @@
         android:textColor="#ffffff"
         android:padding="4dp"
         />
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/resize_button_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="?attr/colorOnPrimary"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         >
+        <Button
+            android:id="@+id/aspect_button"
+            android:layout_width="60dp"
+            android:layout_height="@dimen/media_button_height"
+            android:padding="0dp"
+            android:text="16:9"
+            android:textColor="?attr/iconColor"
+            android:background="?attr/selectableItemBackground"
+            />
+        <ImageButton
+            android:id="@+id/max_button"
+            android:layout_width="@dimen/media_button_width"
+            android:layout_height="@dimen/media_button_height"
+            app:srcCompat="@drawable/ic_full"
+            app:tint="?attr/iconColor"
+            android:background="?attr/selectableItemBackground"
+            />
         <ImageButton
             android:id="@+id/resolution_button"
             android:layout_width="@dimen/media_button_width"
@@ -62,7 +80,7 @@
             app:tint="?attr/iconColor"
             android:background="?attr/selectableItemBackground"
             />
-    </FrameLayout>
+    </LinearLayout>
 
 
     <LinearLayout

@@ -1,8 +1,11 @@
 package io.github.toyota32k.secureCamera.dialog
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import android.widget.PopupMenu
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.observe
@@ -14,6 +17,7 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
 import io.github.toyota32k.secureCamera.utils.BitmapStore
 import io.github.toyota32k.utils.Disposer
@@ -24,12 +28,15 @@ import io.github.toyota32k.utils.android.setLayoutSize
 import io.github.toyota32k.utils.lifecycle.disposableObserve
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class CropImageDialog : UtDialogEx() {
 
 
     class CropImageViewModel : UtDialogViewModel() {
-        val bitmapStore = BitmapStore()
+        private val bitmapStore = BitmapStore()
         lateinit var bitmapScaler: RealTimeBitmapScaler
         val deflating = MutableStateFlow(false)
 
@@ -100,9 +107,21 @@ class CropImageDialog : UtDialogEx() {
         controls.cropOverlay.bindViewModel(viewModel.maskViewModel)
         binder.owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
+            .textBinding(controls.aspectButton, viewModel.maskViewModel.aspectMode.map { it.label })
             .visibilityBinding(controls.resolutionPanel, viewModel.deflating)
             .clickBinding(controls.resolutionButton) {
                 viewModel.deflating.value = !viewModel.deflating.value
+            }
+            .clickBinding(controls.maxButton) {
+                controls.cropOverlay.resetCrop()
+            }
+            .clickBinding(controls.aspectButton) {
+                lifecycleScope.launch {
+                    val aspect = popupAspectMenu(context, it)
+                    if(aspect!=null) {
+                        viewModel.maskViewModel.aspectMode.value = aspect
+                    }
+                }
             }
             .apply {
                 viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,
@@ -149,5 +168,26 @@ class CropImageDialog : UtDialogEx() {
                 }
             }
         }
+        private suspend fun popupAspectMenu(context: Context, anchor: View):CropMaskViewModel.AspectMode? {
+            val selection = MutableStateFlow<Int?>(null)
+            PopupMenu(context, anchor).apply {
+                setOnMenuItemClickListener {
+                    selection.value = it.itemId
+                    true
+                }
+                setOnDismissListener {
+                    selection.value = -1
+                }
+                inflate(R.menu.menu_aspect)
+            }.show()
+            val sel = selection.first { it != null }
+            return when(sel) {
+                R.id.aspect_free -> CropMaskViewModel.AspectMode.FREE
+                R.id.aspect_4_3 -> CropMaskViewModel.AspectMode.ASPECT_4_3
+                R.id.aspect_16_9 -> CropMaskViewModel.AspectMode.ASPECT_16_9
+                else -> null
+            }
+        }
+
     }
 }

@@ -45,15 +45,21 @@ data class MaskCoreParams(
 
 /**
  * CropMask 用の ViewModel
- * @param sourceWidth ソース画像の幅 (px)
- * @param sourceHeight ソース画像の高さ (px)
  */
 class CropMaskViewModel {
     companion object {
 //        const val MIN = 32f
+        var previousAspectMode = AspectMode.FREE
     }
+    enum class AspectMode(val label:String, val longSide:Float, val shortSide:Float) {
+        FREE("Free", 0f, 0f),
+        ASPECT_4_3("4:3", 4f, 3f),
+        ASPECT_16_9("16:9", 16f, 9f)
+    }
+
     // invalidateが必要かどうか
     var isDirty: Boolean = false
+    var aspectMode = MutableStateFlow(previousAspectMode)
 
     // isDirty が true の場合に fn() を実行し、isDirty を false にする
     // usage: viewModel.clearDirty { invalidate() }
@@ -123,8 +129,15 @@ class CropMaskViewModel {
             }
         }
 
+    fun resetCrop() {
+        rsx = 0f
+        rsy = 0f
+        rex = 1f
+        rey = 1f
+    }
+
     // view のサイズと padding を設定する
-    fun setViewDimmension(width:Int, height:Int, padding:Int) {
+    fun setViewDimension(width:Int, height:Int, padding:Int) {
         this.rawViewWidth = width
         this.rawViewHeight = height
         this.padding = padding
@@ -142,44 +155,126 @@ class CropMaskViewModel {
     var maskSx:Float
         get() = rsx * viewWidth + padding
         private set(v) { rsx = (v-padding) / viewWidth }
+    private fun correctSx(v:Float):Float = v.coerceIn(padding.toFloat(), maskEx-minMaskWidth+padding)
     fun setMaskSx(v:Float):Float {
-        return v.coerceIn(padding.toFloat(), maskEx-minMaskWidth+padding).also { maskSx = it }
+        return correctSx(v).also { maskSx = it }
     }
     var maskSy:Float
         get() = rsy * viewHeight + padding
         private set(v) { rsy = (v-padding) / viewHeight }
-    fun setMaskSy(v:Float):Float {
-        return  v.coerceIn(padding.toFloat(), maskEy-minMaskWidth+padding).also { maskSy = it }
+    private fun correctSy(v:Float):Float = v.coerceIn(padding.toFloat(), maskEy-minMaskWidth+padding)
+    private fun setMaskSy(v:Float):Float {
+        return  correctSy(v).also { maskSy = it }
     }
     var maskEx:Float
         get() = rex * viewWidth + padding
         private set(v) { rex = (v-padding) / viewWidth }
+    private fun correctEx(v:Float):Float = v.coerceIn(maskSx+minMaskWidth+padding, viewWidth.toFloat()+padding)
     fun setMaskEx(v:Float):Float {
-        return v.coerceIn(maskSx+minMaskWidth+padding, viewWidth.toFloat()+padding).also { maskEx = it }
+        return correctEx(v).also { maskEx = it }
     }
     var maskEy:Float
         get() = rey * viewHeight + padding
         private set(v) { rey = (v-padding) / viewHeight }
+    private fun correctEy(v:Float):Float = v.coerceIn(maskSy+minMaskWidth+padding, viewHeight.toFloat()+padding)
     fun setMaskEy(v:Float):Float {
-        return v.coerceIn(maskSy+minMaskWidth+padding, viewHeight.toFloat()+padding).also { maskEy = it }
+        return correctEy(v).also { maskEy = it }
+    }
+
+    /**
+     * AspectModeで指定されたアスペクト比に調整するための、x/y補正量を計算する
+     * ただし、常に Landscapeとして計算する。
+     */
+    private fun correctSizeByAspect(newWidth:Float, newHeight:Float, aspect:AspectMode):Pair<Float, Float> {
+        if (aspectMode.value == AspectMode.FREE) return 0f to 0f
+
+        // landscape固定なので、常に幅を基準に高さを調整する
+        val ch = newWidth * aspect.shortSide / aspect.longSide
+        return 0f to (ch - newHeight)
+
+        // 当初、変化量の多い方を基準にサイズ計算するのが妥当と考えたが、
+        // 実際に操作してみると、縦・横基準のサイズ計算が頻繁に切り替わって、表示が安定しないので却下
+        // このアプリの場合は landscape固定で利用されるので、常に横方向基準とすることで自然な動作になった。
+        // もし Portraitもサポートするなら、if (landscape) {} else {} のように書くとよいと思う。
+
+//        if (abs(dx) > abs(dy)) {
+//            // x方向の変化量が大きい --> 幅を基準に調整
+//            val ch = newWidth * aspect.shortSide / aspect.longSide
+//            return 0f to (ch - newHeight)
+//        } else {
+//            // y方向の変化量が大きい --> 高さを基準に調整
+//            val cw = newHeight * aspect.longSide / aspect.shortSide
+//            return (cw - newWidth) to 0f
+//        }
+    }
+
+    fun moveLeftTop(x:Float, y:Float) {
+        when (aspectMode.value) {
+            AspectMode.FREE -> {
+                setMaskSx(x)
+                setMaskSy(y)
+            }
+            else -> {
+                val nsx = correctSx(x)
+                val nsy = correctSy(y)
+                val (cx, cy) = correctSizeByAspect( maskEx-nsx, maskEy-nsy, aspectMode.value)
+                setMaskSx(x-cx)
+                setMaskSy(y-cy)
+            }
+        }
+    }
+    fun moveLeftBottom(x:Float, y:Float) {
+        when (aspectMode.value) {
+            AspectMode.FREE -> {
+                setMaskSx(x)
+                setMaskEy(y)
+            }
+            else -> {
+                val nsx = correctSx(x)
+                val ney = correctEy(y)
+                val (cx, cy) = correctSizeByAspect( maskEx-nsx, ney - maskSy, aspectMode.value)
+                setMaskSx(x+cx)
+                setMaskEy(y+cy)
+            }
+        }
+    }
+    fun moveRightTop(x:Float, y:Float) {
+        when (aspectMode.value) {
+            AspectMode.FREE -> {
+                setMaskEx(x)
+                setMaskSy(y)
+            }
+            else -> {
+                val nex = correctEx(x)
+                val nsy = correctSy(y)
+                val (cx, cy) = correctSizeByAspect(nex-maskSx, maskEy-nsy, aspectMode.value)
+                setMaskEx(x+cx)
+                setMaskSy(y-cy)
+            }
+        }
+    }
+    fun moveRightBottom(x:Float, y:Float) {
+        when (aspectMode.value) {
+            AspectMode.FREE -> {
+                setMaskEx(x)
+                setMaskEy(y)
+            }
+            else -> {
+                val nex = correctEx(x)
+                val ney = correctEy(y)
+                val (cx, cy) = correctSizeByAspect(nex-maskSx, ney-maskSy, aspectMode.value)
+                setMaskEx(x+cx)
+                setMaskEy(y+cy)
+            }
+        }
     }
 
     // mask の幅と高さ
-    val maskWidth:Float
+    private val maskWidth:Float
         get() = maskEx - maskSx
-    val maskHeight:Float
+    private val maskHeight:Float
         get() = maskEy - maskSy
 
-    //    fun moveMask(dx:Float, dy:Float) {
-//        val w = maskWidth
-//        val h = maskHeight
-//        val newSx = (maskSx + dx).coerceIn(0f, viewWidth - w)
-//        val newSy = (maskSy + dy).coerceIn(0f, viewHeight - h)
-//        maskSx = newSx
-//        maskSy = newSy
-//        maskEx = newSx + w
-//        maskEy = newSy + h
-//    }
     /**
      * maskのサイズを維持したまま、左上の座標を (x,y) に移動する。
      *
@@ -221,10 +316,10 @@ class CropMaskViewModel {
         }
 
         fun update() {
-            val sx = (rsx * width.toFloat()).roundToInt()
-            val sy = (rsy * height.toFloat()).roundToInt()
-            val w = ((rex-rsx) * width.toFloat()).roundToInt()
-            val h = ((rey-rsy) * height.toFloat()).roundToInt()
+            val sx = (rsx * width).roundToInt()
+            val sy = (rsy * height).roundToInt()
+            val w = ((rex-rsx) * width).roundToInt()
+            val h = ((rey-rsy) * height).roundToInt()
             if(cropSx.value != sx) cropSx.value = sx
             if(cropSy.value != sy) cropSy.value = sy
             if(cropWidth.value != w) cropWidth.value = w
@@ -265,6 +360,7 @@ class CropMaskViewModel {
     }
 
     fun getParams():MaskCoreParams {
+        previousAspectMode = aspectMode.value
         return MaskCoreParams(rsx, rsy, rex, rey)
     }
 
@@ -293,7 +389,7 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     val logger = UtLog("CropMaskView", null, CropMaskView::class.java)
     init {
-        this.background = 0x00000000.toInt().toDrawable()
+        this.background = 0x00000000.toDrawable()
         this.isClickable = true
 
         val typedValue = TypedValue()
@@ -324,8 +420,15 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     fun bindViewModel(vm: CropMaskViewModel) {
         viewModel = vm
-        vm.setViewDimmension(getLayoutWidth(), getLayoutHeight(), paddingStart)
+        vm.setViewDimension(getLayoutWidth(), getLayoutHeight(), paddingStart)
         vm.clearDirty { invalidate() }
+    }
+
+    fun resetCrop() {
+        viewModel?.apply {
+            resetCrop()
+            clearDirty { invalidate() }
+        }
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -334,7 +437,7 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         val h = bottom - top
         viewModel?.let { vm->
             if (vm.rawViewWidth!=w || vm.rawViewHeight!=h) {
-                vm.setViewDimmension(w, h, paddingStart)
+                vm.setViewDimension(w, h, paddingStart)
                 vm.clearDirty { invalidate() }
             }
         }
@@ -404,7 +507,9 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
         var y:Float = 0f
         var sx:Float = 0f
         var sy:Float = 0f
-        val isDragging get() = hit != HitResult.None
+
+//        val isDragging get() = hit != HitResult.None
+
         fun start(x:Float, y:Float): Boolean {
             val vm = viewModel ?: return false
             val hit = hitTest(x, y)
@@ -416,6 +521,7 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
             this.sy = vm.maskSy
             return true
         }
+
         fun move(x:Float, y:Float) {
             val vm = viewModel ?: return
             val dx = x - this.x
@@ -435,23 +541,19 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
             MotionEvent.ACTION_MOVE -> {
                 when(dragState.hit) {
                     HitResult.LeftTop -> {
-                        vm.setMaskSx(event.x)
-                        vm.setMaskSy(event.y)
+                        vm.moveLeftTop(event.x, event.y)
                         vm.clearDirty { invalidate() }
                     }
                     HitResult.RightTop -> {
-                        vm.setMaskEx(event.x)
-                        vm.setMaskSy(event.y)
+                        vm.moveRightTop(event.x, event.y)
                         vm.clearDirty { invalidate() }
                     }
                     HitResult.LeftBottom -> {
-                        vm.setMaskSx(event.x)
-                        vm.setMaskEy(event.y)
+                        vm.moveLeftBottom(event.x, event.y)
                         vm.clearDirty { invalidate() }
                     }
                     HitResult.RightBottom -> {
-                        vm.setMaskEx(event.x)
-                        vm.setMaskEy(event.y)
+                        vm.moveRightBottom(event.x, event.y)
                         vm.clearDirty { invalidate() }
                     }
                     HitResult.Move -> {

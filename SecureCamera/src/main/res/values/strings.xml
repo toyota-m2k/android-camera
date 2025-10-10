@@ -157,4 +157,5 @@
     <string name="resolution_1920">1920</string>
     <string name="resolution_720">720</string>
     <string name="resolution_480">480</string>
+    <string name="aspect_free">Free</string>
 </resources>
