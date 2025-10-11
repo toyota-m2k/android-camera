@@ -10,13 +10,18 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
+import androidx.annotation.FloatRange
 import androidx.core.graphics.drawable.toDrawable
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.secureCamera.SCApplication.Companion.logger
 import io.github.toyota32k.utils.android.dp2px
 import io.github.toyota32k.utils.android.getLayoutHeight
 import io.github.toyota32k.utils.android.getLayoutWidth
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlin.math.roundToInt
 
 /**
@@ -121,14 +126,14 @@ class CropMaskViewModel {
         }
 
     // padding 込みの view サイズ
-    var rawViewWidth:Int = 100
+    var rawViewWidth:Int = 0
         private set(v) {
             if(v!=field) {
                 field = v
                 isDirty = true
             }
         }
-    var rawViewHeight:Int = 100
+    var rawViewHeight:Int = 0
         private set(v) {
             if(v!=field) {
                 field = v
@@ -151,6 +156,7 @@ class CropMaskViewModel {
     }
 
     // padding を除いた view サイズ
+    val viewSizeAvailable:Boolean get() = rawViewWidth > 0 && rawViewHeight > 0
     val viewWidth:Int
         get() = (rawViewWidth - padding*2).coerceAtLeast(1)
     val viewHeight:Int
@@ -166,6 +172,14 @@ class CropMaskViewModel {
     fun setMaskSx(v:Float):Float {
         return correctSx(v).also { maskSx = it }
     }
+
+    val minX:Float get() = padding.toFloat()
+    val minY:Float get() = padding.toFloat()
+    val maxX:Float get() = viewWidth.toFloat() + padding
+    val maxY:Float get() = viewHeight.toFloat() + padding
+    val rangeX: ClosedFloatingPointRange<Float> get() = minX..maxX
+    val rangeY: ClosedFloatingPointRange<Float> get() = minY..maxY
+
     var maskSy:Float
         get() = rsy * viewHeight + padding
         private set(v) { rsy = (v-padding) / viewHeight }
@@ -191,13 +205,15 @@ class CropMaskViewModel {
     /**
      * AspectModeで指定されたアスペクト比に調整するための、x/y補正量を計算する
      * ただし、常に Landscapeとして計算する。
+     * @return Float 補正後の高さ
      */
-    private fun correctSizeByAspect(newWidth:Float, newHeight:Float, aspect:AspectMode):Pair<Float, Float> {
-        if (aspectMode.value == AspectMode.FREE) return 0f to 0f
+    private fun correctHeightBasedOnWidth(newWidth:Float, newHeight:Float, aspect:AspectMode):Float {
+        if (aspectMode.value == AspectMode.FREE) return newHeight
 
-        // landscape固定なので、常に幅を基準に高さを調整する
-        val ch = newWidth * aspect.shortSide / aspect.longSide
-        return 0f to (ch - newHeight)
+        // 幅を基準に高さを調整する
+        val corrHeight = newWidth * aspect.shortSide / aspect.longSide
+        logger.debug("${cropFlow!!.height} -- ${(maxY-minY)/(maxX-minX)*(cropFlow!!.width)}")
+        return corrHeight
 
         // 当初、変化量の多い方を基準にサイズ計算するのが妥当と考えたが、
         // 実際に操作してみると、縦・横基準のサイズ計算が頻繁に切り替わって、表示が安定しないので却下
@@ -214,6 +230,13 @@ class CropMaskViewModel {
 //            return (cw - newWidth) to 0f
 //        }
     }
+    private fun correctWidthBasedOnHeight(newWidth:Float, newHeight:Float, aspect:AspectMode):Float {
+        if (aspectMode.value == AspectMode.FREE) return newWidth
+
+        // 高さを基準に調整
+        val corrWidth = newHeight * aspect.longSide / aspect.shortSide
+        return corrWidth
+    }
 
     fun moveLeftTop(x:Float, y:Float) {
         when (aspectMode.value) {
@@ -224,9 +247,16 @@ class CropMaskViewModel {
             else -> {
                 val nsx = correctSx(x)
                 val nsy = correctSy(y)
-                val (cx, cy) = correctSizeByAspect( maskEx-nsx, maskEy-nsy, aspectMode.value)
-                setMaskSx(x-cx)
-                setMaskSy(y-cy)
+                val corrHeight = correctHeightBasedOnWidth( maskEx-nsx, maskEy-nsy, aspectMode.value)
+                val newSy = maskEy - corrHeight
+                if (newSy >= minY) {
+                    setMaskSx(x)
+                    setMaskSy(newSy)
+                } else {
+                    val corrWidth = correctWidthBasedOnHeight(maskEx-nsx, maskEy-minY, aspectMode.value)
+                    setMaskSx(maskEx-corrWidth)
+                    setMaskSy(minY)
+                }
             }
         }
     }
@@ -239,9 +269,16 @@ class CropMaskViewModel {
             else -> {
                 val nsx = correctSx(x)
                 val ney = correctEy(y)
-                val (cx, cy) = correctSizeByAspect( maskEx-nsx, ney - maskSy, aspectMode.value)
-                setMaskSx(x+cx)
-                setMaskEy(y+cy)
+                val corrHeight = correctHeightBasedOnWidth( maskEx-nsx, ney - maskSy, aspectMode.value)
+                val newEy = maskSy+corrHeight
+                if (newEy <= maxY) {
+                    setMaskSx(x)
+                    setMaskEy(newEy)
+                } else {
+                    val corrWidth = correctWidthBasedOnHeight(maskEx - nsx, maxY - maskSy, aspectMode.value)
+                    setMaskSx(maskEx - corrWidth)
+                    setMaskEy(maxY)
+                }
             }
         }
     }
@@ -254,9 +291,16 @@ class CropMaskViewModel {
             else -> {
                 val nex = correctEx(x)
                 val nsy = correctSy(y)
-                val (cx, cy) = correctSizeByAspect(nex-maskSx, maskEy-nsy, aspectMode.value)
-                setMaskEx(x+cx)
-                setMaskSy(y-cy)
+                val corrHeight = correctHeightBasedOnWidth(nex-maskSx, maskEy-nsy, aspectMode.value)
+                val newSy = maskEy - corrHeight
+                if (newSy>=minY) {
+                    setMaskEx(x)
+                    setMaskSy(newSy)
+                } else {
+                    val corrWidth = correctWidthBasedOnHeight(nex-maskSx, maskEy-minY, aspectMode.value)
+                    setMaskEx(maskSx+corrWidth)
+                    setMaskSy(minY)
+                }
             }
         }
     }
@@ -269,9 +313,17 @@ class CropMaskViewModel {
             else -> {
                 val nex = correctEx(x)
                 val ney = correctEy(y)
-                val (cx, cy) = correctSizeByAspect(nex-maskSx, ney-maskSy, aspectMode.value)
-                setMaskEx(x+cx)
-                setMaskEy(y+cy)
+
+                val corrHeight = correctHeightBasedOnWidth(nex-maskSx, ney-maskSy, aspectMode.value)
+                val newEy = maskSy+corrHeight
+                if (newEy <= maxY) {
+                    setMaskEx(x)
+                    setMaskEy(newEy)
+                } else {
+                    val corrWidth = correctWidthBasedOnHeight(nex-maskSx, maxY-maskSy, aspectMode.value)
+                    setMaskEx(maskSx+corrWidth)
+                    setMaskEy(maxY)
+                }
             }
         }
     }
@@ -425,10 +477,18 @@ class CropMaskView@JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     var viewModel: CropMaskViewModel? = null
 
-    fun bindViewModel(vm: CropMaskViewModel) {
+    fun bindViewModel(vm: CropMaskViewModel, scope: CoroutineScope) {
         viewModel = vm
         vm.setViewDimension(getLayoutWidth(), getLayoutHeight(), paddingStart)
         vm.clearDirty { invalidate() }
+        vm.aspectMode
+            .onEach {
+                if (it!=CropMaskViewModel.AspectMode.FREE&&vm.viewSizeAvailable) {
+                    vm.moveRightBottom(vm.maskEx, vm.maskEy)
+                    vm.clearDirty { invalidate() }
+                }
+            }
+            .launchIn(scope)
     }
 
     fun resetCrop() {

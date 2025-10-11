@@ -145,7 +145,7 @@ class SnapshotDialog : UtDialogEx() {
         inflater: IViewInflater
     ): View {
         controls = DialogSnapshotBinding.inflate(inflater.layoutInflater, null, false)
-        controls.cropOverlay.bindViewModel(viewModel.maskViewModel)
+        controls.cropOverlay.bindViewModel(viewModel.maskViewModel, viewModel.viewModelScope)
 //        controls.image.setImageBitmap(viewModel.targetBitmap)
         binder
             .owner(this)
@@ -234,11 +234,16 @@ class SnapshotDialog : UtDialogEx() {
     }
 
     private fun fitBitmap(bitmap:Bitmap, containerWidth:Int, containerHeight:Int) {
-        val w = containerWidth - (controls.root.paddingLeft + controls.root.paddingRight)
-        val h = containerHeight - (controls.root.paddingTop + controls.root.paddingBottom)
+        val paddingHorizontal = controls.image.paddingLeft + controls.image.paddingRight
+        val paddingVertical = controls.image.paddingTop + controls.image.paddingBottom
+        // image/image_preview/cropOverlay には同じ padding が設定されている
+        // コンテナー領域から、そのpaddingを差し引いた領域内に、bitmapを最大表示したときのサイズを計算
+        val w = containerWidth - paddingHorizontal
+        val h = containerHeight - paddingVertical
         val fitter = UtFitter(FitMode.Inside, w, h)
         val size = fitter.fit(bitmap.width, bitmap.height).result.asSize
-        controls.imageContainer.setLayoutSize(size.width, size.height)
+        // bitmapのサイズに padding を加えたサイズを imageContainerにセットする。
+        controls.imageContainer.setLayoutSize(size.width+paddingHorizontal, size.height+paddingHorizontal)
     }
 
     override fun onDialogClosing() {
