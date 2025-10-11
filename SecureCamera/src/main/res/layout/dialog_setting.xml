@@ -161,6 +161,25 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_gravity="center_vertical"
+            android:text="@string/prefer_quality"
+            />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/check_prefer_quality"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
             android:text="@string/hdr_label"
             />
         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -169,6 +188,94 @@
             android:layout_height="wrap_content"
             />
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="@string/aspect"
+            />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/radio_aspect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_marginStart="10dp"
+            >
+            <Button
+                android:id="@+id/radio_aspect_default"
+                android:text="@string/aspect_default"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_aspect_4_3"
+                android:text="@string/aspect_4_3"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_aspect_16_9"
+                android:text="@string/aspect_16_9"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="@string/resolution"
+            />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/radio_resolution"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_marginStart="10dp"
+            >
+            <Button
+                android:id="@+id/radio_resolution_highest"
+                android:text="@string/resolution_highest"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_resolution_fhd"
+                android:text="@string/resolution_fhd"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_resolution_hd"
+                android:text="@string/resolution_hd"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    </LinearLayout>
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -194,23 +301,20 @@
             <Button
                 android:id="@+id/radio_selfie_action_none"
                 android:text="@string/camera_action_none"
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
+                style="@style/SettingsRadioButton"
                 />
             <Button
                 android:id="@+id/radio_selfie_action_photo"
                 android:text="@string/camera_action_photo"
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
+                style="@style/SettingsRadioButton"
                 />
             <Button
                 android:id="@+id/radio_selfie_action_video"
                 android:text="@string/camera_action_video"
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="?attr/materialButtonOutlinedStyle"
+                style="@style/SettingsRadioButton"
                 />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -328,6 +432,50 @@
                 app:icon="@drawable/ic_plus"
                 />
         </io.github.toyota32k.viewex.library.Viewbox>
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="@string/snapshot_resolution"
+            />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/radio_snapshot_resolution"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_marginStart="10dp"
+            >
+            <Button
+                android:id="@+id/radio_snapshot_resolution_unlimited"
+                android:text="@string/resolution_highest"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_snapshot_resolution_fhd"
+                android:text="@string/resolution_fhd"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+            <Button
+                android:id="@+id/radio_snapshot_resolution_hd"
+                android:text="@string/resolution_hd"
+                android:layout_height="wrap_content"
+                style="@style/SettingsRadioButton"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
     </LinearLayout>
 
     <!-- - - - - - - - - - - - - - - - - - -->

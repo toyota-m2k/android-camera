@@ -36,6 +36,7 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
+import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.lib.camera.TcCamera
 import io.github.toyota32k.lib.camera.TcFacing
 import io.github.toyota32k.lib.camera.TcCameraManager
@@ -52,6 +53,7 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.databinding.ActivityCameraBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.ScDB
+import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.setSecureMode
@@ -88,8 +90,22 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         private var mImageCapture: TcImageCapture? = null
         val imageCapture
             get() = mImageCapture ?: cameraManager.imageCaptureBuilder(TcFacing.ofFront(frontCameraSelected.value))
-                    .zeroLag()
-                    .build().apply { mImageCapture = this }
+                .apply {
+                    if(Settings.Camera.preferQuality) {
+                        maximizeQuality()
+                    } else {
+                        zeroLag()
+                    }
+                    val aspect = Settings.Camera.aspect
+                    if (aspect != TcAspect.Default) {
+                        preferAspectRatio(aspect)
+                    }
+                    val resolution = Settings.Camera.resolution
+                    if (resolution != SettingDialog.SettingViewModel.Resolution.HIGH) {
+                        resolution(if(aspect == TcAspect.Ratio4_3) resolution.narrow else resolution.wide)
+                    }
+                }
+                .build().apply { mImageCapture = this }
 
         // val videoCapture by lazy { TcVideoCapture.Builder().useFixedPoolExecutor().build() }
 
@@ -100,9 +116,19 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         private var mVideoCapture: TcVideoCapture? = null
         val videoCapture: TcVideoCapture
             get() = mVideoCapture ?: cameraManager.videoCaptureBuilder(TcFacing.ofFront(frontCameraSelected.value))
-                    .useFixedPoolExecutor()
-                    .recordingStateFlow(recordingState)
-                    .build().apply { mVideoCapture = this }
+                .useFixedPoolExecutor()
+                .recordingStateFlow(recordingState)
+                .apply {
+                    val aspect = Settings.Camera.aspect
+                    if (Settings.Camera.aspect!=TcAspect.Default) {
+                        preferAspectRatio(aspect)
+                    }
+                    val resolution = Settings.Camera.resolution
+                    if (resolution!=SettingDialog.SettingViewModel.Resolution.HIGH) {
+                        limitResolution(resolution.video)
+                    }
+                }
+                .build().apply { mVideoCapture = this }
 
         /**
          * VideoCaptureの再作成を予約。

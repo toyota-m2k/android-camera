@@ -22,6 +22,9 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.application
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.lib.camera.TcAspect
+import io.github.toyota32k.lib.camera.TcImageResolution
+import io.github.toyota32k.lib.camera.TcVideoResolution
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
@@ -54,29 +57,14 @@ class SettingDialog : UtDialogEx() {
             fun clipNumberOfIncorrectPassword(v:Int):Int {
                 return min(maxNumberOfIncorrectPassword,max(minNumberOfIncorrectPassword, v))
             }
-
-//            fun createBy(taskName:String, application: Application): SettingViewModel {
-//                return logger.chronos { UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel(application) ?: throw IllegalStateException("no task") }
-//            }
-//            fun instanceFor(dlg: SettingDialog): SettingViewModel {
-//                return logger.chronos { ViewModelProvider(dlg.immortalTaskContext, ViewModelProvider.NewInstanceFactory())[SettingViewModel::class.java] }
-//            }
         }
+
         enum class CameraTapAction(val value:Int, @param:IdRes val selfieId:Int) {
             NONE(Settings.Camera.TAP_NONE, R.id.radio_selfie_action_none),
             VIDEO(Settings.Camera.TAP_VIDEO, R.id.radio_selfie_action_video),
             PHOTO(Settings.Camera.TAP_PHOTO, R.id.radio_selfie_action_photo)
             ;
-//            object TapActionResolver : IIDValueResolver<Int> {
-//                override fun id2value(id: Int): Int? {
-//                    return enumValues<CameraTapAction>().find { it.id==id }?.value
-//                }
-//
-//                override fun value2id(v: Int): Int {
-//                    return enumValues<CameraTapAction>().find { it.value==v }?.id ?: NONE.id
-//                }
-//            }
-            object SelfieActionResolver : IIDValueResolver<Int> {
+            object Resolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
                     return enumValues<CameraTapAction>().find { it.selfieId==id }?.value
                 }
@@ -86,6 +74,56 @@ class SettingDialog : UtDialogEx() {
                 }
             }
         }
+
+        enum class CameraAspect(val aspect:TcAspect, @param:IdRes val btnId:Int) {
+            DEFAULT(TcAspect.Default, R.id.radio_aspect_default),
+            ASPECT_4_3(TcAspect.Ratio4_3, R.id.radio_aspect_4_3),
+            ASPECT_16_9(TcAspect.Ratio16_9, R.id.radio_aspect_16_9)
+            ;
+            val value: Int get() = aspect.ratio
+
+            object Resolver : IIDValueResolver<Int> {
+                override fun id2value(id: Int): Int? {
+                    return enumValues<CameraAspect>().find { it.btnId==id }?.value
+                }
+                override fun value2id(v: Int): Int {
+                    return enumValues<CameraAspect>().find { it.value == v }?.btnId ?: DEFAULT.btnId
+                }
+            }
+            companion object {
+            }
+        }
+        enum class Resolution(val value:Int, @param:IdRes val cameraResolutionButtonId:Int, @param:IdRes val snapshotResolutionButtonId:Int, val wide:TcImageResolution, val narrow:TcImageResolution, val video:TcVideoResolution) {
+            HIGH(0, R.id.radio_resolution_highest, R.id.radio_snapshot_resolution_unlimited, TcImageResolution.HIGHEST, TcImageResolution.HIGHEST, TcVideoResolution.HIGHEST),
+            MIDDLE(1, R.id.radio_resolution_fhd, R.id.radio_snapshot_resolution_fhd, TcImageResolution.FHD, TcImageResolution.UXGA, TcVideoResolution.FHD),
+            LOW(2, R.id.radio_resolution_hd, R.id.radio_snapshot_resolution_hd, TcImageResolution.HD, TcImageResolution.XGA, TcVideoResolution.HD),
+            ;
+
+            object CameraResolutionResolver : IIDValueResolver<Int> {
+                override fun id2value(id: Int): Int? {
+                    return enumValues<Resolution>().find { it.cameraResolutionButtonId==id }?.value
+                }
+                override fun value2id(v: Int): Int {
+                    return enumValues<Resolution>().find { it.value == v }?.cameraResolutionButtonId ?: HIGH.cameraResolutionButtonId
+                }
+            }
+
+            object SnapshotResolutionResolver : IIDValueResolver<Int> {
+                override fun id2value(id: Int): Int? {
+                    return enumValues<Resolution>().find { it.snapshotResolutionButtonId==id }?.value
+                }
+                override fun value2id(v: Int): Int {
+                    return enumValues<Resolution>().find { it.value == v }?.snapshotResolutionButtonId ?: HIGH.snapshotResolutionButtonId
+                }
+            }
+
+            companion object {
+                fun fromValue(v:Int):Resolution {
+                    return enumValues<Resolution>().find { it.value==v } ?: HIGH
+                }
+            }
+        }
+
 
         // span (ms) --> log(span)
         private fun spanToLogSpan(span:Float):Float {
@@ -109,6 +147,10 @@ class SettingDialog : UtDialogEx() {
 //        val cameraTapAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.tapAction)
         val selfieAction: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.selfieAction)
         val preferHDR: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.preferHDR)
+        val preferQuality: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.preferQuality)
+        val cameraAspect: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.aspect.ratio)
+        val cameraResolution: MutableStateFlow<Int> = MutableStateFlow(Settings.Camera.resolution.value)
+        val snapshotResolution: MutableStateFlow<Int> = MutableStateFlow(Settings.Player.snapshotResolution.value)
         val cameraHidePanelOnStart: MutableStateFlow<Boolean> = MutableStateFlow(Settings.Camera.hidePanelOnStart)
         val playerSpanOfSkipForward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipForward.toFloat()))
         val playerSpanOfSkipBackward: MutableStateFlow<Float> = MutableStateFlow(spanToLogSpan(Settings.Player.spanOfSkipBackward.toFloat()))
@@ -193,8 +235,12 @@ class SettingDialog : UtDialogEx() {
                 Settings.Camera.selfieAction = selfieAction.value
                 Settings.Camera.preferHDR = preferHDR.value
                 Settings.Camera.hidePanelOnStart = cameraHidePanelOnStart.value
+                Settings.Camera.preferQuality = preferQuality.value
+                Settings.Camera.aspect = TcAspect.fromRatio(cameraAspect.value)
+                Settings.Camera.resolution = Resolution.fromValue(cameraResolution.value)
                 Settings.Player.spanOfSkipForward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipForward.value))
                 Settings.Player.spanOfSkipBackward = roundSpanInMSec(logSpanToSpan(playerSpanOfSkipBackward.value))
+                Settings.Player.snapshotResolution = Resolution.fromValue(snapshotResolution.value)
                 Settings.Security.enablePassword = securityEnablePassword.value
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
@@ -211,15 +257,17 @@ class SettingDialog : UtDialogEx() {
 //            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
             selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
             preferHDR.value = Settings.Camera.DEF_PREFER_HDR
+            preferQuality.value = Settings.Camera.DEF_PREFER_QUALITY
+            cameraAspect.value = TcAspect.Default.ratio
+            cameraResolution.value = Settings.Camera.DEF_RESOLUTION
+            snapshotResolution.value = Settings.Player.DEF_RESOLUTION
             cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
             playerSpanOfSkipForward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat())
             playerSpanOfSkipBackward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat())
             securityEnablePassword.value = Settings.Security.DEF_ENABLE_PASSWORD
             securityPassword.value = Settings.Security.DEF_PASSWORD
-            securityClearAllOnPasswordError.value =
-                Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
-            securityNumberOfIncorrectPassword.value =
-                Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+            securityClearAllOnPasswordError.value = Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
+            securityNumberOfIncorrectPassword.value = Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
         }
     }
 
@@ -256,6 +304,7 @@ class SettingDialog : UtDialogEx() {
                     .checkBinding(controls.enablePasswordCheck, viewModel.securityEnablePassword)
                     .checkBinding(controls.blockPasswordErrorCheck, viewModel.securityClearAllOnPasswordError)
                     .checkBinding(controls.hidePanelOnCameraCheck, viewModel.cameraHidePanelOnStart)
+                    .checkBinding(controls.checkPreferQuality, viewModel.preferQuality)
                     .sliderBinding(controls.sliderSkipForward, viewModel.playerSpanOfSkipForward)
                     .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
@@ -275,9 +324,12 @@ class SettingDialog : UtDialogEx() {
 //                    .materialRadioButtonGroupBinding(controls.radioCameraAction, viewModel.cameraTapAction,
 //                        SettingViewModel.CameraTapAction.TapActionResolver
 //                    )
-                    .materialRadioButtonGroupBinding(controls.radioSelfieAction, viewModel.selfieAction,
-                        SettingViewModel.CameraTapAction.SelfieActionResolver
-                    )
+                    .materialRadioButtonGroupBinding(controls.radioSelfieAction, viewModel.selfieAction,SettingViewModel.CameraTapAction.Resolver)
+                    .materialRadioButtonGroupBinding(controls.radioAspect, viewModel.cameraAspect, SettingViewModel.CameraAspect.Resolver)
+                    .materialRadioButtonGroupBinding(controls.radioResolution, viewModel.cameraResolution, SettingViewModel.Resolution.CameraResolutionResolver)
+                    .materialRadioButtonGroupBinding(controls.radioSnapshotResolution, viewModel.snapshotResolution, SettingViewModel.Resolution.SnapshotResolutionResolver)
+                    .textBinding(controls.radioResolutionFhd, viewModel.cameraAspect.map { getString(if(it!=TcAspect.Ratio4_3.ratio) R.string.resolution_fhd else R.string.resolution_uxga) })
+                    .textBinding(controls.radioResolutionHd, viewModel.cameraAspect.map { getString(if(it!=TcAspect.Ratio4_3.ratio) R.string.resolution_hd else R.string.resolution_xga) })
                     .checkBinding(controls.enableHdrCheck, viewModel.preferHDR)
 
                     .observe(viewModel.securityEnablePassword) {
