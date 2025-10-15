@@ -12,6 +12,12 @@
         android:orientation="vertical"
         >
         <androidx.appcompat.widget.AppCompatRadioButton
+            android:id="@+id/radio_highest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/highest_quality"
+            />
+        <androidx.appcompat.widget.AppCompatRadioButton
             android:id="@+id/radio_high"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

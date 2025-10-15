@@ -35,7 +35,8 @@ import kotlinx.coroutines.flow.map
 import java.io.File
 
 class SelectQualityDialog : UtDialogEx() {
-    enum class VideoQuality(@param:IdRes val id: Int, @param:StringRes val strId:Int, val strategy: IVideoStrategy) {
+    enum class VideoQuality(@param:IdRes val id: Int, @param:StringRes val strId:Int, val strategy: IVideoStrategy?) {
+        Highest(R.id.radio_highest, R.string.highest_quality, null),
         High(R.id.radio_high, R.string.high_quality, PresetVideoStrategies.HEVC1080LowProfile),
         Middle(R.id.radio_middle, R.string.middle_quality,PresetVideoStrategies.HEVC720Profile),
         Low(R.id.radio_low, R.string.low_quality,PresetVideoStrategies.HEVC720LowProfile);
@@ -50,8 +51,8 @@ class SelectQualityDialog : UtDialogEx() {
             override fun value2id(v: VideoQuality): Int = v.id
         }
 
-        fun estimateSize(duration:Long):Long {
-            return (strategy.bitRate.max + PresetAudioStrategies.AACDefault.bitRatePerChannel.max) * duration / 8000  // bytes
+        fun estimateSize(duration:Long):Long? {
+            return if (strategy!=null ) (strategy.bitRate.max + PresetAudioStrategies.AACDefault.bitRatePerChannel.max) * duration / 8000 else null // bytes
         }
     }
 
@@ -119,6 +120,7 @@ class SelectQualityDialog : UtDialogEx() {
         private val trialCache = TrialCache()
 
         val estimatedSizes = mapOf<VideoQuality, MutableStateFlow<Long>>(
+            VideoQuality.Highest to MutableStateFlow(0L),
             VideoQuality.High to MutableStateFlow(0L),
             VideoQuality.Middle to MutableStateFlow(0L),
             VideoQuality.Low to MutableStateFlow(0L),
@@ -128,7 +130,7 @@ class SelectQualityDialog : UtDialogEx() {
             convertHelper = helper
             val trimmedDuration = convertHelper.trimmedDuration
             estimatedSizes.forEach { (quality, flow) ->
-                flow.value = quality.estimateSize(trimmedDuration)
+                flow.value = quality.estimateSize(trimmedDuration) ?: convertHelper.inputFile.getLength() * convertHelper.trimmedDuration / convertHelper.durationMs
             }
             durationText = TimeSpan(trimmedDuration).formatAuto()
         }
@@ -143,7 +145,7 @@ class SelectQualityDialog : UtDialogEx() {
          * 変換に成功したら変換後のファイルを返す。
          * 変換に失敗したらnullを返す。
          */
-        suspend fun tryConvert():File? {
+        private suspend fun tryConvert():File? {
             val cached = trialCache.get(quality.value, keepHdr.value)
             if (cached!=null) {
                 return cached
@@ -168,8 +170,9 @@ class SelectQualityDialog : UtDialogEx() {
         }
 
         val testCommand = LiteUnitCommand {
+            if (quality.value.strategy==null) return@LiteUnitCommand
             immortalTaskContext.launchSubTask {
-                var workFile:File? = tryConvert()
+                val workFile:File? = tryConvert()
                 if (workFile!=null) {
                     VideoPreviewDialog.show(workFile.toUri().toString(), "preview")
                 }
@@ -181,6 +184,7 @@ class SelectQualityDialog : UtDialogEx() {
     lateinit var controls: DialogSelectQualityBinding
 
     override fun preCreateBodyView() {
+        cancellable = false
         leftButtonType = ButtonType.CANCEL
         rightButtonType = ButtonType.DONE
         optionButtonType = ButtonType("Try", true)
@@ -216,10 +220,12 @@ class SelectQualityDialog : UtDialogEx() {
                 .checkBinding(controls.checkKeepHdr, viewModel.keepHdr)
                 .visibilityBinding(controls.convertHdrGroup, viewModel.sourceHdr, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                 .textBinding(controls.durationText, ConstantLiveData(viewModel.durationText))
+                .textBinding(controls.radioHighest, viewModel.estimatedSizes[VideoQuality.Highest]!!.map {"${getString(VideoQuality.Highest.strId)} ${caFormatSize(it)}"})
                 .textBinding(controls.radioHigh, viewModel.estimatedSizes[VideoQuality.High]!!.map {"${getString(VideoQuality.High.strId)}       ${caFormatSize(it)}"})
                 .textBinding(controls.radioMiddle, viewModel.estimatedSizes[VideoQuality.Middle]!!.map {"${getString(VideoQuality.Middle.strId)}       ${caFormatSize(it)}"})
                 .textBinding(controls.radioLow, viewModel.estimatedSizes[VideoQuality.Low]!!.map {"${getString(VideoQuality.Low.strId)}       ${caFormatSize(it)}"})
                 .dialogOptionButtonCommand(viewModel.testCommand)
+                .dialogOptionButtonEnable(viewModel.quality.map { it.strategy!=null})
         }
     }
 
