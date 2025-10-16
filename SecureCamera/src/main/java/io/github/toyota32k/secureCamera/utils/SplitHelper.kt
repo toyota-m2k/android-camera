@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import androidx.core.net.toUri
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
@@ -12,6 +13,7 @@ import io.github.toyota32k.media.lib.converter.IInputMediaFile
 import io.github.toyota32k.media.lib.converter.Splitter
 import io.github.toyota32k.media.lib.converter.format
 import io.github.toyota32k.media.lib.converter.toAndroidFile
+import io.github.toyota32k.secureCamera.SCApplication.Companion.logger
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
@@ -19,6 +21,7 @@ import io.github.toyota32k.utils.TimeSpan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import kotlin.coroutines.cancellation.CancellationException
 
 class SplitHelper(
@@ -64,6 +67,13 @@ class SplitHelper(
             resultLastFile = null
             val vm = createViewModel<ProgressDialog.ProgressViewModel>()
             vm.message.value = "Splitting Now..."
+
+            val af = inputFile as AndroidFile
+            val fd = ParcelFileDescriptor.open(af.path, ParcelFileDescriptor.parseMode("r"))
+            val stream = FileInputStream(fd.fileDescriptor)
+            val bytes = stream.available()
+            logger.debug("available = $bytes")
+
             val optimize = if (inputFile is AndroidFile) { FastStart.check(inputFile) == FastStart.CheckResult.AlreadyOptimized } else true
             val firstFile = File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"first")
             val lastFile = File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"last")

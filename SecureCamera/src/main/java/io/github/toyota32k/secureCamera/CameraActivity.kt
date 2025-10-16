@@ -33,6 +33,7 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.broker.UtMultiPermissionsBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
@@ -56,10 +57,12 @@ import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.secureCamera.utils.onViewSizeChanged
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.android.dp
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
+import io.github.toyota32k.utils.android.setLayoutSize
 import io.github.toyota32k.utils.gesture.Direction
 import io.github.toyota32k.utils.lifecycle.disposableObserve
 import kotlinx.coroutines.CoroutineScope
@@ -248,11 +251,12 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
 
         controls = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(controls.root)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.camera)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        setupWindowInsetsListener(controls.root, UtDialogConfig.SystemZone.SYSTEM_BARS) // cutout はあえて除けない
+//        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.camera)) { v, insets ->
+//            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+//            insets
+//        }
 
         hideActionBar()
         hideStatusBar()
@@ -295,6 +299,21 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
             .clickBinding(controls.sliderGuardView) { hideExposureSlider() }
             .multiVisibilityBinding(arrayOf(controls.exposurePanel, controls.sliderGuardView), viewModel.showExposureSlider, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .add(exposeBinder)
+            .apply {
+                val aspect = Settings.Camera.aspect
+                if (aspect != TcAspect.Default) {
+                    onViewSizeChanged(controls.root) { width, height ->
+                        val parentWidth = width // - controls.root.paddingLeft - controls.root.paddingRight
+                        val parentHeight = height //  - controls.root.paddingTop - controls.root.paddingBottom
+                        when (aspect) {
+                            TcAspect.Ratio4_3 -> adjustPreviewViewSize(parentWidth, parentHeight, 4, 3)
+                            TcAspect.Ratio16_9 -> adjustPreviewViewSize(parentWidth, parentHeight, 16, 9)
+                            else -> {}
+                        }
+                    }
+                }
+            }
+
 
 //        cameraGestureManager = CameraGestureManager.Builder()
 //            .enableFocusGesture()
@@ -341,6 +360,16 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                 val me = UtImmortalTaskManager.mortalInstanceSource.getOwner().asActivity() as? CameraActivity ?: return@launch
                 me.startCamera(TcFacing.ofFront(viewModel.frontCameraSelected.value))
             }
+        }
+    }
+
+    private fun adjustPreviewViewSize(maxWidth:Int, maxHeight:Int, longSideRatio:Int, shortSideRatio:Int) {
+        val cw = maxHeight * longSideRatio / shortSideRatio
+        val ch = maxWidth * shortSideRatio / longSideRatio
+        if (cw < maxWidth) {
+            controls.previewView.setLayoutSize(cw, maxHeight)
+        } else {
+            controls.previewView.setLayoutSize(maxWidth, ch)
         }
     }
 

@@ -21,6 +21,7 @@ import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
 import io.github.toyota32k.secureCamera.dialog.CropImageDialog.Companion.popupAspectMenu
 import io.github.toyota32k.secureCamera.utils.BitmapStore
+import io.github.toyota32k.secureCamera.utils.onViewSizeChanged
 import io.github.toyota32k.utils.Disposer
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.UtFitter
@@ -217,19 +218,10 @@ class SnapshotDialog : UtDialogEx() {
                 controls.image.setImageBitmap(it)
                 fitBitmap(it, controls.root.width, controls.root.height)
             }
-
-        var pw = 0
-        var ph = 0
-        controls.root.addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
-            val w = right - left
-            val h = bottom - top
-            val bitmap = viewModel.bitmapScaler.bitmap.value
-            if (w > 0 && h > 0 && (pw!=w || ph!=h)) {
-                pw = w
-                ph = h
+            .onViewSizeChanged(controls.root) { w, h ->
+                val bitmap = viewModel.bitmapScaler.bitmap.value
                 fitBitmap(bitmap, w, h)
             }
-        }
         return controls.root
     }
 

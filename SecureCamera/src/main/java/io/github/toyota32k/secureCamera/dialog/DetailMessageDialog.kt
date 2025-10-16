@@ -61,7 +61,7 @@ class DetailMessageDialog : UtDialogEx() {
 
     override fun preCreateBodyView() {
         gravityOption = GravityOption.CENTER
-        widthOption = WidthOption.FULL
+        widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.AUTO_SCROLL
         leftButtonType = ButtonType(getString(R.string.reject), positive=false)
         rightButtonType = ButtonType(getString(R.string.accept), positive=true)
