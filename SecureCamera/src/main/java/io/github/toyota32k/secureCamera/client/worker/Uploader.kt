@@ -8,6 +8,7 @@ import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.ProgressRequestBody
+import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -62,6 +63,9 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
                 val file = metaDb.fileOf(item)
                 if (!file.exists()) {
                     return error("file not found: ${file.absolutePath}")
+                }
+                if (!TcClient.registerOwnerToSecureArchive()) {
+                    return error("cannot register owner info.")
                 }
                 val contentType = if (item.isPhoto) "image/png" else "video/mp4"
 

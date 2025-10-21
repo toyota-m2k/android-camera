@@ -120,7 +120,7 @@ object Settings {
         var primaryAddress:String by spd.pref("")
         var secondaryAddress:String by spd.pref("")
         var myPort by spd.pref(5001)
-        var deviceName by spd.pref(Build.MODEL)
+        var deviceName by spd.pref(Build.MODEL?:"Unknown")
         val isConfigured:Boolean get() = primaryAddress.isNotEmpty()
 
         val hosts:Iterator<String> get() = iterator<String> {

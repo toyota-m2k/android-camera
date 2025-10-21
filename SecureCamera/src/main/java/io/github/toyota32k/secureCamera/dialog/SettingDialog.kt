@@ -230,6 +230,7 @@ class SettingDialog : UtDialogEx() {
         }
 
         fun save() {
+            val deviceNameChanged = Settings.SecureArchive.deviceName!=deviceName.value
             Settings.apply {
 //                Settings.Camera.tapAction = cameraTapAction.value
                 Settings.Camera.selfieAction = selfieAction.value
@@ -249,8 +250,10 @@ class SettingDialog : UtDialogEx() {
                 Settings.SecureArchive.secondaryAddress = secureArchive2ndAddress.value
                 Settings.SecureArchive.deviceName = deviceName.value
             }
-            UtImmortalTask.launchTask {
-                TcClient.registerOwnerToSecureArchive()
+            if (deviceNameChanged) {
+                UtImmortalTask.launchTask {
+                    TcClient.registerOwnerToSecureArchive()
+                }
             }
         }
         fun reset() {

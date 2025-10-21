@@ -39,7 +39,7 @@ object TcClient {
 
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
-            .put("name", Build.MODEL)
+            .put("name", Settings.SecureArchive.deviceName)
             .put("type", "SecureCamera")
             .toString()
         val request = Request.Builder()
