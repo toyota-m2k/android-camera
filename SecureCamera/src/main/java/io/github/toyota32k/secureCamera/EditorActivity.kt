@@ -3,7 +3,6 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -40,15 +39,16 @@ import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.lib.player.model.chapterAt
 import io.github.toyota32k.lib.player.model.skipChapter
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.HttpFile
-import io.github.toyota32k.media.lib.converter.HttpInputFile
-import io.github.toyota32k.media.lib.converter.IInputMediaFile
-import io.github.toyota32k.media.lib.converter.IProgress
-import io.github.toyota32k.media.lib.converter.Rotation
-import io.github.toyota32k.media.lib.converter.toAndroidFile
 import io.github.toyota32k.media.lib.format.isHDR
+import io.github.toyota32k.media.lib.io.HttpFile
+import io.github.toyota32k.media.lib.io.HttpInputFile
+import io.github.toyota32k.media.lib.io.IInputMediaFile
+import io.github.toyota32k.media.lib.io.toAndroidFile
+import io.github.toyota32k.media.lib.processor.Analyzer
+import io.github.toyota32k.media.lib.processor.contract.IProgress
 import io.github.toyota32k.media.lib.report.Summary
+import io.github.toyota32k.media.lib.types.RangeMs
+import io.github.toyota32k.media.lib.types.Rotation
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
@@ -70,6 +70,7 @@ import io.github.toyota32k.secureCamera.utils.SplitHelper
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
+import io.github.toyota32k.utils.android.RefBitmap
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.UtGestureInterpreter
@@ -199,7 +200,7 @@ class EditorActivity : UtMortalActivity() {
         val playingBeforeBlocked = MutableStateFlow(false)
         val blocking = MutableStateFlow(false)
 
-        private fun onSnapshot(pos:Long, bitmap: Bitmap) {
+        private fun onSnapshot(pos:Long, bitmap: RefBitmap) {
             val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
             if(!source.cloud.isFileInLocal) return
             CoroutineScope(Dispatchers.IO).launch {
@@ -238,8 +239,8 @@ class EditorActivity : UtMortalActivity() {
                 inputFile,
                 quality.strategy,
                 keepHdr,
-                if(playerModel.rotation.value!=0) Rotation(playerModel.rotation.value, relative = true) else Rotation.nop,
-                chapterList.enabledRanges(Range.empty).map { Converter.Factory.RangeMs(it.start, it.end) }.toTypedArray(),
+                if(playerModel.rotation.value!=0) Rotation(playerModel.rotation.value,relative = true) else Rotation.nop,
+                chapterList.enabledRanges(Range.empty).map { RangeMs(it.start, it.end) }.toTypedArray(),
                 playerModel.naturalDuration.value
             )
         }
@@ -369,7 +370,7 @@ class EditorActivity : UtMortalActivity() {
         } else {
             HttpFile(viewModel.targetUri)
         }
-        return Converter.analyze(inFile)
+        return Analyzer.analyze(inFile)
     }
     private fun showVideoProperties():Boolean {
         ReportTextDialog.show(viewModel.targetItem.name, sourceVideoProperties().toString())
@@ -468,7 +469,7 @@ class EditorActivity : UtMortalActivity() {
                 val dstLen = dstFile.length()
                 logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
                 // トリミングによるchapterListの調整
-                val adjustedEnabledRange = result.adjustedTrimmingRangeList?.list?.map { Range(it.startUs / 1000L, it.endUs / 1000L) }
+                val adjustedEnabledRange = result.actualSoughtMap?.adjustedRangeList(helper.trimmingRanges.toList())?.list?.map { Range(it.startUs / 1000L, it.endUs / 1000L) }
                 val newChapterList = if (!adjustedEnabledRange.isNullOrEmpty()) {
                     viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
                 } else {

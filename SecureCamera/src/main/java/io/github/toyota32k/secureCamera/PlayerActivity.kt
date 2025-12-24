@@ -83,6 +83,8 @@ import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtSorter
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.android.FitMode
+import io.github.toyota32k.utils.android.RefBitmap
+import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
@@ -151,9 +153,10 @@ class PlayerActivity : UtMortalActivity() {
             const val KEY_CURRENT_ITEM = "CurrentItem"
             var maskParams: MaskCoreParams? = null
 
-            suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: Bitmap):MetaData? {
+            suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: RefBitmap):MetaData? {
+                val bitmapHolder = RefBitmapHolder(snapshot)
                 val resolution = Settings.Player.snapshotResolution
-                val sourceBitmap = if (resolution!=SettingDialog.SettingViewModel.Resolution.HIGH) {
+                if (resolution!=SettingDialog.SettingViewModel.Resolution.HIGH) {
                     // 必要に応じて解像度を落とす
                     val longSide = max(snapshot.width, snapshot.height)
                     val shortSide = min(snapshot.width, snapshot.height)
@@ -172,15 +175,16 @@ class PlayerActivity : UtMortalActivity() {
                         } else {
                             Size(result.height.roundToInt(), result.width.roundToInt())
                         }
-                        snapshot.scale(size.width, size.height).apply {
-                            snapshot.recycle()
-                        }
-                    } else snapshot
-                } else snapshot
+                        bitmapHolder.set(snapshot.scale(size.width, size.height))
+                    }
+                }
+                val sourceBitmap = bitmapHolder.getOrNull() ?: return null
 
-                val bitmap = SnapshotDialog.showBitmap(sourceBitmap, maskParams = maskParams)?.let {
-                    maskParams = it.maskParams
-                    it.bitmap
+                val bitmap = sourceBitmap.use { source ->
+                    SnapshotDialog.showBitmap(source, maskParams = maskParams)?.let {
+                        maskParams = it.maskParams
+                        it.bitmap
+                    }
                 } ?: return null
                 return withContext(Dispatchers.IO) {
                     var file:File? = null
@@ -560,7 +564,7 @@ class PlayerActivity : UtMortalActivity() {
         val currentIndex:Int
             get() = playlist.currentIndex()
 
-        private fun onSnapshot(pos:Long, bitmap: Bitmap) {
+        private fun onSnapshot(pos:Long, bitmap: RefBitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
                 val newItem = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch

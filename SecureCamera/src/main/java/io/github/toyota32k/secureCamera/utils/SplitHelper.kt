@@ -2,17 +2,16 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
-import androidx.core.net.toUri
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showYesNoMessageBox
-import io.github.toyota32k.media.lib.converter.AndroidFile
-import io.github.toyota32k.media.lib.converter.FastStart
-import io.github.toyota32k.media.lib.converter.IInputMediaFile
-import io.github.toyota32k.media.lib.converter.Splitter
-import io.github.toyota32k.media.lib.converter.format
-import io.github.toyota32k.media.lib.converter.toAndroidFile
+import io.github.toyota32k.media.lib.io.AndroidFile
+import io.github.toyota32k.media.lib.io.IInputMediaFile
+import io.github.toyota32k.media.lib.io.toAndroidFile
+import io.github.toyota32k.media.lib.legacy.converter.Splitter
+import io.github.toyota32k.media.lib.processor.contract.format
+import io.github.toyota32k.media.lib.processor.optimizer.FastStart
 import io.github.toyota32k.secureCamera.SCApplication.Companion.logger
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
@@ -36,7 +35,7 @@ class SplitHelper(
     var error: Throwable? = null
         private set
 
-    private fun optimize(context: Context, src:File, dst:File, vm:ProgressDialog.ProgressViewModel):File {
+    private fun optimize(src:File, dst:File, vm:ProgressDialog.ProgressViewModel):File {
         return try {
             if (FastStart.process(src.toAndroidFile(), dst.toAndroidFile(), removeFree = true) {
                     vm.progress.value = it.percentage
@@ -78,8 +77,7 @@ class SplitHelper(
             val firstFile = File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"first")
             val lastFile = File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"last")
 
-            val splitter = Splitter.Factory()
-                .input(inputFile)
+            val splitter = Splitter.Builder()
                 .setProgressHandler {
                     vm.progress.value = it.percentage
                     vm.progressText.value = it.format()
@@ -92,9 +90,9 @@ class SplitHelper(
             launchSubTask { showDialog("SplitHelper.ProgressDialog") { ProgressDialog() } }
             withContext(Dispatchers.IO) {
                 try {
-                    val result = splitter.chop(firstFile.toAndroidFile(), lastFile.toAndroidFile(), pos)
-                    if (!result.succeeded) {
-                        throw result.error ?: IllegalStateException("unknown error")
+                    val result = splitter.chop(inputFile, firstFile.toAndroidFile(), lastFile.toAndroidFile(), pos)
+                    if (!result.all { it.succeeded }) {
+                        throw result.firstNotNullOfOrNull { it.exception } ?: IllegalStateException("unknown error")
                     }
                     if (!optimize) {
                         resultFirstFile = firstFile
@@ -102,10 +100,10 @@ class SplitHelper(
                     } else {
                         vm.message.value = "Optimizing Now..."
                         if (cancelled) throw CancellationException()
-                        resultFirstFile = optimize(context, firstFile,File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"optFirst"), vm)
+                        resultFirstFile = optimize( firstFile,File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"optFirst"), vm)
 
                         if (cancelled) throw CancellationException()
-                        resultLastFile = optimize(context, lastFile, File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"optLast"),vm)
+                        resultLastFile = optimize( lastFile, File(context.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"),"optLast"),vm)
                     }
                     if (resultFirstFile?.exists() != true || resultLastFile?.exists() != true ) {
                         // 両方が揃っていなければエラー

@@ -1,30 +1,28 @@
 package io.github.toyota32k.secureCamera.utils
 
 import android.content.Context
-import androidx.core.net.toUri
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.media.lib.converter.ConvertResult
-import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.Converter.Factory.RangeMs
-import io.github.toyota32k.media.lib.converter.FastStart
-import io.github.toyota32k.media.lib.converter.IInputMediaFile
-import io.github.toyota32k.media.lib.converter.Rotation
-import io.github.toyota32k.media.lib.converter.Splitter
-import io.github.toyota32k.media.lib.converter.format
-import io.github.toyota32k.media.lib.converter.toAndroidFile
+import io.github.toyota32k.media.lib.io.IInputMediaFile
+import io.github.toyota32k.media.lib.io.toAndroidFile
+import io.github.toyota32k.media.lib.legacy.converter.Splitter
+import io.github.toyota32k.media.lib.processor.CompatConverter
+import io.github.toyota32k.media.lib.processor.contract.format
+import io.github.toyota32k.media.lib.processor.optimizer.FastStart
 import io.github.toyota32k.media.lib.report.Report
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
+import io.github.toyota32k.media.lib.types.IConvertResult
+import io.github.toyota32k.media.lib.types.RangeMs
+import io.github.toyota32k.media.lib.types.Rotation
 import io.github.toyota32k.secureCamera.EditorActivity
 import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
@@ -41,7 +39,7 @@ class ConvertHelper(
     var trimFileName: String = "trim"
     var optFileName: String = "opt"
 
-    lateinit var result: ConvertResult
+    lateinit var result: IConvertResult
         private set
     val report: Report? get() = result.report
 
@@ -78,14 +76,16 @@ class ConvertHelper(
             vm.message.value = "Trimming Now..."
             val trimFile = File(applicationContext.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), trimFileName)
             val optFile = File(applicationContext.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), optFileName)
-            val converter = Converter.Factory()
+            val converter = CompatConverter.Builder()
                 .input(inputFile)
                 .output(trimFile)
                 .audioStrategy(PresetAudioStrategies.AACDefault)
                 .videoStrategy(videoStrategy)
                 .keepHDR(keepHdr)
                 .rotate(rotation)
-                .addTrimmingRanges(*(ranges?:trimmingRanges))
+                .trimming {
+                    addRangesMs((ranges ?: trimmingRanges).toList())
+                }
                 .limitDuration(limitDuration)
                 .setProgressHandler {
                     vm.progress.value = it.percentage
@@ -127,8 +127,8 @@ class ConvertHelper(
             vm.message.value = "Trimming Now..."
             val trimFile = File(applicationContext.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), trimFileName)
             val optFile = File(applicationContext.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), optFileName)
-            val splitter = Splitter.Factory()
-                .input(inputFile)
+            val splitter = Splitter.Builder()
+//                .input(inputFile)
                 .rotate(rotation)
                 .setProgressHandler {
                     vm.progress.value = it.percentage
@@ -140,11 +140,11 @@ class ConvertHelper(
 
             withContext(Dispatchers.IO) {
                 try {
-                    val r = splitter.trim(trimFile.toAndroidFile(), *ranges)
+                    val r = splitter.trim(inputFile, trimFile.toAndroidFile(), ranges.toList())
                     if (!r.succeeded) {
-                        throw r.error ?: IllegalStateException("unknown error")
+                        throw r.exception ?: IllegalStateException("unknown error")
                     }
-                    result = ConvertResult(succeeded=true, adjustedTrimmingRangeList = splitter.adjustedRangeList(ranges), report=null, cancelled=false, errorMessage = null, exception=null)
+                    result = r // ConvertResult(succeeded=true, adjustedTrimmingRangeList = splitter.adjustedRangeList(ranges.toList()), report=null, cancelled=false, errorMessage = null, exception=null)
                     if (!optimize) {
                         trimFile
                     } else {

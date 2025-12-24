@@ -1,6 +1,6 @@
 package io.github.toyota32k.secureCamera.client
 
-import io.github.toyota32k.media.lib.converter.IHttpStreamSource
+import io.github.toyota32k.media.lib.io.IHttpStreamSource
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request

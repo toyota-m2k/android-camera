@@ -2,9 +2,8 @@ package io.github.toyota32k.secureCamera.utils
 
 import android.media.MediaMetadataRetriever
 import android.os.ParcelFileDescriptor
-import io.github.toyota32k.media.lib.converter.AndroidFile
 import io.github.toyota32k.media.lib.format.getDuration
-import io.github.toyota32k.secureCamera.db.MetaDB
+import io.github.toyota32k.media.lib.io.AndroidFile
 import io.github.toyota32k.secureCamera.db.ScDB
 import kotlinx.coroutines.delay
 import java.io.File

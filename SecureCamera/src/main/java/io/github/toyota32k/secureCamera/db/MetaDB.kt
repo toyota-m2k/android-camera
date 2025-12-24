@@ -1,6 +1,5 @@
 package io.github.toyota32k.secureCamera.db
 
-import android.app.Activity
 import android.app.Application
 import android.content.Context
 import androidx.core.net.toUri
@@ -9,14 +8,12 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.dialog.task.getActivity
-import io.github.toyota32k.dialog.task.getOwnerAsActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.media.lib.converter.Converter
-import io.github.toyota32k.media.lib.converter.HttpInputFile
+import io.github.toyota32k.media.lib.io.HttpInputFile
+import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.ScDef
@@ -806,7 +803,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             category = ri.category
         ), slotIndex.index, chapters)
         withContext(Dispatchers.IO) {
-            val duration = Converter.analyze(HttpInputFile(context, item.serverUri)).duration
+            val duration = Analyzer.analyze(HttpInputFile(context, item.serverUri)).duration
             val newData = MetaData.modifiedEntry(item.data, duration = duration)
             db.metaDataTable().insert(newData)
             db.chapterDataTable().setForOwner(newData.id, chapters.map { ChapterData(0,newData.id, it.position, it.label, it.skip) })
