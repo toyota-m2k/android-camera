@@ -2,8 +2,6 @@ package io.github.toyota32k.secureCamera
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Size
 import android.view.View
@@ -11,7 +9,6 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.graphics.scale
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -21,19 +18,15 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.RecyclerViewBinding
+import io.github.toyota32k.binder.RecyclerViewBinding.IDeletion
 import io.github.toyota32k.binder.VisibilityBinding
-import io.github.toyota32k.binder.clickBinding
-import io.github.toyota32k.binder.combinatorialVisibilityBinding
-import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.LongClickUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.genericBinding
 import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
-import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.recyclerViewBindingEx
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogConfig
@@ -43,6 +36,9 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.camera.usecase.ITcUseCase
+import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
+import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
+import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
@@ -69,9 +65,7 @@ import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.db.ScDB
-import io.github.toyota32k.secureCamera.dialog.CropImageDialog
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
-import io.github.toyota32k.secureCamera.dialog.MaskCoreParams
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
@@ -84,6 +78,7 @@ import io.github.toyota32k.utils.UtSorter
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.RefBitmap
+import io.github.toyota32k.utils.android.RefBitmap.Companion.toRef
 import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.hideActionBar
@@ -98,13 +93,10 @@ import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -114,6 +106,7 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.time.Duration
 
 
 class PlayerActivity : UtMortalActivity() {
@@ -180,60 +173,64 @@ class PlayerActivity : UtMortalActivity() {
                 }
                 val sourceBitmap = bitmapHolder.getOrNull() ?: return null
 
-                val bitmap = sourceBitmap.use { source ->
-                    SnapshotDialog.showBitmap(source, maskParams = maskParams)?.let {
+                val ref = SnapshotDialog.showBitmap(sourceBitmap, maskParams = maskParams)?.let {
                         maskParams = it.maskParams
                         it.bitmap
-                    }
                 } ?: return null
+
                 return withContext(Dispatchers.IO) {
-                    var file:File? = null
-                    try {
-                        val orgDate = item.date
-                        val date = Date(orgDate + pos)
-                        val filename = ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
-                        file = File(db.filesDir, filename)
-                        file.outputStream().use {
-                            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
-                            it.flush()
+                    ref.use { bitmap ->
+                        var file: File? = null
+                        try {
+                            val orgDate = item.date
+                            val date = Date(orgDate + pos)
+                            val filename =
+                                ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
+                            file = File(db.filesDir, filename)
+                            file.outputStream().use {
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                                it.flush()
+                            }
+                            db.register(filename)
+                        } catch (e: Throwable) {
+                            TpLib.logger.error(e)
+                            if (file != null) {
+                                try {
+                                    file.delete()
+                                } catch (_: Throwable) {
+                                }
+                            }
+                            null
                         }
-                        db.register(filename)
-                    } catch(e:Throwable) {
-                        TpLib.logger.error(e)
-                        if(file!=null) {
-                            try { file.delete() } catch (_:Throwable) {}
-                        }
-                        null
-                    } finally {
-                        bitmap.recycle()
                     }
                 }
             }
         }
         val metaDb = MetaDB[SlotSettings.currentSlotIndex]
 
-//        private val context: Application
-//            get() = getApplication()
         val playlist = Playlist()
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
-            .supportSnapshot(::onSnapshot)
             .supportChapter(hideChapterViewIfEmpty = true)
+            .supportSnapshot(::onSnapshot)
+            .snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
+            .supportMagnifySlider { orgModel, duration->
+                val sp = SliderPartitionDialog.show(SliderPartition.fromModel(orgModel, duration))
+                if (sp==null) orgModel else sp.toModel()
+            }
             .enableRotateRight()
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
-            .snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
+            .enablePhotoViewer(Duration.INFINITE)
+            .customPhotoLoader { source->
+                val source = source as? MediaSource ?: return@customPhotoLoader null
+                if(source.item.cloud.loadFromCloud) {
+                    TcClient.getPhoto(metaDb, source.item)?.toRef()
+                } else null
+            }
+            .supportFullscreen()
             .build()
-
-        val fullscreenCommand = LiteCommand<Boolean> {
-            playerControllerModel.setWindowMode( if(it) PlayerControllerModel.WindowMode.FULLSCREEN else PlayerControllerModel.WindowMode.NORMAL )
-        }
-
-        val rotateCommand = LiteCommand(playlist::rotateBitmap)
-        val saveBitmapCommand = LiteUnitCommand(playlist::saveBitmap)
-        val undoBitmapCommand = LiteUnitCommand(playlist::reloadBitmap)
-//        val cropBitmapCommand = LiteUnitCommand()
         val ensureVisibleCommand = LiteUnitCommand()
         val playlistSettingCommand = LiteUnitCommand {
             viewModelScope.launch {
@@ -292,8 +289,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        inner class VideoSource(val item: ItemEx) : IMediaSourceWithChapter {
-            //private val file: File = item.file
+        inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter {
             override val name:String
                 get() = item.name
             override val id: String
@@ -304,13 +300,11 @@ class PlayerActivity : UtMortalActivity() {
             override val type: String
                 get() = name.substringAfterLast(".", "")
             override var startPosition = AtomicLong()
-//            override val chapterList: IChapterList
-//                = if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
-
             override suspend fun getChapterList(): IChapterList {
                 return if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
             }
         }
+
         inner class Playlist : IMediaFeed, IUtPropOwner {
             private var sortOrder:Int = 1
             private fun updateSortOrderBySettings() {
@@ -326,26 +320,18 @@ class PlayerActivity : UtMortalActivity() {
                 val d = ta - tb
                 sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
             }
-            val photoBitmap: StateFlow<Bitmap?> = MutableStateFlow(null)
-
-            fun setCroppedBitmap(bitmap: Bitmap) {
-                photoBitmap.mutable.value = bitmap
-                photoCropped.mutable.value = true
-            }
 
             val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
             private var photoSelection:ItemEx? = null
             private var videoSelection:ItemEx? = null
-            val isVideo: StateFlow<Boolean> = currentSelection.map { it?.isVideo==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
-            val isPhoto: StateFlow<Boolean> = currentSelection.map { it?.isPhoto==true }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+            val isCurrentVideo: Boolean = currentSelection.value?.isVideo==true
+//            val isCurrentPhoto: Boolean = currentSelection.value?.isPhoto==true
+
             val listMode = MutableStateFlow(ListMode.ALL)
 
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
-
-            val photoRotation : StateFlow<Int> = MutableStateFlow(0)
-            val photoCropped : StateFlow<Boolean> = MutableStateFlow(false)
 
             private var dateRange = DateRange()
             private fun List<ItemEx>.filterByDateRange():List<ItemEx> {
@@ -358,32 +344,10 @@ class PlayerActivity : UtMortalActivity() {
                 refreshList()
             }
 
-
             init {
                 updateSortOrderBySettings()
                 listMode.onEach(::setListMode).launchIn(viewModelScope)
             }
-
-            private fun resetPhoto(bitmap: Bitmap?=null) {
-                photoRotation.mutable.value = 0
-                photoBitmap.mutable.value = bitmap
-                photoCropped.mutable.value = false
-            }
-            private fun loadPhotoFromItem(item:ItemEx?) {
-                if(item==null) {
-                    resetPhoto()
-                    return
-                }
-                if(item.cloud.loadFromCloud) {
-                    resetPhoto()
-                    viewModelScope.launch {
-                        photoBitmap.mutable.value = TcClient.getPhoto(metaDb, item)
-                    }
-                } else {
-                    resetPhoto(BitmapFactory.decodeFile(metaDb.fileOf(item).path))
-                }
-            }
-
 
             fun select(requestItem:ItemEx?, force:Boolean=true) {
                 if(!force && requestItem == currentSelection.value) return
@@ -392,14 +356,12 @@ class PlayerActivity : UtMortalActivity() {
                     hasPrevious.value = false
                     currentSource.value = null
                     currentSelection.mutable.value = null
-                    resetPhoto()
                     return
                 }
 
                 if(requestItem==null) {
                     currentSource.value = null
                     currentSelection.mutable.value = null
-                    resetPhoto()
                     return
                 }
 
@@ -414,22 +376,19 @@ class PlayerActivity : UtMortalActivity() {
                 currentSelection.mutable.value = item
                 if(item.isVideo) {
                     videoSelection = item
-                    resetPhoto()
                     playerControllerModel.playerModel.rotate(Rotation.NONE)
                     if(item.cloud.loadFromCloud) {
                         currentSource.value = null
                         viewModelScope.launch {
                             if(Authentication.authenticateAndMessage()) {
-                                currentSource.value = VideoSource(item)
+                                currentSource.value = MediaSource(item)
                             }
                         }
                     } else {
-                        currentSource.value = VideoSource(item)
+                        currentSource.value = MediaSource(item)
                     }
                 } else {
-                    photoSelection = item
-                    currentSource.value = null
-                    loadPhotoFromItem(item)
+                    currentSource.value = MediaSource(item)
                 }
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
@@ -483,9 +442,8 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             private fun setFileList(list:Collection<ItemEx>, newMode:ListMode) {
-                val current = currentSource.value as VideoSource?
+                val current = currentSource.value as MediaSource?
                 sorter.replace(list)
-//                listMode.value = newMode
                 when(newMode) {
                     ListMode.ALL->  select(current?.item)
                     ListMode.VIDEO -> select(videoSelection)
@@ -519,33 +477,18 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
 
-            fun rotateBitmap(rotation: Rotation) {
-                playlist.photoBitmap.mutable.value = playlist.photoBitmap.value?.run {
-                    if(rotation!=Rotation.NONE) {
-                        photoRotation.mutable.value = Rotation.normalize(photoRotation.mutable.value + rotation.degree)
-                        Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(rotation.degree.toFloat()) }, true)
-                    } else this
-                } ?: return
-            }
-
-            fun saveBitmap() {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val item = currentSelection.value ?: return@launch
-                    val bitmap = photoBitmap.value ?: return@launch
-                    val file = metaDb.fileOf(item)
-                    file.outputStream().use {
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
-                        it.flush()
+            fun updateCurrentPhoto(photoBitmap: RefBitmap) {
+                photoBitmap.use { bitmap ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val item = currentSelection.value ?: return@launch
+                        val file = metaDb.fileOf(item)
+                        file.outputStream().use {
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                            it.flush()
+                        }
+                        metaDb.updateFile(item, null)
                     }
-                    photoRotation.mutable.value = 0
-                    photoCropped.mutable.value = false
-                    metaDb.updateFile(item,null)
                 }
-            }
-
-            // 回転/トリミングを無効化して元に戻す
-            fun reloadBitmap() {
-                loadPhotoFromItem(currentSelection.value)
             }
         }
 
@@ -605,7 +548,8 @@ class PlayerActivity : UtMortalActivity() {
 
     // Manipulation Handling
     private val gestureInterpreter: UtGestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
-    private val manipulator: ManipulationTarget by lazy { ManipulationTarget() }
+    private val manipulationTarget by lazy { ManipulationTargetImpl(controls.mediaPlayerView.manipulationTarget) }
+    private val manipulationAgent by lazy { UtManipulationAgent(manipulationTarget) }
 
     private val compatBackKeyDispatcher = CompatBackKeyDispatcher()
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -613,10 +557,6 @@ class PlayerActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
-
-//        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
-//        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -638,48 +578,24 @@ class PlayerActivity : UtMortalActivity() {
         fun icCloud() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
         fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
-        var prevBitmap:Bitmap? = null
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).orientation))
         binder.owner(this)
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
-            .visibilityBinding(controls.videoViewer, viewModel.playlist.isVideo)
-            .visibilityBinding(controls.photoViewer, viewModel.playlist.isPhoto)
-            .combinatorialVisibilityBinding(viewModel.playerControllerModel.windowMode.map { it==PlayerControllerModel.WindowMode.FULLSCREEN}) {
-                straightGone(controls.collapseButton)
-                inverseGone(controls.expandButton)
-            }
-            .visibilityBinding(controls.photoButtonPanel, viewModel.playerControllerModel.showControlPanel, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .multiVisibilityBinding(arrayOf(controls.photoSaveButton, controls.photoUndoButton), combine(viewModel.playlist.photoRotation, viewModel.playlist.photoCropped) { r,c -> r!=0 || c }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .bindCommand(viewModel.fullscreenCommand, controls.expandButton, true)
-            .bindCommand(viewModel.fullscreenCommand, controls.collapseButton, false)
-            .bindCommand(viewModel.rotateCommand, Pair(controls.imageRotateLeftButton,Rotation.LEFT), Pair(controls.imageRotateRightButton, Rotation.RIGHT)) // { onRotate(it) }
-            .bindCommand(viewModel.saveBitmapCommand, controls.photoSaveButton)
-            .bindCommand(viewModel.undoBitmapCommand, controls.photoUndoButton)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
-            .genericBinding(controls.imageView,viewModel.playlist.photoBitmap) { view, bitmap->
-                view.setImageBitmap(bitmap)
-                if (prevBitmap != bitmap) {
-                    prevBitmap?.recycle()
-                    prevBitmap = bitmap
-                }
-            }
             .headlessBinding(viewModel.playlist.currentSelection) {
-                manipulator.agent.resetScrollAndScale()
+                manipulationAgent.resetScrollAndScale()
             }
             .headlessBinding(viewModel.playerControllerModel.playerModel.rotation) {
-                manipulator.agent.resetScroll()
-            }
-            .headlessBinding(viewModel.playlist.photoRotation) {
-                manipulator.agent.resetScroll()
+                manipulationAgent.resetScroll()
             }
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
             .recyclerViewBindingEx<ItemEx,ListItemBinding>(controls.listView) {
                 list(viewModel.playlist.collection)
-                gestureParams(viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,::onDeletingItem)})
+                gestureParams(viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,itemDeletionHandler)})
                 inflate { ListItemBinding.inflate(layoutInflater, it, false) }
                 bindView { ctrls, itemBinder, views, item->
                     val isVideo = item.isVideo
@@ -737,15 +653,19 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
 
-        controls.videoViewer.bindViewModel(viewModel.playerControllerModel, binder)
+        controls.mediaPlayerView.bindViewModel(viewModel.playerControllerModel, binder)
 
         gestureInterpreter.setup(this, controls.viewerArea) {
-            onScroll(manipulator::onScroll)
-            onScale(manipulator::onScale)
-            onTap(manipulator::onTap)
-            onDoubleTap(manipulator::onDoubleTap)
-            onLongTap { _ -> window.setSecureMode() }
-            onFlickVertical(manipulator::onFlick)
+            onScroll(manipulationAgent::onScroll)
+            onScale(manipulationAgent::onScale)
+            onTap { viewModel.playerControllerModel.playerModel.togglePlay() }
+            onDoubleTap { manipulationAgent.resetScrollAndScale() }
+            onLongTap { window.setSecureMode() }
+            onFlickVertical { event->
+                if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
+                    viewModel.playerControllerModel.showControlPanel.value = event.direction == Direction.Start
+                }
+            }
         }
 
         window.addFlags(
@@ -766,121 +686,6 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
     }
-
-    /**
-     * 前回のトリミング情報（scale/translation）を復元して、トリミングを実行する
-     */
-//    private fun applyPreviousCropParams(v: View): Boolean {
-//        viewModel.cropParams?.apply {
-//            controls.imageView.scaleX = scale
-//            controls.imageView.scaleY = scale
-//            controls.imageView.translationX = tx
-//            controls.imageView.translationY = ty
-//        } ?: return false
-//        cropBitmap(v)
-//        return true
-//    }
-
-    private fun getMaskParams(sourceWidth:Int, sourceHeight:Int): MaskCoreParams? {
-//        val bitmap = viewModel.playlist.photoBitmap.value ?: return null
-
-        val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
-        if (scale == 1f) return PlayerViewModel.maskParams
-
-        val rtx = controls.imageView.translationX
-        val rty = controls.imageView.translationY
-        if (rtx==0f && rty==0f) return PlayerViewModel.maskParams
-
-        val tx = rtx / scale
-        val ty = rty / scale
-
-        val vw = controls.imageView.width                   // imageView のサイズ
-        val vh = controls.imageView.height
-        val fitter = UtFitter(FitMode.Inside, vw, vh)
-        fitter.fit(sourceWidth, sourceHeight)
-        val iw = fitter.resultWidth                         // imageView内での bitmapの表示サイズ
-        val ih = fitter.resultHeight
-        val mx = (vw-iw)/2                                  // imageView と bitmap のマージン
-        val my = (vh-ih)/2
-
-        // scale: 画面中央をピボットとする拡大率
-        // translation：中心座標の移動距離 x scale
-        val sw = vw / scale                                 // scaleを補正した表示サイズ
-        val sh = vh / scale
-        val cx = vw/2f - tx                                 // 現在表示されている画面の中央の座標（scale前の元の座標系）
-        val cy = vh/2f - ty
-        val sx = max(cx - sw/2 - mx, 0f)              // 表示されている画像の座標（表示画像内の座標系）
-        val sy = max(cy - sh/2 - my, 0f)
-        val ex = min(cx + sw/2 - mx, iw)
-        val ey = min(cy + sh/2 - my, ih)
-
-        val bs = sourceWidth.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
-        val x = sx * bs
-        val y = sy * bs
-        val w = (ex - sx) * bs
-        val h = (ey - sy) * bs
-
-        return MaskCoreParams.fromSize(sourceWidth, sourceHeight, x, y, w, h)
-    }
-
-    /**
-     * 表示中のビットマップを可視範囲でトリミングする
-     */
-    private fun cropBitmap() {
-        val bitmap = viewModel.playlist.photoBitmap.value ?: return
-        UtImmortalTask.launchTask("cropBitmap") {
-            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams(bitmap.width,bitmap.height))
-            if (cropped != null) {
-                PlayerViewModel.maskParams = cropped.maskParams
-                viewModel.playlist.setCroppedBitmap(cropped.bitmap)
-                manipulator.agent.resetScrollAndScale()
-            }
-        }
-        return
-
-        // ずいぶん苦労して実装したので、削除してしまうのが忍びないｗｗｗ
-//        val scale = controls.imageView.scaleX               // x,y 方向のscaleは同じ
-//        val rtx = controls.imageView.translationX
-//        val rty = controls.imageView.translationY
-//        if (scale ==1f && rtx==0f && rty==0f) return
-//        viewModel.cropParams = PlayerViewModel.CropParams(rtx, rty, scale)
-//        val tx = rtx / scale
-//        val ty = rty / scale
-//
-//        val bitmap = viewModel.playlist.photoBitmap.value ?: return
-//        val bw = bitmap.width                               // bitmap のサイズ
-//        val bh = bitmap.height
-//        val vw = controls.imageView.width                   // imageView のサイズ
-//        val vh = controls.imageView.height
-//        val fitter = UtFitter(FitMode.Inside, vw, vh)
-//        fitter.fit(bw, bh)
-//        val iw = fitter.resultWidth                         // imageView内での bitmapの表示サイズ
-//        val ih = fitter.resultHeight
-//        val mx = (vw-iw)/2                                  // imageView と bitmap のマージン
-//        val my = (vh-ih)/2
-//
-//        // scale: 画面中央をピボットとする拡大率
-//        // translation：中心座標の移動距離 x scale
-//        val sw = vw / scale                                 // scaleを補正した表示サイズ
-//        val sh = vh / scale
-//        val cx = vw/2f - tx                                 // 現在表示されている画面の中央の座標（scale前の元の座標系）
-//        val cy = vh/2f - ty
-//        val sx = max(cx - sw/2 - mx, 0f)              // 表示されている画像の座標（表示画像内の座標系）
-//        val sy = max(cy - sh/2 - my, 0f)
-//        val ex = min(cx + sw/2 - mx, iw)
-//        val ey = min(cy + sh/2 - my, ih)
-//
-//        val bs = bw.toFloat()/iw                            // 画像の拡大率を補正して、元画像座標系に変換
-//        val x = sx * bs
-//        val y = sy * bs
-//        val w = (ex - sx) * bs
-//        val h = (ey - sy) * bs
-//
-//        val newBitmap = Bitmap.createBitmap(bitmap, x.roundToInt(), y.roundToInt(), w.roundToInt(), h.roundToInt())
-//        viewModel.playlist.setCroppedBitmap(newBitmap)
-//        manipulator.agent.resetScrollAndScale()
-    }
-
 
     private suspend fun onDataChanged(c:DBChange) {
         when(c.type) {
@@ -909,10 +714,6 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-//    private fun sizeInKb(size: Long): String {
-//        return String.format(Locale.US, "%,d KB", size / 1000L)
-//    }
-
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
         val item = viewModel.metaDb.itemExOf(name) ?: return
         if(update) {
@@ -932,7 +733,7 @@ class PlayerActivity : UtMortalActivity() {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item2)
                     ItemDialog.ItemViewModel.NextAction.PurgeLocal -> viewModel.metaDb.purgeLocalFile(item2)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
-                        if(viewModel.playlist.isVideo.value) {
+                        if(viewModel.playlist.isCurrentVideo) {
                             viewModel.playlist.select(null,true)
                         }
                         viewModel.metaDb.restoreFromCloud(item2)
@@ -951,52 +752,27 @@ class PlayerActivity : UtMortalActivity() {
             viewModel.saveListModeAndSelection()
             viewModel.playlist.select(null)
             viewModel.playerControllerModel.playerModel.killPlayer()
-            controls.videoViewer.dissociatePlayer()
+            controls.mediaPlayerView.dissociatePlayer()
             val name = editorActivityBroker.invoke(item.name)
             (getActivity() as? PlayerActivity)?.let { _ ->
                 ensureSelectItem(item.name, name != null)
             }
         } else {
-            val bitmap = viewModel.playlist.photoBitmap.value ?: return
-            val cropped = CropImageDialog.cropBitmap(bitmap, getMaskParams(bitmap.width,bitmap.height))
-            if (cropped != null) {
+            val bitmap = viewModel.playerControllerModel.playerModel.shownBitmap.value?.takeIf { it.hasBitmap } ?: return
+            val vaParams = controls.mediaPlayerView.visibleAreaParams ?: return
+            SnapshotDialog.showBitmap(bitmap, vaParams)?.use { cropped->
+                val bmp = cropped.bitmap?.takeIf { it.hasBitmap } ?: return@use
                 PlayerViewModel.maskParams = cropped.maskParams
-                viewModel.playlist.setCroppedBitmap(cropped.bitmap)
-                manipulator.agent.resetScrollAndScale()
-                viewModel.saveBitmapCommand.invoke()
+                manipulationAgent.resetScrollAndScale()
+                viewModel.playlist.updateCurrentPhoto(bmp)
             }
         }
     }
 
-    inner class ManipulationTarget : IUtManipulationTarget {
-        val agent = UtManipulationAgent(this)
-        fun onScroll(event: UtGestureInterpreter.IScrollEvent) {
-            agent.onScroll(event)
-        }
-
-        fun onScale(event: UtGestureInterpreter.IScaleEvent) {
-            agent.onScale(event)
-        }
-        fun onTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
-            if(viewModel.playlist.isVideo.value) {
-                viewModel.playerControllerModel.playerModel.togglePlay()
-            }
-        }
-        fun onDoubleTap(@Suppress("UNUSED_PARAMETER") event: UtGestureInterpreter.IPositionalEvent) {
-            agent.resetScrollAndScale()
-        }
-
-        fun onFlick(eventIFlickEvent: UtGestureInterpreter.IFlickEvent) {
-            if(viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-                viewModel.playerControllerModel.showControlPanel.value = eventIFlickEvent.direction == Direction.Start
-            }
-        }
-
-        override val parentView: View
-            get() = controls.viewerArea
-
-        override val contentView: View
-            get() = if(viewModel.playlist.isVideo.value) controls.videoViewer.controls.player else  controls.imageView
+    /**
+     * SimpleManipulationTarget（VideoPlayerView#manipulationTarget） に、paging用のメンバー実装を追加するクラス
+     */
+    inner class ManipulationTargetImpl(val playerManipulationTarget: IUtManipulationTarget) : IUtManipulationTarget by playerManipulationTarget {
         override val overScrollX: Float
             get() = 0.3f
         override val overScrollY: Float
@@ -1021,28 +797,36 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    private fun onDeletingItem(item:ItemEx): RecyclerViewBinding.IPendingDeletion {
-        if(item == viewModel.playlist.currentSelection.value) {
-            viewModel.playlist.select(null)
+    inner class ItemDeletionHandler : RecyclerViewBinding.IDeletionHandler<ItemEx> {
+        override fun canDelete(item: ItemEx):Boolean {
+            return viewModel.allowDelete.value
         }
-        return object:RecyclerViewBinding.IPendingDeletion {
-            override val itemLabel: String get() = item.name
-            override val undoButtonLabel: String? = null  // default で ok
+        override fun delete(item: ItemEx):RecyclerViewBinding.IPendingDeletion {
+            if(item == viewModel.playlist.currentSelection.value) {
+                viewModel.playlist.select(null)
+            }
+            return object:RecyclerViewBinding.IPendingDeletion {
+                override val itemLabel: String get() = item.name
+                override val undoButtonLabel: String? = null  // default で ok
 
-            override fun commit() {
-                try {
-                    TpLib.logger.debug("deleted $item")
-                    lifecycleScope.launch { viewModel.metaDb.deleteFile(item) }
-                } catch(e:Throwable) {
-                    TpLib.logger.error(e)
+                override fun commit() {
+                    try {
+                        TpLib.logger.debug("deleted $item")
+                        lifecycleScope.launch { viewModel.metaDb.deleteFile(item) }
+                    } catch(e:Throwable) {
+                        TpLib.logger.error(e)
+                    }
+                }
+
+                override fun rollback() {
+                    viewModel.playlist.select(item)
                 }
             }
-
-            override fun rollback() {
-                viewModel.playlist.select(item)
-            }
         }
+
+
     }
+    private val itemDeletionHandler = ItemDeletionHandler()
 
     private fun onWindowModeChanged(mode:PlayerControllerModel.WindowMode) {
         logger.debug("windowMode=$mode")
@@ -1050,12 +834,10 @@ class PlayerActivity : UtMortalActivity() {
             PlayerControllerModel.WindowMode.FULLSCREEN -> {
                 controls.listPanel.visibility = View.GONE
                 viewModel.playerControllerModel.showControlPanel.value = false
-//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             }
             else-> {
                 controls.listPanel.visibility = View.VISIBLE
                 viewModel.playerControllerModel.showControlPanel.value = true
-//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
         }
     }
@@ -1072,7 +854,7 @@ class PlayerActivity : UtMortalActivity() {
         fun afterUnblocked() {
             viewModel.blockingAt.value = 0
             if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
-                controls.videoViewer.associatePlayer()
+                controls.mediaPlayerView.associatePlayer()
                 lifecycleScope.launch { viewModel.playlist.refreshList() }
             } else if(viewModel.playingBeforeBlocked.value) {
                 viewModel.playingBeforeBlocked.value = false
@@ -1093,19 +875,4 @@ class PlayerActivity : UtMortalActivity() {
         }
 
     }
-
-//    override fun onDestroy() {
-//        super.onDestroy()
-//        if(isFinishing) {
-//            metaDb.close()
-//        }
-//    }
-
-//    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-//        if(keyCode == KeyEvent.KEYCODE_BACK && viewModel.playerControllerModel.windowMode.value == PlayerControllerModel.WindowMode.FULLSCREEN) {
-//            viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
-//            return true
-//        }
-//        return super.onKeyDown(keyCode, event)
-//    }
 }

@@ -10,12 +10,12 @@ import io.github.toyota32k.media.lib.io.IInputMediaFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.legacy.converter.Splitter
 import io.github.toyota32k.media.lib.processor.CompatConverter
+import io.github.toyota32k.media.lib.processor.contract.IConvertResult
 import io.github.toyota32k.media.lib.processor.contract.format
 import io.github.toyota32k.media.lib.processor.optimizer.FastStart
 import io.github.toyota32k.media.lib.report.Report
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
-import io.github.toyota32k.media.lib.types.IConvertResult
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.media.lib.types.Rotation
 import io.github.toyota32k.secureCamera.EditorActivity

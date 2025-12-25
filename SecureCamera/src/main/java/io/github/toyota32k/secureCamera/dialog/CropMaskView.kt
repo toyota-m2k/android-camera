@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.annotation.FloatRange
 import androidx.core.graphics.drawable.toDrawable
+import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.SCApplication.Companion.logger
 import io.github.toyota32k.utils.android.dp2px
@@ -24,29 +25,29 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlin.math.roundToInt
 
-/**
- * CropMaskView の位置情報を表すデータクラス
- *
- * rsx, rsy: mask の左上の位置 (0.0～1.0)
- * rex, rey: mask の右下の位置 (0.0～1.0)
- */
-data class MaskCoreParams(
-    val rsx:Float,
-    val rsy:Float,
-    val rex:Float,
-    val rey:Float,
-) {
-    companion object {
-        fun fromSize(sourceWidth:Int, sourceHeight:Int, sx:Float, sy:Float, w:Float, h:Float):MaskCoreParams {
-            return MaskCoreParams(
-                (sx / sourceWidth.toFloat()).coerceIn(0f, 1f),
-                (sy / sourceHeight.toFloat()).coerceIn(0f, 1f),
-                ((sx+w) / sourceWidth.toFloat()).coerceIn(0f, 1f),
-                ((sy+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
-            )
-        }
-    }
-}
+///**
+// * CropMaskView の位置情報を表すデータクラス
+// *
+// * rsx, rsy: mask の左上の位置 (0.0～1.0)
+// * rex, rey: mask の右下の位置 (0.0～1.0)
+// */
+//data class MaskCoreParams(
+//    val rsx:Float,
+//    val rsy:Float,
+//    val rex:Float,
+//    val rey:Float,
+//) {
+//    companion object {
+//        fun fromSize(sourceWidth:Int, sourceHeight:Int, sx:Float, sy:Float, w:Float, h:Float):MaskCoreParams {
+//            return MaskCoreParams(
+//                (sx / sourceWidth.toFloat()).coerceIn(0f, 1f),
+//                (sy / sourceHeight.toFloat()).coerceIn(0f, 1f),
+//                ((sx+w) / sourceWidth.toFloat()).coerceIn(0f, 1f),
+//                ((sy+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
+//            )
+//        }
+//    }
+//}
 
 /**
  * CropMask 用の ViewModel
@@ -55,7 +56,7 @@ class CropMaskViewModel {
     companion object {
 //        const val MIN = 32f
         var previousAspectMode = AspectMode.FREE
-        var memorizedCoreParams:MaskCoreParams? = null
+        var memorizedCoreParams: MaskCoreParams? = null
     }
     enum class AspectMode(val label:String, val longSide:Float, val shortSide:Float) {
         FREE("Free", 0f, 0f),

@@ -19,8 +19,6 @@ import io.github.toyota32k.dialog.task.UtAndroidViewModel.Companion.createAndroi
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
-import io.github.toyota32k.lib.player.common.formatSize
-import io.github.toyota32k.media.lib.strategy.AudioStrategy
 import io.github.toyota32k.media.lib.strategy.IVideoStrategy
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
 import io.github.toyota32k.media.lib.strategy.PresetVideoStrategies

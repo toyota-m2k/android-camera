@@ -13,6 +13,7 @@ androidDialog = "LOCAL"
 androidMediaProcessor = "LOCAL"
 androidServer = "2.0.1"
 androidMediaPlayer = "LOCAL"
+androidMediaEditor = "LOCAL"
 androidUtilitiesVersion = "LOCAL"
 androidWorker = "LOCAL"
 androidViewex = "1.1.19"
@@ -41,6 +42,7 @@ android-viewex = { module = "com.github.toyota-m2k:android-viewex", version.ref 
 android-binding = { module = "com.github.toyota-m2k:android-binding", version.ref = "androidBinding" }
 android-utilities = { module = "com.github.toyota-m2k:android-utilities", version.ref = "androidUtilitiesVersion" }
 android-media-player = { module = "com.github.toyota-m2k:android-media-player", version.ref = "androidMediaPlayer" }
+android-media-editor = { module = "com.github.toyota-m2k:android-media-editor", version.ref = "androidMediaEditor" }
 android-server = { module = "com.github.toyota-m2k:android-server", version.ref = "androidServer" }
 android-media-processor = { module = "com.github.toyota-m2k:android-media-processor", version.ref = "androidMediaProcessor" }
 android-worker = { module = "com.github.toyota-m2k:android-worker", version.ref = "androidWorker" }

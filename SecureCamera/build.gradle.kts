@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.android.media.processor)
     implementation(libs.android.server)
     implementation(libs.android.media.player)
+    implementation(libs.android.media.editor)
     implementation(libs.android.worker)
 
     implementation(project(path=":libCamera"))
