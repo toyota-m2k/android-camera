@@ -16,8 +16,6 @@ import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.lib.player.model.IChapter
-import io.github.toyota32k.lib.player.model.IChapterList
-import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogDetailMessageBinding
 import kotlinx.coroutines.flow.MutableStateFlow
