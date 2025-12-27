@@ -146,13 +146,12 @@ class EditorActivity : UtMortalActivity() {
         val finishEditing = MutableStateFlow<ItemEx?>(null)
 
         fun onVideoSaved(result:ISaveResult) {
+            if (!result.succeeded) return
             CoroutineScope(Dispatchers.IO).launch {
                 val result = result as IVideoSaveResult
                 val outFile = result.outputFile as AndroidFile
-                val actualSoughtMap = result.convertResult.actualSoughtMap
-                val newChapterList = if (actualSoughtMap!=null) {
-                    editorModel.chapterEditorHandler.correctChapterList(actualSoughtMap)
-                } else null
+                val soughtMap = result.convertResult.soughtMap ?: throw IllegalStateException("no sought map")
+                val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
                 try {
                     // 確認ダイアログ
                     val srcLen = result.convertResult.report?.input?.size ?: -1
@@ -197,10 +196,8 @@ class EditorActivity : UtMortalActivity() {
                                 name to File(metaDb.filesDir, name)
                             }
                             safeOverwrite(output.path!!, file)
-                            val actualSoughtMap = r.actualSoughtMap
-                            val newChapterList = if (actualSoughtMap!=null) {
-                                editorModel.chapterEditorHandler.correctChapterList(actualSoughtMap)
-                            } else null
+                            val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")
+                            val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
 
                             if (firstItem==null) {
                                 // 先頭アイテムはリプレース
