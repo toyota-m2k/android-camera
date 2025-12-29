@@ -10,7 +10,6 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
-import androidx.annotation.FloatRange
 import androidx.core.graphics.drawable.toDrawable
 import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.logger.UtLog
@@ -25,32 +24,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlin.math.roundToInt
 
-///**
-// * CropMaskView の位置情報を表すデータクラス
-// *
-// * rsx, rsy: mask の左上の位置 (0.0～1.0)
-// * rex, rey: mask の右下の位置 (0.0～1.0)
-// */
-//data class MaskCoreParams(
-//    val rsx:Float,
-//    val rsy:Float,
-//    val rex:Float,
-//    val rey:Float,
-//) {
-//    companion object {
-//        fun fromSize(sourceWidth:Int, sourceHeight:Int, sx:Float, sy:Float, w:Float, h:Float):MaskCoreParams {
-//            return MaskCoreParams(
-//                (sx / sourceWidth.toFloat()).coerceIn(0f, 1f),
-//                (sy / sourceHeight.toFloat()).coerceIn(0f, 1f),
-//                ((sx+w) / sourceWidth.toFloat()).coerceIn(0f, 1f),
-//                ((sy+h) / sourceHeight.toFloat()).coerceIn(0f, 1f),
-//            )
-//        }
-//    }
-//}
-
 /**
  * CropMask 用の ViewModel
+ * 壁紙保存とかしないので、android-editor の機能と共通化できない。
  */
 class CropMaskViewModel {
     companion object {

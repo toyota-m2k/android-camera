@@ -18,7 +18,6 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.RecyclerViewBinding
-import io.github.toyota32k.binder.RecyclerViewBinding.IDeletion
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.LongClickUnitCommand
@@ -325,8 +324,6 @@ class PlayerActivity : UtMortalActivity() {
             private var photoSelection:ItemEx? = null
             private var videoSelection:ItemEx? = null
             val isCurrentVideo: Boolean = currentSelection.value?.isVideo==true
-//            val isCurrentPhoto: Boolean = currentSelection.value?.isPhoto==true
-
             val listMode = MutableStateFlow(ListMode.ALL)
 
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
@@ -797,7 +794,10 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    inner class ItemDeletionHandler : RecyclerViewBinding.IDeletionHandler<ItemEx> {
+    /**
+     * スワイプによるアイテム削除用i/fの実装
+     */
+    private inner class ItemDeletionHandler : RecyclerViewBinding.IDeletionHandler<ItemEx> {
         override fun canDelete(item: ItemEx):Boolean {
             return viewModel.allowDelete.value
         }
@@ -873,6 +873,5 @@ class PlayerActivity : UtMortalActivity() {
         } else {
             afterUnblocked()
         }
-
     }
 }

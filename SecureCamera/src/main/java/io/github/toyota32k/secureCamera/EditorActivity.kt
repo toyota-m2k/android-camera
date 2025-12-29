@@ -52,7 +52,6 @@ import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.media.lib.processor.contract.IProgress
 import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
-import io.github.toyota32k.media.lib.types.RangeUs.Companion.us2ms
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
@@ -116,7 +115,9 @@ class EditorActivity : UtMortalActivity() {
 
         fun safeOverwrite(srcFile: File, dstFile:File):Boolean {
             if (!dstFile.exists()) {
+                // 出力ファイルが存在しなければ、単なるリネームでok
                 srcFile.renameTo(dstFile)
+                return true
             }
             // dstをバックアップ
             val bakFile = File(application.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), "tc-backup").apply { safeDeleteFile(this) }
@@ -257,47 +258,9 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
-//        val chapterList by lazy {
-//            ChapterEditor(videoSource.chapterList as IMutableChapterList)   // videoSource.chapterList は空のリスト ... setSourceでリストは初期化される。
-//        }
-//        val commandAddChapter = LiteUnitCommand {
-//            chapterList.addChapter(playerModel.currentPosition, "", null)
-//        }
-//        val commandAddSkippingChapter = LiteUnitCommand {
-//            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
-//            val prev = neighbor.getPrevChapter(chapterList)
-//            if(neighbor.hit<0) {
-//                // 現在位置にチャプターがなければ追加する
-//                if(!chapterList.addChapter(playerModel.currentPosition, "", null)) {
-//                    return@LiteUnitCommand
-//                }
-//            }
-//            // ひとつ前のチャプターを無効化する
-//            if(prev!=null) {
-//                chapterList.skipChapter(prev, true)
-//            }
-//        }
-//        val commandRemoveChapter = LiteUnitCommand {
-//            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
-//            chapterList.removeChapterAt(neighbor.next)
-//        }
-//        val commandRemoveChapterPrev = LiteUnitCommand {
-//            val neighbor = chapterList.getNeighborChapters(playerModel.currentPosition)
-//            chapterList.removeChapterAt(neighbor.prev)
-//        }
-//        val commandToggleSkip = LiteUnitCommand {
-//            val chapter = chapterList.getChapterAround(playerModel.currentPosition) ?: return@LiteUnitCommand
-//            chapterList.skipChapter(chapter, !chapter.skip)
-//        }
-//        val commandSave = LiteUnitCommand()
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
             resetInputFile()
             playerModel.setSource(VideoSource(item))
-//            chapterList.initChapters(chapters)
-//            if(chapterList.chapterAt(0)?.position!=0L) {
-//                // 動画先頭位置が暗黙のチャプターとして登録されていることを前提に動作する。
-//                chapterList.addChapter(0, "", null)
-//            }
         }
 
         fun saveChapters() {
@@ -338,29 +301,7 @@ class EditorActivity : UtMortalActivity() {
                 }
             }
         }
-//        val inputFile:IInputMediaFile get() = resetableInputFile.value
 
-//        val commandUndo = LiteUnitCommand {
-//            chapterList.undo()
-//        }
-//        val commandRedo = LiteUnitCommand {
-//            chapterList.redo()
-//        }
-//        val commandSplit = LiteUnitCommand {
-//            if(playerModel.naturalDuration.value < SelectRangeDialog.MIN_DURATION) return@LiteUnitCommand
-//            UtImmortalTask.launchTask("split") {
-//                val current = playerControllerModel.rangePlayModel.value
-//                val params = if(current!=null) {
-//                    SplitParams.fromModel(current)
-//                } else {
-//                    SplitParams.create(playerModel.naturalDuration.value)
-//                }
-//                val result = SelectRangeDialog.show(this, params)
-//                if(result!=null) {
-//                    playerControllerModel.setRangePlayModel(result.toModel())
-//                }
-//            }
-//        }
         val playingBeforeBlocked = MutableStateFlow(false)
         val blocking = MutableStateFlow(false)
 
@@ -398,17 +339,6 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
-//        fun createConvertHelper(quality:SelectQualityDialog.VideoQuality=SelectQualityDialog.VideoQuality.High, keepHdr:Boolean=false): ConvertHelper {
-//            return ConvertHelper(
-//                inputFile,
-//                quality.strategy,
-//                keepHdr,
-//                if(playerModel.rotation.value!=0) Rotation(playerModel.rotation.value,relative = true) else Rotation.nop,
-//                chapterList.enabledRanges(Range.empty).map { RangeMs(it.start, it.end) }.toTypedArray(),
-//                playerModel.naturalDuration.value
-//            )
-//        }
-
         companion object {
             val logger = UtLog("VM", EditorActivity.logger)
         }
@@ -421,9 +351,6 @@ class EditorActivity : UtMortalActivity() {
 
     // Scale/Scroll
     private lateinit var gestureManager: UtScaleGestureManager
-//
-//    private val gestureInterpreter = UtGestureInterpreter(SCApplication.instance, enableScaleEvent = true)
-//    private val manipulationAgent by lazy { UtManipulationAgent(UtSimpleManipulationTarget(controls.videoViewer,controls.videoViewer.controls.player)) }
     private val compatBackKeyDispatcher = CompatBackKeyDispatcher()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -431,10 +358,6 @@ class EditorActivity : UtMortalActivity() {
         Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-//        setTheme(R.style.Theme_TryCamera_M3_DynamicColor_NoActionBar)
-//        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
-//        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
         controls = ActivityEditorBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -458,13 +381,6 @@ class EditorActivity : UtMortalActivity() {
 
             binder
                 .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//                .visibilityBinding(controls.saveVideo, ConstantLiveData(viewModel.targetItem.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-//                .longClickBinding(controls.saveVideo) { showVideoProperties() }
-//                .clickBinding(controls.chop) { chopAt(viewModel.playerModel.currentPosition) }
-//                .enableBinding(controls.splitMode, viewModel.playerModel.naturalDuration.map { it>SelectRangeDialog.MIN_DURATION })
-//                .bindCommand(viewModel.commandUndo, controls.undo)
-//                .bindCommand(viewModel.commandRedo, controls.redo)
-//                .bindCommand(viewModel.commandSplit, controls.splitMode)
                 .observe(viewModel.editorModel.cropHandler.croppingNow) {
                     if (it) {
                         gestureManager.agent.resetScrollAndScale()
@@ -554,124 +470,6 @@ class EditorActivity : UtMortalActivity() {
         return true
     }
 
-//    private fun selectQualityAndSave():Boolean {
-//        logger.debug()
-//        viewModel.playerControllerModel.commandPause.invoke()
-//        lifecycleScope.launch {
-//            val sourceHdr = sourceVideoProperties().videoSummary?.profile?.isHDR() == true
-//            val helper = viewModel.createConvertHelper()
-//            val pos = viewModel.playerModel.currentPosition
-//            val result = SelectQualityDialog.show(sourceHdr, helper, pos ) ?: return@launch
-//            withContext(Dispatchers.IO) {
-//                trimmingAndSave(result.quality, sourceHdr && result.keepHdr)
-//            }
-//        }
-//        return true
-//    }
-
-//    private fun chopAt(pos:Long) {
-//        viewModel.playerControllerModel.playerModel.pause()
-//        val duration = viewModel.playerModel.naturalDuration.value
-//        val targetItem = viewModel.targetItem
-//        val helper = SplitHelper(viewModel.inputFile)
-//        UtImmortalTask.launchTask {
-//            // トリミング開始前に編集内容を一旦セーブ // ..トリミング中に強制終了したとき（主にデバッグ中）に編集内容が消えてしまうのを回避
-//            withContext(Dispatchers.IO) {
-//                saveChapters()
-//            }
-//
-//            val result = helper.chop(this@EditorActivity, pos)
-//            if (result!=null) {
-//                // 分割成功
-//                // chapter list を分割
-//                val chapters = viewModel.chapterList.chapters
-//                val firstChapterList = MutableChapterList()
-//                val lastChapterList = MutableChapterList()
-//                var lastOfFirst: IChapter? = null
-//                for(c in chapters) {
-//                    if (c.position < 0 || duration < c.position) continue   // invalid position
-//                    if (c.position <= result.actualSplitPosMs) {
-//                        firstChapterList.addChapter(c.position, c.label, c.skip)
-//                        lastOfFirst = c
-//                    } else {
-//                        val corrPos = c.position - result.actualSplitPosMs
-//                        if (lastOfFirst!=null && corrPos!=0L) {
-//                            lastChapterList.addChapter(0, lastOfFirst.label, lastOfFirst.skip)
-//                        }
-//                        lastChapterList.addChapter(corrPos, c.label, c.skip)
-//                    }
-//                }
-//
-//                // 後半ファイルを追加
-//                val date = targetItem.creationDate + pos
-//                val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
-//                val file = File(viewModel.metaDb.filesDir, name)
-//                safeDeleteFile(file)
-//                result.lastFile.renameTo(file)
-//                val newItem = viewModel.metaDb.register(name)!!
-//                viewModel.metaDb.setChaptersFor(newItem, lastChapterList.chapters)
-//
-//                // 前半ファイルで、ターゲットをリプレース
-//                safeDeleteFile(viewModel.metaDb.fileOf(targetItem))
-//                result.firstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
-//                val replacedItem = viewModel.metaDb.updateFile(targetItem, firstChapterList.chapters)
-//
-//                // 編集画面を終了してプレーヤー画面に戻る
-//                setResultAndFinish(true, replacedItem)
-//            } else {
-//                if (!helper.cancelled) {
-//                    showConfirmMessageBox("Split File","Error: ${helper.error?.message ?: "unknown"}")
-//                }
-//            }
-//        }
-//    }
-//
-//    private fun trimmingAndSave(reqQuality: SelectQualityDialog.VideoQuality?=null, keepHdr:Boolean) {
-//        val quality = reqQuality ?: SelectQualityDialog.VideoQuality.High
-//        val targetItem = viewModel.targetItem
-//        val srcFile = viewModel.inputFile
-//
-//        UtImmortalTask.launchTask("trimming") {
-//            // トリミング開始前に編集内容を一旦セーブ
-//            // ..トリミング中に強制終了したとき（主にデバッグ中）に編集内容が消えてしまうのを回避
-//            withContext(Dispatchers.IO) {
-//                saveChapters()
-//            }
-//            val helper = viewModel.createConvertHelper(quality, keepHdr)
-//            val dstFile = helper.convertAndOptimize(applicationContext)
-//            if (dstFile != null) {
-//                val result = helper.result
-//                val report = helper.report
-//                val srcLen = srcFile.getLength().let { if(it<0) targetItem.size else it }
-//                val dstLen = dstFile.length()
-//                logger.debug("${stringInKb(srcLen)} --> ${stringInKb(dstLen)}")
-//                // トリミングによるchapterListの調整
-//                val adjustedEnabledRange = result.actualSoughtMap?.adjustedRangeList(helper.trimmingRanges.toList())?.list?.map { Range(it.startUs / 1000L, it.endUs / 1000L) }
-//                val newChapterList = if (!adjustedEnabledRange.isNullOrEmpty()) {
-//                    viewModel.chapterList.adjustWithEnabledRanges(adjustedEnabledRange)
-//                } else {
-//                    null
-//                }
-//                // 確認ダイアログ
-//                if (DetailMessageDialog.showMessage("Completed.", "${stringInKb(srcLen)} → ${stringInKb(dstLen)}", report?.toString() ?: "no information", dstFile, newChapterList)) {
-//                    // OKなら上書き保存＆DB更新
-//                    withContext(Dispatchers.Main) { viewModel.playerModel.reset() }
-//                    val testOnly = false     // false: 通常の動作（元のファイルに上書き） / true: テストファイルに出力して、元のファイルは変更しない
-//                    if (testOnly) {
-//                        viewModel.metaDb.withTestFile { testFile ->
-//                            dstFile.renameTo(testFile)
-//                        }
-//                    } else {
-//                        safeDeleteFile(viewModel.metaDb.fileOf(targetItem))
-//                        dstFile.renameTo(viewModel.metaDb.fileOf(targetItem))
-//                        viewModel.metaDb.updateFile(targetItem, newChapterList)
-//                    }
-//                    setResultAndFinish(true, targetItem)
-//                }
-//            }
-//        }
-//    }
-
     override fun onPause() {
         logger.debug()
         super.onPause()
@@ -706,58 +504,10 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
-//    override fun onConfigurationChanged(newConfig: Configuration) {
-//        super.onConfigurationChanged(newConfig)
-//        logger.debug("${newConfig.orientation}")
-//    }
-
     override fun onDestroy() {
         logger.debug()
         super.onDestroy()
     }
-
-//    private fun saveChapters() {
-//        val source = viewModel.playerModel.currentSource.value as? EditorViewModel.VideoSource ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
-//        if(viewModel.editorModel.chapterEditorHandler.isDirty) {
-//            val target = source.item.data
-//            val chapterList = viewModel.editorModel.chapterEditorHandler.getChapterList()
-//            val list = chapterList.chapters.run {
-//                // 先頭の不要なチャプターは削除する
-//                if (size == 1 && this[0].run {position == 0L && !skip && label.isEmpty()}) {
-//                    emptyList()
-//                } else {
-//                    this
-//                }
-//            }
-//            viewModel.editorModel.chapterEditorHandler.clearDirty()
-//            CoroutineScope(Dispatchers.IO).launch {
-//                viewModel.metaDb.setChaptersFor(target, list)
-//            }
-//        }
-//    }
-
-
-//    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-//        if(keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
-//            UtImmortalTask.launchTask {
-////                    saveChapters()
-//                setResultAndFinish(true, viewModel.targetItem)
-//            }
-//            return true
-////            if(viewModel.chapterList.isDirty) {
-////                UtImmortalSimpleTask.run {
-////                    if(showYesNoMessageBox(null, "Chapters are editing. Save changes?")) {
-////                        setResult(RESULT_OK,)
-////                        MetaDB.setChaptersFor(viewModel.videoSource.item, viewModel.chapterList.chapters)
-////                    }
-////                    setResultAndFinish(true, viewModel.targetItem)
-////                    true
-////                }
-////                return true
-////            }
-//        }
-//        return super.onKeyDown(keyCode, event)
-//    }
 
     class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
         init{

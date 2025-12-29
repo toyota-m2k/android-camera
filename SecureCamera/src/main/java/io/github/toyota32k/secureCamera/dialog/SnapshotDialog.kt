@@ -26,7 +26,6 @@ import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
 import io.github.toyota32k.secureCamera.utils.onViewSizeChanged
 import io.github.toyota32k.utils.Disposer
-import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.utils.android.FitMode
 import io.github.toyota32k.utils.android.RefBitmap
 import io.github.toyota32k.utils.android.RefBitmap.Companion.toRef
@@ -35,7 +34,6 @@ import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.setLayoutSize
 import io.github.toyota32k.utils.lifecycle.disposableObserve
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -45,27 +43,17 @@ import java.io.Closeable
 
 class SnapshotDialog : UtDialogEx() {
     class SnapshotViewModel : UtDialogViewModel() {
-//        val bitmapStore = BitmapStore()
         lateinit var bitmapScaler: RealTimeBitmapScaler
         val deflating = MutableStateFlow(false)
-
         val croppedBitmapFlow = RefBitmapFlow(null)
         var cropBitmap: RefBitmap?
             get() = croppedBitmapFlow.value
             set(v) { croppedBitmapFlow.value = v }
-
-
         val isCropped = croppedBitmapFlow.map { it != null }
-//        val targetBitmap: Flow<RefBitmap?> = combine(croppedBitmapFlow, bitmapScaler.bitmap) { c,s->
-//            if (c?.hasBitmap==true) c else s
-//        }
-//        lateinit var targetBitmap:Bitmap
-//        var recycleTargetBitmap:Boolean = false
-
         val trimmingNow = MutableStateFlow(false)
         val maskViewModel = CropMaskViewModel()
-        private val cropFlows = maskViewModel.enableCropFlow(100, 100)
 
+        private val cropFlows = maskViewModel.enableCropFlow(100, 100)
         private val croppedSize =
             combine(trimmingNow, croppedBitmapFlow, cropFlows.cropWidth, cropFlows.cropHeight) { trimmingNow, cropped, w, h ->
                 if (trimmingNow) {
@@ -118,7 +106,6 @@ class SnapshotDialog : UtDialogEx() {
         }
 
         var result: CropResult? = null
-
         class CropResult(
             bitmap: RefBitmap?,
             var maskParams: MaskCoreParams?
@@ -127,9 +114,7 @@ class SnapshotDialog : UtDialogEx() {
             override fun close() {
                 bitmap = null
             }
-
         }
-
 
         fun fix() {
             val bitmap = cropBitmap ?: bitmapScaler.bitmap.value
@@ -143,7 +128,6 @@ class SnapshotDialog : UtDialogEx() {
             super.onCleared()
             disposer.dispose()
         }
-
     }
 
     override fun preCreateBodyView() {

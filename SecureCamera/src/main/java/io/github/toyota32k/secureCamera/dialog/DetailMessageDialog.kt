@@ -15,12 +15,18 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.dialog.task.launchSubTask
+import io.github.toyota32k.lib.media.editor.dialog.VideoPreviewDialog
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogDetailMessageBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 
+/**
+ * 同じダイアログが Crop&Clip にもあるが、accept/rejectではなく、
+ * ファイルに保存した後、それをプロジェクトとして開き直すか、何もしないかの分岐用に使っている。
+ * 単純なダイアログだし、ボタン構成が違うので共通化するより、それぞれで持った方が有利と判断。
+ */
 class DetailMessageDialog : UtDialogEx() {
     class DetailMessageViewModel : UtDialogViewModel() {
         val label = MutableStateFlow("")
