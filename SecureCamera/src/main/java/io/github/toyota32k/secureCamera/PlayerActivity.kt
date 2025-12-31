@@ -412,8 +412,8 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
 
-            fun removeItem(item:ItemEx) {
-                val index = collection.indexOfFirst { it.id == item.id }
+            fun removeItem(itemId:Int) {
+                val index = collection.indexOfFirst { it.id == itemId }
                 if(index>=0) {
                     collection.removeAt(index)
                 }
@@ -695,8 +695,7 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playlist.replaceItem(item)
             }
             DBChange.Type.Delete -> {
-                val item = viewModel.metaDb.itemExAt(c.itemId) ?: return
-                viewModel.playlist.removeItem(item)
+                viewModel.playlist.removeItem(c.itemId)
             }
             DBChange.Type.Refresh -> {
                 viewModel.playlist.refreshList()
@@ -737,6 +736,14 @@ class PlayerActivity : UtMortalActivity() {
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
                         viewModel.metaDb.recoverFromCloud(item2)
+                    }
+
+                    ItemDialog.ItemViewModel.NextAction.Delete -> {
+                        // Item Dialog で確認済み
+                        if(item2 == viewModel.playlist.currentSelection.value) {
+                            viewModel.playlist.select(null)
+                        }
+                        viewModel.metaDb.deleteFile(item)
                     }
                     else -> {}
                 }

@@ -765,7 +765,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         return ItemEx(newData, slotIndex.index, chapterList?:item.chapterList)
     }
 
-    suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
+    private suspend fun updateFile(data:MetaData, chapterList: List<IChapter>?):MetaData {
         var updateAttr = false
         if(chapterList!=null) {
             setChaptersFor(data, chapterList)

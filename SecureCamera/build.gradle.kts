@@ -33,10 +33,10 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.18.0"
+        versionName = "2.19.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     buildFeatures {
         buildConfig = true
         viewBinding = true
