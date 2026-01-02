@@ -772,6 +772,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             updateAttr = true
         }
         return metaDataFromName(data, data.name, cloud = CloudStatus.Local.v, allowRetry = 10, updateAttrDate = updateAttr)!!.also { newData ->
+            logger.debug("updateFile: $data")
             withContext(Dispatchers.IO) {
                 db.metaDataTable().update(newData)
                 DBChange.update(data.id)

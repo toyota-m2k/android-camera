@@ -19,6 +19,7 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.binder.RecyclerViewBinding
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.LongClickUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
@@ -48,6 +49,8 @@ import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
+import io.github.toyota32k.lib.player.model.VisibleAreaParams
+import io.github.toyota32k.lib.player.model.VisibleAreaParams.Companion.IDENTITY
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
@@ -251,6 +254,7 @@ class PlayerActivity : UtMortalActivity() {
                 allowDelete.value = Settings.PlayListSetting.allowDelete
             }
         }
+        val editPhotoCommand = LiteCommand<RefBitmap>()
 
         val blockingAt = MutableStateFlow(System.currentTimeMillis())              // 画面ロックした時刻
         val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
@@ -507,9 +511,17 @@ class PlayerActivity : UtMortalActivity() {
         private fun onSnapshot(pos:Long, bitmap: RefBitmap) {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
-                val newItem = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
-                if (playlist.listMode.value != ListMode.VIDEO) {
-                    withContext(Dispatchers.Main) { playlist.sorter.add(ItemEx(newItem,metaDb.slotIndex.index,null)) }
+                if (source.isVideo) {
+                    val newItem = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
+                    if (playlist.listMode.value != ListMode.VIDEO) {
+                        withContext(Dispatchers.Main) {
+                            playlist.sorter.add(
+                                ItemEx(newItem,metaDb.slotIndex.index,null)
+                            )
+                        }
+                    }
+                } else {
+                    editPhotoCommand.invoke(bitmap)
                 }
             }
         }
@@ -581,6 +593,7 @@ class PlayerActivity : UtMortalActivity() {
             .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
+            .bindCommand(viewModel.editPhotoCommand, this::editPhoto)
             .headlessBinding(viewModel.playlist.currentSelection) {
                 manipulationAgent.resetScrollAndScale()
             }
@@ -751,6 +764,22 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
+    private fun editPhoto(bitmap:RefBitmap, visibleAreaParams: VisibleAreaParams?=null) {
+        UtImmortalTask.launchTask("editPhoto") {
+            bitmap.addRef()
+            try {
+                SnapshotDialog.showBitmap(bitmap, visibleAreaParams ?: controls.mediaPlayerView.visibleAreaParams)?.use { cropped ->
+                    val bmp = cropped.bitmap?.takeIf { it.hasBitmap } ?: return@use
+                    PlayerViewModel.maskParams = cropped.maskParams
+//                manipulationAgent.resetScrollAndScale()
+                    viewModel.playlist.updateCurrentPhoto(bmp)
+                }
+            } finally {
+                bitmap.release()
+            }
+        }
+    }
+
     private suspend fun UtImmortalTaskBase.editItem(item:ItemEx) {
         if (item.isVideo) {
             viewModel.saveListModeAndSelection()
@@ -763,13 +792,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         } else {
             val bitmap = viewModel.playerControllerModel.playerModel.shownBitmap.value?.takeIf { it.hasBitmap } ?: return
-            val vaParams = controls.mediaPlayerView.visibleAreaParams ?: return
-            SnapshotDialog.showBitmap(bitmap, vaParams)?.use { cropped->
-                val bmp = cropped.bitmap?.takeIf { it.hasBitmap } ?: return@use
-                PlayerViewModel.maskParams = cropped.maskParams
-                manipulationAgent.resetScrollAndScale()
-                viewModel.playlist.updateCurrentPhoto(bmp)
-            }
+            editPhoto(bitmap, PlayerViewModel.maskParams ?: IDENTITY)
         }
     }
 

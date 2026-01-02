@@ -77,6 +77,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import java.util.Locale
@@ -116,12 +117,22 @@ class EditorActivity : UtMortalActivity() {
         fun safeOverwrite(srcFile: File, dstFile:File):Boolean {
             if (!dstFile.exists()) {
                 // 出力ファイルが存在しなければ、単なるリネームでok
-                srcFile.renameTo(dstFile)
-                return true
+                return try {
+                    srcFile.renameTo(dstFile)
+                    true
+                } catch(e: Throwable) {
+                    logger.error(e, "cannot overwrite by rename")
+                    false
+                }
             }
             // dstをバックアップ
             val bakFile = File(application.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), "tc-backup").apply { safeDeleteFile(this) }
-            try { dstFile.renameTo(bakFile) } catch (e:Throwable) { return false }
+            try {
+                dstFile.renameTo(bakFile)
+            } catch (e:Throwable) {
+                logger.error(e, "cannot backup")
+                return false
+            }
             safeDeleteFile(dstFile) // すでに存在しないはずだが念のため
 
             // src を dstにリネーム
@@ -129,13 +140,14 @@ class EditorActivity : UtMortalActivity() {
                 srcFile.renameTo(dstFile)
                 return true
             } catch(e:Throwable) {
-                logger.error(e)
+                logger.error(e, "cannot rename")
                 try {
                     // リネームに失敗したらコピーも試す
                     srcFile.copyTo(dstFile)
                     return true
                 } catch (e:Throwable) {
                     // リネームもコピーも失敗したら、backup ファイルから復元する。
+                    logger.error(e, "cannot copy")
                     bakFile.renameTo(dstFile)
                     return false
                 }
@@ -146,9 +158,9 @@ class EditorActivity : UtMortalActivity() {
 
         val finishEditing = MutableStateFlow<ItemEx?>(null)
 
-        fun onVideoSaved(result:ISaveResult) {
+        suspend fun onVideoSaved(result:ISaveResult) {
             if (!result.succeeded) return
-            CoroutineScope(Dispatchers.IO).launch {
+            withContext(Dispatchers.IO) {
                 val result = result as IVideoSaveResult
                 val outFile = result.outputFile as AndroidFile
                 val soughtMap = result.convertResult.soughtMap ?: throw IllegalStateException("no sought map")
@@ -168,8 +180,14 @@ class EditorActivity : UtMortalActivity() {
                         // OKなら上書き保存＆DB更新 --> Editor終了
                         val targetFile = metaDb.fileOf(targetItem)
                         val newFile = outFile.path!!
-                        safeOverwrite(newFile, targetFile).onTrue {
+                        if (safeOverwrite(newFile, targetFile)) {
+                            // onPause で、saveChapterされないようダーティフラグをクリアしておく
+                            editorModel.chapterEditorHandler.clearDirty()
+                            // DBを更新
                             finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
+                            logger.debug("overwritten.")
+                        } else {
+                            logger.error("cannot overwrite")
                         }
                     }
                 } finally {
@@ -178,8 +196,8 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
-        fun onVideoSplit(result:IMultiSplitResult, files:MutableMap<AndroidFile,Long>) {
-            CoroutineScope(Dispatchers.IO).launch {
+        suspend fun onVideoSplit(result:IMultiSplitResult, files:MutableMap<AndroidFile,Long>) {
+            withContext(Dispatchers.IO) {
                 val count = result.results.size
                 try {
                     if (result.succeeded && UtImmortalTask.awaitTaskResult { showOkCancelMessageBox("Split File","Split into $count files.\nAre you sure to replace these files?") }) {
@@ -208,6 +226,8 @@ class EditorActivity : UtMortalActivity() {
                                 metaDb.setChaptersFor(newItem, newChapterList)
                             }
                         }
+                        // onPause で、saveChapterされないようダーティフラグをクリアしておく
+                        editorModel.chapterEditorHandler.clearDirty()
                         // 先頭itemを選択した状態でエディタを終了
                         finishEditing.value = firstItem
                     }
