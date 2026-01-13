@@ -68,7 +68,7 @@ object TcClient {
             try {
                 executeAsync(request, null).use { response ->
                     if (response.isSuccessful) {
-                        response.body?.use { body ->
+                        response.body.use { body ->
                             body.byteStream().use { inStream ->
                                 BitmapFactory.decodeStream(inStream)
                             }

@@ -42,10 +42,13 @@ import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
+import io.github.toyota32k.lib.player.model.BitmapInfo
+import io.github.toyota32k.lib.player.model.IBitmapInfo
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
+import io.github.toyota32k.lib.player.model.IPhotoLoader
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
@@ -225,12 +228,24 @@ class PlayerActivity : UtMortalActivity() {
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
             .enablePhotoViewer(Duration.INFINITE)
-            .customPhotoLoader { source->
-                val source = source as? MediaSource ?: return@customPhotoLoader null
-                if(source.item.cloud.loadFromCloud) {
-                    TcClient.getPhoto(metaDb, source.item)?.toRef()
-                } else null
-            }
+            .customPhotoLoader(object: IPhotoLoader {
+                override suspend fun loadBitmap(src: IMediaSource): IBitmapInfo? {
+                    val source = src as? MediaSource ?: return null
+                    if(source.item.cloud.loadFromCloud) {
+                        val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
+                        if (bmp==null) {
+                            return null
+                        } else {
+                            return BitmapInfo.withBitmap(bmp)
+                        }
+                    } else {
+                        // file の sha1 hash を cacheヒントとして使う場合はこちら
+//                        return BitmapInfo.useGlide(src.uri)
+                        // file のタイムスタンプをヒントとして使う場合はこちら
+                        return BitmapInfo.useGlideWithCustomHint(src.item.date)
+                    }
+                }
+            })
             .supportFullscreen()
             .build()
         val ensureVisibleCommand = LiteUnitCommand()

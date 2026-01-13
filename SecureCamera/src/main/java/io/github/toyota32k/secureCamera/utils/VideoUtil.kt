@@ -16,7 +16,7 @@ object VideoUtil {
     private fun rawOpenFileDescriptor(file:File):ParcelFileDescriptor? {
         return try {
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode("r"))
-        } catch (e: Throwable) {
+        } catch (_: Throwable) {
             null
         }
     }
@@ -67,7 +67,7 @@ object VideoUtil {
             p.use { pfd->
                 val d = rawGetDuration(pfd.fileDescriptor)
                 if(d!=null) {
-                    return d.toLong()
+                    return d
                 }
             }
             if(i>=retry) {
@@ -91,7 +91,7 @@ object VideoUtil {
                 null
             }
             if(d!=null) {
-                return d.toLong()
+                return d
             }
             if(i>=retry) {
                 return 0L

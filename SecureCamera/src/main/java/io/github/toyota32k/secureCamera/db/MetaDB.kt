@@ -161,7 +161,7 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
         fun decodeChaptersString(jsonStr:String): Sequence<IChapter> {
             try {
                 val json = JSONArray(jsonStr)
-                return sequence<IChapter> {
+                return sequence {
                     for (i in 0..<json.length()) {
                         val o = json.getJSONObject(i)
                         yield(
@@ -234,7 +234,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     fun checkPoint() {
         synchronized(this) {
-            dbInstance?.openHelper?.writableDatabase?.execSQL("PRAGMA wal_checkpoint(full);");
+            dbInstance?.openHelper?.writableDatabase?.execSQL("PRAGMA wal_checkpoint(full);")
         } ?: return
     }
 
@@ -389,6 +389,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     }
 
+    @Suppress("PrivatePropertyName")
     private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             //カラム追加
@@ -459,6 +460,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
     }
+    @Suppress("PropertyName")
     val KV:IKV by lazy { KVImpl() }
 
 
@@ -550,7 +552,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     // region CREATION
     val filesDir:File
-        get() = ScDB.filesDir(slotIndex)
+        get() = filesDir(slotIndex)
     fun fileOf(name:String):File {
         return File(filesDir, name)
     }
@@ -580,7 +582,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
         fun fileList():Array<String> {
-            return ScDB.fileList(slotIndex)
+            return fileList(slotIndex)
         }
 
         // ダウンロード(repair/restore)中に終了した場合に残るtmpファイルがあれば削除
@@ -928,7 +930,7 @@ object MetaDB {
         val cache = mutableMapOf<SlotIndex, ScDB>()
         override operator fun get(slotIndex: SlotIndex): ScDB {
             return synchronized(cache) {
-                cache.getOrPut(slotIndex) { MetaDB.get(slotIndex) }
+                cache.getOrPut(slotIndex) { MetaDB[slotIndex] }
             }
         }
         override fun close() {
@@ -984,6 +986,11 @@ object MetaDB {
     }
 
     interface IVisitor {
+        /**
+         * @param listMode リストモード（ALL/PHOTO/VIDEO）
+         * @param predicate 各ItemExに対して実行され、trueを返した場合に fn が実行される。
+         * @param fn 各ItemExに対して実行される関数
+         */
         suspend fun visit(
             listMode:PlayerActivity.ListMode=PlayerActivity.ListMode.ALL,
             predicate:(item: ItemEx)->Boolean,
@@ -992,10 +999,6 @@ object MetaDB {
 
     /**
      * すべてのスロット内のデータを巡回するVisitor
-     *
-     * @param listMode リストモード（ALL/PHOTO/VIDEO）
-     * @param predicate 各ItemExに対して実行され、trueを返した場合に fn が実行される。
-     * @param fn 各ItemExに対して実行される関数
      */
     private class AllVisitor:  IVisitor {
         override suspend fun visit(listMode: PlayerActivity.ListMode,predicate: (ItemEx) -> Boolean,fn: (ScDB, ItemEx) -> Unit) {
@@ -1012,9 +1015,6 @@ object MetaDB {
      * 指定されたスロット内のデータを巡回するVisitor
      *
      * @param slot スロットインデックス
-     * @param listMode リストモード（ALL/PHOTO/VIDEO）
-     * @param predicate 各ItemExに対して実行され、trueを返した場合に fn が実行される。
-     * @param fn 各ItemExに対して実行される関数
      */
     private class SingleVisitor(private val slot: SlotIndex): IVisitor {
         override suspend fun visit(listMode: PlayerActivity.ListMode, predicate: (ItemEx) -> Boolean, fn: (ScDB, ItemEx) -> Unit) {

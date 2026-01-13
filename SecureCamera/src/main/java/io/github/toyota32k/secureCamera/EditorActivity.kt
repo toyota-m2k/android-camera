@@ -49,7 +49,6 @@ import io.github.toyota32k.media.lib.io.IInputMediaFile
 import io.github.toyota32k.media.lib.io.IOutputMediaFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
-import io.github.toyota32k.media.lib.processor.contract.IProgress
 import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
@@ -69,10 +68,10 @@ import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.android.RefBitmap
+import io.github.toyota32k.utils.android.UtJavaFile
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.UtScaleGestureManager
-import io.github.toyota32k.utils.onTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -162,7 +161,7 @@ class EditorActivity : UtMortalActivity() {
             if (!result.succeeded) return
             withContext(Dispatchers.IO) {
                 val result = result as IVideoSaveResult
-                val outFile = result.outputFile as AndroidFile
+                val outFile = (result.outputFile as AndroidFile).utFile as UtJavaFile
                 val soughtMap = result.convertResult.soughtMap ?: throw IllegalStateException("no sought map")
                 val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
                 try {
@@ -173,13 +172,13 @@ class EditorActivity : UtMortalActivity() {
                             "Completed.",
                             "${stringInKb(srcLen)} → ${stringInKb(dstLen)}",
                             result.convertResult.report?.toString() ?: "no information",
-                            outFile.path!!,
+                            outFile.path,
                             newChapterList
                         )
                     ) {
                         // OKなら上書き保存＆DB更新 --> Editor終了
                         val targetFile = metaDb.fileOf(targetItem)
-                        val newFile = outFile.path!!
+                        val newFile = outFile.path
                         if (safeOverwrite(newFile, targetFile)) {
                             // onPause で、saveChapterされないようダーティフラグをクリアしておく
                             editorModel.chapterEditorHandler.clearDirty()
@@ -204,17 +203,17 @@ class EditorActivity : UtMortalActivity() {
                         var firstItem:ItemEx? = null
                         for(i in 0 until count) {
                             val r = result.results[i]
-                            val output = r.outputFile as AndroidFile
+                            val output = (r.outputFile as AndroidFile).utFile as UtJavaFile
                             val (name,file) = if (i == 0) {
                                 // 先頭は上書き
                                 targetItem.name to targetFile
                             } else {
-                                val pos = files[output] ?: throw IllegalStateException("no position")
+                                val pos = files[r.outputFile] ?: throw IllegalStateException("no position")
                                 val date = targetItem.creationDate + pos
                                 val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
                                 name to File(metaDb.filesDir, name)
                             }
-                            safeOverwrite(output.path!!, file)
+                            safeOverwrite(output.path, file)
                             val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")
                             val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
 
@@ -459,23 +458,23 @@ class EditorActivity : UtMortalActivity() {
         }
     }
 
-    private fun IProgress.format():String {
-        val remaining = if(remainingTime>0) {
-            val r = TimeSpan(remainingTime)
-            when {
-                r.hours>0 -> r.formatH()
-                r.minutes>0 -> r.formatM()
-                else -> "${remainingTime/1000}\""
-            }
-        } else null
-
-        fun formatPercent(permillage:Int):String {
-            return "${permillage/10}.${permillage%10} %"
-        }
-        return if(remaining!=null) {
-            "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
-        } else "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)})"
-    }
+//    private fun IProgress.format():String {
+//        val remaining = if(remainingTime>0) {
+//            val r = TimeSpan(remainingTime)
+//            when {
+//                r.hours>0 -> r.formatH()
+//                r.minutes>0 -> r.formatM()
+//                else -> "${remainingTime/1000}\""
+//            }
+//        } else null
+//
+//        fun formatPercent(permillage:Int):String {
+//            return "${permillage/10}.${permillage%10} %"
+//        }
+//        return if(remaining!=null) {
+//            "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)}) -- $remaining left."
+//        } else "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)})"
+//    }
 
     private fun sourceVideoProperties(): Summary {
         val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
