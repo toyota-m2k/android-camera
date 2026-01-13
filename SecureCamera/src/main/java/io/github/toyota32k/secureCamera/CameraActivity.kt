@@ -308,7 +308,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
                         when (aspect) {
                             TcAspect.Ratio4_3 -> adjustPreviewViewSize(parentWidth, parentHeight, 4, 3)
                             TcAspect.Ratio16_9 -> adjustPreviewViewSize(parentWidth, parentHeight, 16, 9)
-                            else -> {}
+//                            else -> {}
                         }
                     }
                 }

@@ -8,102 +8,11 @@
     android:layout_height="match_parent"
     tools:context=".EditorActivity">
 
-    <io.github.toyota32k.lib.player.view.VideoPlayerView
-        android:id="@+id/video_viewer"
+    <io.github.toyota32k.lib.media.editor.view.EditorPlayerView
+        android:id="@+id/editor_player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         />
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:background="?attr/ampPanelBackgroundColor"
-        >
-        <ImageButton
-            android:id="@+id/make_chapter"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_marker"
-            android:rotationX="180"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/make_chapter_and_skip"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_skip_marker"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/make_region_skip"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_forbidden"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/remove_prev_chapter"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_expand_right"
-            android:rotationY="180"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/remove_next_chapter"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_expand_right"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/undo"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_undo"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/redo"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_redo"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/split_mode"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_split"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/chop"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_chop"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-        <ImageButton
-            android:id="@+id/save_video"
-            android:layout_width="@dimen/media_button_width"
-            android:layout_height="@dimen/media_button_height"
-            app:srcCompat="@drawable/ic_save"
-            app:tint="?attr/iconColor"
-            android:background="?attr/selectableItemBackground"
-            />
-
-    </LinearLayout>
 
     <!-- Guard View -->
     <FrameLayout

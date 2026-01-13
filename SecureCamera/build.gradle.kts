@@ -33,10 +33,10 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.16.0"
+        versionName = "2.20.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     buildFeatures {
         buildConfig = true
         viewBinding = true
@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.android.media.processor)
     implementation(libs.android.server)
     implementation(libs.android.media.player)
+    implementation(libs.android.media.editor)
     implementation(libs.android.worker)
 
     implementation(project(path=":libCamera"))

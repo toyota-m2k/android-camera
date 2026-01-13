@@ -7,6 +7,7 @@ import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.ReliableCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
@@ -14,7 +15,12 @@ import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtDialogViewModel
+import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.dialog.task.showOkCancelMessageBox
+import io.github.toyota32k.media.lib.io.HttpFile
+import io.github.toyota32k.media.lib.io.toAndroidFile
+import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.DBChange
@@ -40,16 +46,34 @@ class ItemDialog : UtDialogEx() {
             PurgeLocal,
             RestoreLocal,
             Repair,
+            Delete,
         }
 
         var nextAction = NextAction.None
             private set
-        val actionCommand = LiteCommand<NextAction> { action->
+        val actionCommand = ReliableCommand<NextAction> { action->
             nextAction = action
             completeCommand.invoke()
         }
         val backupCommand = LiteUnitCommand {
             metaDb.backupToCloud(item.value)
+        }
+        val informationCommand = LiteUnitCommand {
+            val item = item.value
+            val inFile = if(item.cloud.isFileInLocal) {
+                metaDb.fileOf(item).toAndroidFile()
+            } else {
+                HttpFile(metaDb.urlOf(item))
+            }
+            val summary = Analyzer.analyze(inFile)
+            ReportTextDialog.show(item.name, summary.toString())
+        }
+        val deleteCommand = LiteUnitCommand {
+            UtImmortalTask.launchTask {
+                if (showOkCancelMessageBox("Delete Item", "Are you sure to delete this item?")) {
+                    actionCommand.invoke(NextAction.Delete)
+                }
+            }
         }
 
         val completeCommand = LiteUnitCommand()
@@ -119,6 +143,8 @@ class ItemDialog : UtDialogEx() {
             .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.PurgeLocal)
             .bindCommand(viewModel.actionCommand, controls.restoreLocalButton, ItemViewModel.NextAction.RestoreLocal)
             .bindCommand(viewModel.actionCommand, controls.repairButton, ItemViewModel.NextAction.Repair)
+            .bindCommand(viewModel.informationCommand, controls.buttonInfo)
+            .bindCommand(viewModel.deleteCommand, controls.buttonDelete)
             .bindCommand(viewModel.completeCommand, ::onPositive)
         return controls.root
     }

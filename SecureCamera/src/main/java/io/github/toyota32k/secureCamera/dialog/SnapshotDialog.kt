@@ -1,11 +1,14 @@
 package io.github.toyota32k.secureCamera.dialog
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import android.widget.PopupMenu
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BoolConvert
+import io.github.toyota32k.binder.bitmapBinding
 import io.github.toyota32k.binder.clickBinding
 import io.github.toyota32k.binder.combinatorialVisibilityBinding
 import io.github.toyota32k.binder.enableBinding
@@ -17,50 +20,40 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
+import io.github.toyota32k.lib.media.editor.model.RealTimeBitmapScaler
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.databinding.DialogSnapshotBinding
-import io.github.toyota32k.secureCamera.dialog.CropImageDialog.Companion.popupAspectMenu
-import io.github.toyota32k.secureCamera.utils.BitmapStore
 import io.github.toyota32k.secureCamera.utils.onViewSizeChanged
 import io.github.toyota32k.utils.Disposer
 import io.github.toyota32k.utils.android.FitMode
+import io.github.toyota32k.utils.android.RefBitmap
+import io.github.toyota32k.utils.android.RefBitmap.Companion.toRef
+import io.github.toyota32k.utils.android.RefBitmapFlow
+import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
 import io.github.toyota32k.utils.android.setLayoutSize
 import io.github.toyota32k.utils.lifecycle.disposableObserve
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.Closeable
 
 class SnapshotDialog : UtDialogEx() {
     class SnapshotViewModel : UtDialogViewModel() {
-        val bitmapStore = BitmapStore()
         lateinit var bitmapScaler: RealTimeBitmapScaler
         val deflating = MutableStateFlow(false)
-
-        val croppedBitmapFlow = MutableStateFlow<Bitmap?>(null)
-        var cropBitmap: Bitmap?
+        val croppedBitmapFlow = RefBitmapFlow(null)
+        var cropBitmap: RefBitmap?
             get() = croppedBitmapFlow.value
-            set(v) {
-                croppedBitmapFlow.value = bitmapStore.replaceNullable(croppedBitmapFlow.value, v)
-            }
-
-
+            set(v) { croppedBitmapFlow.value = v }
         val isCropped = croppedBitmapFlow.map { it != null }
-//        lateinit var targetBitmap:Bitmap
-//        var recycleTargetBitmap:Boolean = false
-
         val trimmingNow = MutableStateFlow(false)
         val maskViewModel = CropMaskViewModel()
+
         private val cropFlows = maskViewModel.enableCropFlow(100, 100)
-
-        var result: CropResult? = null
-
-        data class CropResult(
-            val bitmap: Bitmap,
-            val maskParams: MaskCoreParams?
-        )
-
         private val croppedSize =
             combine(trimmingNow, croppedBitmapFlow, cropFlows.cropWidth, cropFlows.cropHeight) { trimmingNow, cropped, w, h ->
                 if (trimmingNow) {
@@ -73,7 +66,7 @@ class SnapshotDialog : UtDialogEx() {
             }
         private val baseSize by lazy {
             bitmapScaler.bitmap.map {
-                "${it.width} x ${it.height}"
+                if (it!=null) "${it.width} x ${it.height}" else ""
             }
         }
 
@@ -88,33 +81,43 @@ class SnapshotDialog : UtDialogEx() {
         }
 
         private val disposer = Disposer()
-        fun setup(bitmap: Bitmap, autoRecycle:Boolean, maskParams: MaskCoreParams?): SnapshotViewModel {
-            bitmapScaler = RealTimeBitmapScaler(bitmap, bitmapStore)
-            if (autoRecycle) {
-                bitmapStore.attach(bitmap)
-            }
+        fun setup(bitmap: RefBitmap, maskParams: MaskCoreParams?): SnapshotViewModel {
+            bitmapScaler = RealTimeBitmapScaler().apply { setSource(bitmap)}
             if (maskParams!=null) {
                 maskViewModel.setParams(maskParams)
             }
             disposer.register(
-                bitmapStore,
-                bitmapScaler.apply {start(viewModelScope)},
+                bitmapScaler,
                 bitmapScaler.bitmap.disposableObserve {
-                    maskViewModel.enableCropFlow(it.width, it.height)
+                    if (it!=null) {
+                        maskViewModel.enableCropFlow(it.width, it.height)
+                    }
                 }
             )
             return this
         }
 
-        fun crop(): Bitmap {
-            return maskViewModel.cropBitmap(bitmapScaler.bitmap.value).also {
-                cropBitmap = it
+        fun crop(): Bitmap? {
+            return bitmapScaler.bitmap.value?.use { bmp ->
+                maskViewModel.cropBitmap(bmp).also {
+                    cropBitmap = it.toRef()
+                }
+            }
+        }
+
+        var result: CropResult? = null
+        class CropResult(
+            bitmap: RefBitmap?,
+            var maskParams: MaskCoreParams?
+        ): Closeable {
+            var bitmap: RefBitmap? by RefBitmapHolder(bitmap)
+            override fun close() {
+                bitmap = null
             }
         }
 
         fun fix() {
             val bitmap = cropBitmap ?: bitmapScaler.bitmap.value
-            bitmapStore.detach(bitmap)
             result = CropResult(
                 bitmap = bitmap,
                 maskParams = maskViewModel.getParams()
@@ -125,7 +128,6 @@ class SnapshotDialog : UtDialogEx() {
             super.onCleared()
             disposer.dispose()
         }
-
     }
 
     override fun preCreateBodyView() {
@@ -147,7 +149,8 @@ class SnapshotDialog : UtDialogEx() {
     ): View {
         controls = DialogSnapshotBinding.inflate(inflater.layoutInflater, null, false)
         controls.cropOverlay.bindViewModel(viewModel.maskViewModel, viewModel.viewModelScope)
-//        controls.image.setImageBitmap(viewModel.targetBitmap)
+        controls.image.setImageBitmap(viewModel.bitmapScaler.sourceBitmap?.bitmap)
+        viewModel.bitmapScaler.enable(lifecycleScope)
         binder
             .owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
@@ -165,7 +168,7 @@ class SnapshotDialog : UtDialogEx() {
                 inverseGone(optionButton!!)
             }
             .apply {
-                viewModel.bitmapScaler.bindToSlider(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,
+                viewModel.bitmapScaler.bindView(this, controls.resolutionSlider, controls.buttonMinus, controls.buttonPlus,
                     mapOf(480 to controls.button480, 720 to controls.button720, 1280 to controls.button1280, 1920 to controls.button1920))
             }
             .clickBinding(controls.maxButton) {
@@ -173,7 +176,7 @@ class SnapshotDialog : UtDialogEx() {
             }
             .clickBinding(controls.aspectButton) {
                 lifecycleScope.launch {
-                    val aspect = CropImageDialog.popupAspectMenu(context, it)
+                    val aspect = popupAspectMenu(context, it)
                     if(aspect!=null) {
                         viewModel.maskViewModel.aspectMode.value = aspect
                     }
@@ -211,16 +214,18 @@ class SnapshotDialog : UtDialogEx() {
                     onPositive()
                 }
             }
-            .observe(viewModel.croppedBitmapFlow)  { bmp->
-                controls.imagePreview.setImageBitmap(bmp)
-            }
+            .bitmapBinding(controls.imagePreview, viewModel.croppedBitmapFlow)
+
             .observe(viewModel.bitmapScaler.bitmap) {
-                controls.image.setImageBitmap(it)
-                fitBitmap(it, controls.root.width, controls.root.height)
+                it?.use { bitmap ->
+                    controls.image.setImageBitmap(bitmap)
+                    fitBitmap(bitmap, controls.root.width, controls.root.height)
+                }
             }
             .onViewSizeChanged(controls.root) { w, h ->
-                val bitmap = viewModel.bitmapScaler.bitmap.value
-                fitBitmap(bitmap, w, h)
+                viewModel.bitmapScaler.bitmap.value?.use { bitmap->
+                    fitBitmap(bitmap, w, h)
+                }
             }
         return controls.root
     }
@@ -245,9 +250,30 @@ class SnapshotDialog : UtDialogEx() {
     }
 
     companion object {
-       suspend fun showBitmap(source: Bitmap, autoRecycle:Boolean = true, maskParams: MaskCoreParams?=null): SnapshotViewModel.CropResult? {
+        private suspend fun popupAspectMenu(context: Context, anchor: View):CropMaskViewModel.AspectMode? {
+            val selection = MutableStateFlow<Int?>(null)
+            PopupMenu(context, anchor).apply {
+                setOnMenuItemClickListener {
+                    selection.value = it.itemId
+                    true
+                }
+                setOnDismissListener {
+                    selection.value = -1
+                }
+                inflate(R.menu.menu_aspect)
+            }.show()
+            val sel = selection.first { it != null }
+            return when(sel) {
+                R.id.aspect_free -> CropMaskViewModel.AspectMode.FREE
+                R.id.aspect_4_3 -> CropMaskViewModel.AspectMode.ASPECT_4_3
+                R.id.aspect_16_9 -> CropMaskViewModel.AspectMode.ASPECT_16_9
+                else -> null
+            }
+        }
+
+       suspend fun showBitmap(source: RefBitmap, maskParams: MaskCoreParams?=null): SnapshotViewModel.CropResult? {
             return UtImmortalTask.awaitTaskResult(this::class.java.name) {
-                val vm = createViewModel<SnapshotViewModel> { setup(source, autoRecycle, maskParams) }
+                val vm = createViewModel<SnapshotViewModel> { setup(source, maskParams) }
                 if (showDialog(taskName) { SnapshotDialog() }.status.ok) {
                     vm.result
                 } else {

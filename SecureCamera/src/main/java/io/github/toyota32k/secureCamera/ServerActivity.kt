@@ -247,7 +247,7 @@ class ServerActivity : UtMortalActivity() {
                                         break
                                     }
                                     imported++
-                                    pvm.progress.value = (imported * 100 / migration.list.size).toInt()
+                                    pvm.progress.value = imported * 100 / migration.list.size
                                     pvm.progressText.value = "$imported / ${migration.list.size}"
                                     // 端末側DBに移行データのエントリーを作る
                                     val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)

@@ -38,15 +38,4 @@ class SCApplication : Application() {
         Settings.initialize(this)
         UtStandardString.setContext(this)
     }
-
-//    class FatalErrorHandler : Thread.UncaughtExceptionHandler {
-//        private val orgHandler: Thread.UncaughtExceptionHandler? = Thread.getDefaultUncaughtExceptionHandler()
-//        init {
-//            Thread.setDefaultUncaughtExceptionHandler(this)
-//        }
-//        override fun uncaughtException(t: Thread, e: Throwable) {
-//            logger.error(e, "Uncaught Exception")
-//            orgHandler?.uncaughtException(t,e)
-//        }
-//    }
 }

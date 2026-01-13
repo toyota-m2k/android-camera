@@ -7,8 +7,6 @@ import android.view.View
 import android.widget.PopupMenu
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import io.github.toyota32k.binder.Binder
@@ -50,7 +48,7 @@ class MainActivity : UtMortalActivity() {
 //        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         Settings.Design.applyToActivity(this)
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
+        enableEdgeToEdge()
 
 //        setTheme(R.style.Theme_TryCamera_M3_DynamicColor)
 //        setTheme(R.style.Theme_TryCamera_M3_Cherry_NoActionBar)
@@ -59,17 +57,9 @@ class MainActivity : UtMortalActivity() {
         setContentView(controls.root)
 
         setupWindowInsetsListener(controls.root)
-//        // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（２）
-//        ViewCompat.setOnApplyWindowInsetsListener(controls.root) { v, insets ->
-//            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-//            insets
-//        }
 
-//        this.title = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)}"
         @SuppressLint("SetTextI18n")
         controls.appName.text = "${PackageUtil.appName(this)} v${PackageUtil.getVersion(this)} ${if(BuildConfig.DEBUG) "(d)" else ""}"
-//        setContentView(R.layout.activity_main)
 
         hideActionBar()
         binder.owner(this)
@@ -78,8 +68,6 @@ class MainActivity : UtMortalActivity() {
             .bindCommand(LiteUnitCommand(::startServer), controls.serverButton )
             .bindCommand(LiteUnitCommand(::setting), controls.settingsButton)
             .longClickBinding(controls.settingsButton, this::settingMenu)
-//            .bindCommand(LiteUnitCommand(::bulse), controls.clearAllButton)
-//            .bindCommand(LiteUnitCommand(::colorVariation), controls.colorsButton)
             .bindCommand(LiteUnitCommand(::setupSlots), controls.slotButton)
             .multiEnableBinding(arrayOf(controls.slotButton, controls.cameraButton, controls.playerButton, controls.serverButton, controls.settingsButton), viewModel.busy, boolConvert = BoolConvert.Inverse)
             .textBinding(controls.slotName, SlotSettings.currentSlotFlow.map { it.safeSlotName })

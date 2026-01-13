@@ -41,19 +41,19 @@ object Authentication {
     }
 
     private fun challengeFromResponse(res: Response):String {
-        if(res.code != 401 || res.body?.contentType() != "application/json".toMediaType()) {
+        if(res.code != 401 || res.body.contentType() != "application/json".toMediaType()) {
             throw IllegalStateException("unknown response from the server.")
         }
-        val body = res.body?.use { it.string() } ?: throw IllegalStateException("response has no data.")
+        val body = res.body.use { it.string() }
         val j =  JSONObject(body)
         return j.optString("challenge").apply { challenge = this }
     }
 
     private fun authTokenFromResponse(res:Response):String {
-        if(res.code!=200 || res.body?.contentType() != "application/json".toMediaType()) {
+        if(res.code!=200 || res.body.contentType() != "application/json".toMediaType()) {
             throw IllegalStateException("unknown response from the server.")
         }
-        val body = res.body?.use { it.string() } ?: throw IllegalStateException("response has no data.")
+        val body = res.body.use { it.string() }
         val j =  JSONObject(body)
         return j.optString("token").apply { authToken = this }
     }

@@ -10,6 +10,7 @@ import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.datePickerBinding
+import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.textBinding
@@ -160,8 +161,8 @@ class PlayListSettingDialog : UtDialogEx() {
             .bindCommand(viewModel.commandEditEndDate, controls.editEndDateButton)
             .datePickerBinding(controls.startDatePicker, viewModel.startDate, selectCommand = viewModel.commandEndEdit)
             .datePickerBinding(controls.endDatePicker, viewModel.endDate, selectCommand = viewModel.commandEndEdit)
-            .visibilityBinding(controls.startDatePicker, viewModel.showStartDatePicker, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.endDatePicker, viewModel.showEndDatePicker, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .enableBinding(controls.startDatePicker, viewModel.showStartDatePicker)
+            .enableBinding(controls.endDatePicker, viewModel.showEndDatePicker)
             .multiVisibilityBinding( arrayOf(controls.startDateText,controls.editStartDateButton), viewModel.enableStartDate)
             .multiVisibilityBinding(arrayOf(controls.endDateText, controls.editEndDateButton), viewModel.enableEndDate)
 
