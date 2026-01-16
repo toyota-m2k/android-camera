@@ -1,13 +1,13 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.android.application)
     alias(libs.plugins.devtool.ksp)         // for room compiler
 //    id("com.google.android.gms.oss-licenses-plugin")
 }
 
-android {
+configure<ApplicationExtension> {
     namespace = "io.github.toyota32k.secureCamera"
     compileSdk = 36
 
@@ -33,8 +33,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.20.0"
-
+        versionName = "2.20.1"
             testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
     buildFeatures {
@@ -54,12 +53,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
