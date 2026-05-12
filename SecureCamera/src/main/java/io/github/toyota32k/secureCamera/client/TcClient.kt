@@ -43,7 +43,7 @@ object TcClient {
             .put("type", "SecureCamera")
             .toString()
         val request = Request.Builder()
-            .url("http://${Authentication.activeHostAddress}/owner")
+            .url(Authentication.makeUrl("owner"))
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return try {
@@ -162,7 +162,8 @@ object TcClient {
         }
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/${slot.slotId}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
+//                .url("http://${Authentication.activeHostAddress}/${slot.slotId}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
+                .url(Authentication.makeAuthUrl("${slot.slotId}/list", "f" to "vp",  "o" to Settings.SecureArchive.clientId))
                 .get()
                 .build()
             try {
@@ -191,7 +192,8 @@ object TcClient {
         if(!Authentication.authenticateAndMessage()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/migration/devices?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}")
+                .url(Authentication.makeAuthUrl("migration/devices", "o" to Settings.SecureArchive.clientId))
+//                .url("http://${Authentication.activeHostAddress}/migration/devices?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}")
                 .get()
                 .build()
             try {
@@ -283,7 +285,8 @@ object TcClient {
         if(!Authentication.authenticateAndMessage()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&n=${Settings.SecureArchive.clientId}&o=$targetClientId")
+                .url(Authentication.makeAuthUrl("migration/start", "n" to Settings.SecureArchive.clientId, "o" to targetClientId))
+//                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&n=${Settings.SecureArchive.clientId}&o=$targetClientId")
                 .get()
                 .build()
             try {
@@ -300,7 +303,8 @@ object TcClient {
     suspend fun endMigration(handle:String):Boolean {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/migration/end?h=$handle")
+                .url(Authentication.makeAuthUrl("migration/end", "h" to handle))
+//                .url("http://${Authentication.activeHostAddress}/migration/end?h=$handle")
                 .get()
                 .build()
             try {
@@ -325,7 +329,8 @@ object TcClient {
                 .put("newOriginalId", "$newId")
                 .toString()
             val request = Request.Builder()
-                .url("http://${Authentication.activeHostAddress}/migration/exec?auth=${Authentication.authToken}")
+                .url(Authentication.makeAuthUrl("migration/exec"))
+//                .url("http://${Authentication.activeHostAddress}/migration/exec?auth=${Authentication.authToken}")
                 .put(json.toRequestBody("application/json".toMediaType()))
                 .build()
             try {
@@ -348,7 +353,8 @@ object TcClient {
             .put("address", address)
             .toString()
         val request = Request.Builder()
-            .url("http://${Authentication.activeHostAddress}/backup/request")
+            .url(Authentication.makeAuthUrl("backup/request"))
+//            .url("http://${Authentication.activeHostAddress}/backup/request")
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return withContext(Dispatchers.IO) {
@@ -372,7 +378,8 @@ object TcClient {
             .put("address", address)
             .toString()
         val request = Request.Builder()
-            .url("http://${Authentication.activeHostAddress}/backup-db/request")
+            .url(Authentication.makeAuthUrl("backup-db/request"))
+//            .url("http://${Authentication.activeHostAddress}/backup-db/request")
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return withContext(Dispatchers.IO) {

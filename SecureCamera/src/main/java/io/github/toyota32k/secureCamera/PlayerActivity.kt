@@ -49,6 +49,7 @@ import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.IPhotoLoader
+import io.github.toyota32k.lib.player.model.PhotoSizeOption
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
@@ -227,7 +228,7 @@ class PlayerActivity : UtMortalActivity() {
             .enableRotateRight()
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
-            .enablePhotoViewer(Duration.INFINITE)
+            .enablePhotoViewer(Duration.INFINITE, photoSizeOption = PhotoSizeOption.LimitByScreen)
             .customPhotoLoader(object: IPhotoLoader {
                 override suspend fun loadBitmap(src: IMediaSource): IBitmapInfo? {
                     val source = src as? MediaSource ?: return null

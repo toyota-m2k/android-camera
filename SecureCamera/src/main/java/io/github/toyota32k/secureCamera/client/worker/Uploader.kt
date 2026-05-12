@@ -19,8 +19,6 @@ import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.utils.worker.UtTaskWorker
 import io.github.toyota32k.utils.worker.WorkerParams
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -106,7 +104,8 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
                             .addFormDataPart("File", item.name, body)
                             .build()
                         val request = Request.Builder()
-                            .url("http://${Authentication.activeHostAddress}/slot${target.slot}/upload")
+                            .url(Authentication.makeUrl("slot${target.slot}/upload"))
+//                            .url("http://${Authentication.activeHostAddress}/slot${target.slot}/upload")
                             .post(multipartBody)
                             .build()
                         val code = executeAsync(request, canceller).use {

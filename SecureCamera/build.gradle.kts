@@ -4,6 +4,8 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.devtool.ksp)         // for room compiler
+//    kotlin("plugin.serialization") version "2.3.0"
+    alias(libs.plugins.kotlin.serialization)
 //    id("com.google.android.gms.oss-licenses-plugin")
 }
 
@@ -89,6 +91,8 @@ dependencies {
     implementation(libs.android.media.player)
     implementation(libs.android.media.editor)
     implementation(libs.android.worker)
+    implementation(libs.zxing.android.embedded)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(project(path=":libCamera"))
 

@@ -1,7 +1,6 @@
 package io.github.toyota32k.secureCamera.client.worker
 
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.db.ItemEx
 
 class ExclusiveRunner(val logger: UtLog, private val name: String) {
     val taskSet = mutableSetOf<String>()

@@ -87,7 +87,9 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
     }
 
     val serverUri:String
-        get() = "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+        get() = Authentication.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+            "o" to Settings.SecureArchive.clientId, "c" to id)
+            // "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
 
 //    val uri:String
 //        get() {

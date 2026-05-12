@@ -16,6 +16,10 @@ import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.longClickBinding
 import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
+import io.github.toyota32k.dialog.broker.IUtActivityBrokerStoreProvider
+import io.github.toyota32k.dialog.broker.UtActivityBrokerStore
+import io.github.toyota32k.dialog.broker.UtPermissionBroker
+import io.github.toyota32k.dialog.broker.pickers.UtCreateFilePicker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
@@ -33,7 +37,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class MainActivity : UtMortalActivity() {
+class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
+    override val activityBrokers = UtActivityBrokerStore(this, UtPermissionBroker())
     override val logger = UtLog("MAIN")
 
     class MainViewModel : ViewModel() {

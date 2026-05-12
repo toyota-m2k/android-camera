@@ -9,6 +9,7 @@ import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
+import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,9 +32,28 @@ object Authentication {
         private set
     var challenge:String? = null
         private set
-    var activeHostAddress:String? = null
+    var activeHost: SecureArchiveHost? = null
         private set
 
+    fun makeUrl(path:String):String
+        = activeHost?.makeUrl(path) ?: throw IllegalStateException("No Active Host")
+    fun makeAuthUrl(cmd:String, vararg queries: Pair<String,Any?>):String {
+        return StringBuilder(makeUrl(cmd))
+            .append("?auth=")
+            .append(authToken)
+            .apply {
+                queries.fold(this) { acc, pair ->
+                    acc.append("&").append(pair.first)
+                        .apply {
+                            if (pair.second!=null) {
+                                append("=").append(pair.second)
+                            }
+                        }
+                }
+            }.toString().apply {
+                logger.debug(this)
+            }
+    }
 
     fun reset() {
         authToken = null
@@ -58,10 +78,10 @@ object Authentication {
         return j.optString("token").apply { authToken = this }
     }
 
-    val authUrl:String
-        get() = "http://$activeHostAddress/auth"
+    private val authUrl:String
+        get() = makeUrl("auth")
 
-    fun authUrlWithToken(token:String):String
+    private fun authUrlWithToken(token:String):String
         = "$authUrl/$token"
 
     private suspend fun getChallenge():String? {
@@ -151,8 +171,9 @@ object Authentication {
     /**
      * 指定されたホストがアクセス可能かチェックする。
      */
-    private suspend fun checkOneHost(host:String):Boolean {
-        val url = "http://$host/nop"
+    private suspend fun checkOneHost(host: SecureArchiveHost):Boolean {
+        val scheme = if (host.isHttps) "https" else "http"
+        val url = "$scheme://${host.address}/nop"
         val req = Request.Builder().url(url).get().build()
         val result = NetClient.shortCallAsync(req)
         return result?.isSuccessful == true
@@ -164,7 +185,7 @@ object Authentication {
     private suspend fun checkHost():Result {
         var empty = true
 
-        val currentHost = activeHostAddress
+        val currentHost = activeHost
         if(currentHost!=null) {
             if(System.currentTimeMillis() - lastCheckTime < 5000) {
                 // 5秒以内の連続呼び出しならチェックしない。
@@ -177,24 +198,35 @@ object Authentication {
 
         for(host in Settings.SecureArchive.hosts) {
             if(currentHost!=host && checkOneHost(host)) {
-                activeHostAddress = host
+                activeHost = host
                 lastCheckTime = System.currentTimeMillis()
                 return Result.OK
             }
             empty = false
         }
-        activeHostAddress = null
+        activeHost = null
         return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
     }
 
     val activeHostLabel:String
-        get() = when (activeHostAddress) {
-                Settings.SecureArchive.primaryAddress -> "Primary $activeHostAddress"
-                Settings.SecureArchive.secondaryAddress -> "Secondary $activeHostAddress"
-                else -> "NO HOST"
+
+        get() {
+            val active = activeHost ?: return "NO HOST"
+            val match = when(active.address) {
+                Settings.SecureArchive.primaryHost?.address->"Primary"
+                Settings.SecureArchive.secondaryHost?.address->"Secondary"
+                else -> return "NO HOST"
             }
+            val hostname = active.hostname
+            return if (hostname.isNullOrBlank()) {
+                "$match ${active.address}"
+            } else {
+                "$match ${hostname} ${active.address}"
+            }
+        }
+
     val isPrimaryActive:Boolean
-        get() = activeHostAddress == Settings.SecureArchive.primaryAddress
+        get() = activeHost?.address == Settings.SecureArchive.primaryHost?.address
 
 //    /**
 //     * アクセス可能なホストのリストを返す。

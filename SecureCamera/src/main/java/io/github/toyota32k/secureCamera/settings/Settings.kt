@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.settings
 
 import android.app.Application
+import android.net.Uri
 import android.os.Build
 import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.binder.DPDate
@@ -13,6 +14,8 @@ import io.github.toyota32k.secureCamera.utils.ThemeSelector
 import io.github.toyota32k.secureCamera.utils.ThemeSelector.ContrastLevel
 import io.github.toyota32k.secureCamera.utils.ThemeSelector.NightMode
 import io.github.toyota32k.utils.android.SharedPreferenceDelegate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
 object Settings {
@@ -117,24 +120,64 @@ object Settings {
 
     object SecureArchive {
         var clientId:String by spd.pref("")
-        var primaryAddress:String by spd.pref("")
-        var secondaryAddress:String by spd.pref("")
+        // var primaryAddress:String by spd.pref("")
+        // private var secondaryAddress:String by spd.pref("")
+        private var _primaryHost:String? by spd.prefNullable()
+        private var _secondaryHost:String? by spd.prefNullable()
+        private var _primaryHostCache: SecureArchiveHost? = null
+        private var _secondaryHostCache: SecureArchiveHost? = null
+        var primaryHost: SecureArchiveHost?
+            get() = _primaryHostCache ?: SecureArchiveHost.fromJson(_primaryHost).apply { _primaryHostCache = this }
+            set(v) {
+                _primaryHostCache = v
+                _primaryHost = v?.toJson()
+            }
+        var secondaryHost: SecureArchiveHost?
+            get() = _secondaryHostCache ?: SecureArchiveHost.fromJson(_secondaryHost).apply { _secondaryHostCache = this }
+            set(v) {
+                _secondaryHostCache = v
+                _secondaryHost = v?.toJson()
+            }
         var myPort by spd.pref(5001)
         var deviceName by spd.pref(Build.MODEL?:"Unknown")
-        val isConfigured:Boolean get() = primaryAddress.isNotEmpty()
+        val isConfigured:Boolean get() = primaryHost != null || secondaryHost != null
 
-        val hosts:Iterator<String> get() = iterator<String> {
-            if(primaryAddress.isNotEmpty()) {
-                yield(primaryAddress)
+        fun updateHost(oldHost: SecureArchiveHost, newHost: SecureArchiveHost) {
+            if (primaryHost?.isSameHost(oldHost)==true) {
+                primaryHost = newHost
+            } else if (secondaryHost?.isSameHost(oldHost)==true) {
+                secondaryHost = newHost
             }
-            if(secondaryAddress.isNotEmpty()) {
-                yield(secondaryAddress)
+        }
+        fun getPairedHost(serviceName:String): SecureArchiveHost? {
+            return hosts.firstOrNull { it.serviceName == serviceName }
+        }
+
+        val hasPairedHost:Boolean get() = hosts.any { it.serviceName!=null }
+
+//        fun tryUpdatePairedHost(newHost: SecureArchiveHost) {
+//            if (SecureArchiveHost.isSamePairedHost(primaryHost, newHost)) {
+//                primaryHost = newHost
+//            }
+//            if (SecureArchiveHost.isSamePairedHost(secondaryHost, newHost)) {
+//                secondaryHost = newHost
+//            }
+//        }
+
+        val hosts:Sequence<SecureArchiveHost> get() = sequence<SecureArchiveHost> {
+            val primary = primaryHost
+            if (primary!=null) {
+                yield(primary)
+            }
+            val secondary = secondaryHost
+            if(secondary!=null) {
+                yield(secondary)
             }
         }
 
         fun reset() {
-            primaryAddress = ""
-            secondaryAddress = ""
+            primaryHost = null
+            secondaryHost = null
         }
     }
 

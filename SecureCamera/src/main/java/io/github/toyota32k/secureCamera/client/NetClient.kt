@@ -1,6 +1,10 @@
 package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
+import io.github.toyota32k.secureCamera.settings.Settings
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -9,38 +13,105 @@ import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.security.SecureRandom
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlin.time.toJavaDuration
 
 object NetClient {
-    val motherClient : OkHttpClient =
+    val motherClient : OkHttpClient by lazy {
+        val tm = CompositeTrustManager { CompositeTrustManager.fingerprintsFromSettings() }
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf<TrustManager>(tm), SecureRandom())
+        }
         OkHttpClient.Builder()
             .readTimeout(30, TimeUnit.SECONDS)
-//            .writeTimeout(120, TimeUnit.SECONDS)
+            .sslSocketFactory(sslContext.socketFactory, tm)
+            .hostnameVerifier(CompositeTrustManager.makeHostnameVerifier())
             .build()
-    val logger = UtLog("Net",null,this::class.java)
-
-    suspend fun executeAsync(req: Request, canceller: Canceller?=null): Response {
-        logger.debug("${req.url}")
-        return motherClient.newCall(req).executeAsync(canceller)
     }
 
-    private val shortClient:OkHttpClient by lazy { motherClient.newBuilder().connectTimeout(30.seconds.toJavaDuration()).readTimeout(30.seconds.toJavaDuration()).writeTimeout(30.seconds.toJavaDuration()).build()}
-    suspend fun shortCallAsync(req:Request): Response? {
+    private val shortClient:OkHttpClient by lazy {
+        motherClient
+            .newBuilder()
+            .connectTimeout(30.seconds.toJavaDuration())
+            .readTimeout(30.seconds.toJavaDuration())
+            .writeTimeout(30.seconds.toJavaDuration()).build()
+    }
+
+    val logger = UtLog("Net",null,this::class.java)
+
+    /**
+     * リトライ付き executeAsync
+     */
+    private suspend fun tryExecuteAsync(client: OkHttpClient, req: Request, canceller: Canceller?, host: SecureArchiveHost?=null):Response {
         return try {
-            shortClient.newCall(req).executeAsync(null)
+            client.newCall(req).executeAsync(canceller)
+        } catch(e:IOException) {
+            if (host==null || !isReResolvableFailure(e)) throw e
+            val rebuilt = tryRebuildWithFreshAddress(req, host) ?: throw e
+            logger.warn("Connection failed (${e.javaClass.simpleName}); retrying with refreshed address ${rebuilt.url}")
+            client.newCall(rebuilt).executeAsync(canceller)
+        }
+    }
+
+    /** ネットワーク層レベルの失敗 (≒ IP/port が変わって繋がらない可能性) のみリトライ対象とする。 */
+    private fun isReResolvableFailure(e: IOException): Boolean = when (e) {
+        is UnknownHostException, is ConnectException,
+        is SocketTimeoutException, is NoRouteToHostException -> true
+        else -> false
+    }
+
+    /**
+     * active host が mDNS で発見されたエントリ (`serviceName != null`) の場合、現在の IP を再解決し、
+     * 変わっていれば設定を更新したうえでリクエスト URL を新 IP に書き換えて返す。
+     * 変わっていない、もしくは解決失敗の場合は null。
+     */
+    private suspend fun tryRebuildWithFreshAddress(req: Request, host: SecureArchiveHost): Request? {
+        val ctx = SCApplication.instance.applicationContext
+        val svc = host.serviceName ?: return null
+        val resolved = BooTubeDiscovery.resolveOnce( svc) ?: return null
+        val newAddr = "${resolved.host}:${resolved.port}"
+        if (newAddr == host.address) return null
+
+        val updated = SecureArchiveHost(
+            address = newAddr,
+            fingerprint = resolved.fingerprint ?: host.fingerprint,
+            isHttps = resolved.isHttps || host.isHttps,
+            hostname = resolved.hostname ?: host.hostname,
+        )
+        Settings.SecureArchive.updateHost(host, updated)
+        val newUrl = req.url.newBuilder()
+            .host(resolved.host)
+            .port(resolved.port)
+            .build()
+        return req.newBuilder().url(newUrl).build()
+    }
+
+    suspend fun executeAsync(req: Request, canceller: Canceller?=null, host: SecureArchiveHost? = Authentication.activeHost): Response {
+        logger.debug("${req.url}")
+        return tryExecuteAsync(motherClient, req, canceller, host)
+    }
+
+    suspend fun shortCallAsync(req:Request, host: SecureArchiveHost? = Authentication.activeHost): Response? {
+        return try {
+            tryExecuteAsync(shortClient, req, null, host)
         } catch(e:Throwable) {
             logger.error(e)
             null
         }
     }
 
-    suspend fun executeAndGetJsonAsync(req: Request): JSONObject {
-        return executeAsync(req, null).use { res ->
+    suspend fun executeAndGetJsonAsync(req: Request, host: SecureArchiveHost?= Authentication.activeHost): JSONObject {
+        return tryExecuteAsync(motherClient, req, null, host).use { res ->
             if (res.code != 200) throw IllegalStateException("Server Response Error (${res.code})")
             val body = res.body.use { it.string() }
             JSONObject(body)

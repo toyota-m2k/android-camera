@@ -164,10 +164,10 @@ class SettingDialog : UtDialogEx() {
         val skipForwardText = playerSpanOfSkipForward.map { formatSpanLabel(it, application.getString(R.string.skip_forward_by)) }
         val skipBackwardText = playerSpanOfSkipBackward.map { formatSpanLabel(it,application.getString(R.string.skip_backward_by)) }
 
-        val secureArchiveAddress = MutableStateFlow(Settings.SecureArchive.primaryAddress)
-        val secureArchive2ndAddress = MutableStateFlow(Settings.SecureArchive.secondaryAddress)
-        val secureArchiveAddressForDisplay = secureArchiveAddress.map { it.ifEmpty { "(n/a)" } }
-        val secureArchive2ndAddressForDisplay = secureArchive2ndAddress.map { it.ifEmpty { "(n/a)" } }
+        val secureArchivePrimaryHost = MutableStateFlow(Settings.SecureArchive.primaryHost)
+        val secureArchiveSecondaryHost = MutableStateFlow(Settings.SecureArchive.secondaryHost)
+        val secureArchivePrimaryForDisplay = secureArchivePrimaryHost.map { it?.displayName ?: "(n/a)" }
+        val secureArchiveSecondaryForDisplay = secureArchiveSecondaryHost.map { it?.displayName ?: "(n/a)" }
 
         val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
 
@@ -212,10 +212,10 @@ class SettingDialog : UtDialogEx() {
 
         private fun editAddress(n:Int) {
             viewModelScope.launch {
-                val saa = if(n==0) secureArchiveAddress else secureArchive2ndAddress
-                val address = AddressDialog.show(saa.value)
-                if(address!=null) {
-                    saa.value = address
+                val saa = if(n==0) secureArchivePrimaryHost else secureArchiveSecondaryHost
+                val result = AddressDialog.show(saa.value)
+                if(result!=null) {
+                    saa.value = result.host
                 }
             }
         }
@@ -246,8 +246,8 @@ class SettingDialog : UtDialogEx() {
                 Settings.Security.password = securityPassword.value
                 Settings.Security.clearAllOnPasswordError = securityClearAllOnPasswordError.value
                 Settings.Security.numberOfIncorrectPassword = securityNumberOfIncorrectPassword.value
-                Settings.SecureArchive.primaryAddress = secureArchiveAddress.value
-                Settings.SecureArchive.secondaryAddress = secureArchive2ndAddress.value
+                Settings.SecureArchive.primaryHost = secureArchivePrimaryHost.value
+                Settings.SecureArchive.secondaryHost = secureArchiveSecondaryHost.value
                 Settings.SecureArchive.deviceName = deviceName.value
             }
             if (deviceNameChanged) {
@@ -312,8 +312,8 @@ class SettingDialog : UtDialogEx() {
                     .sliderBinding(controls.sliderSkipBackward, viewModel.playerSpanOfSkipBackward)
                     .multiVisibilityBinding(arrayOf(controls.passwordGroup, controls.passwordCriteriaGroup), viewModel.securityEnablePassword, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
                     .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
-                    .textBinding(controls.secureArchiveAddressText, viewModel.secureArchiveAddressForDisplay)
-                    .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchive2ndAddressForDisplay)
+                    .textBinding(controls.secureArchiveAddressText, viewModel.secureArchivePrimaryForDisplay)
+                    .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchiveSecondaryForDisplay)
                     .textBinding(controls.deviceName, viewModel.deviceName)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)
