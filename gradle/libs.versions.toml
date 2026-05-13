@@ -15,7 +15,7 @@ androidServer = "2.0.1"
 androidViewex = "1.1.20"
 androidDialog = "6.3.5"
 androidWorker = "2.2.10"
-androidMediaPlayer = "4.5.0"
+androidMediaPlayer = "4.6.0"
 androidMediaProcessor = "4.2.1"
 androidMediaEditor = "0.3.2"
 cameraCore = "1.6.1"
@@ -38,6 +38,7 @@ roomCompiler = "2.8.4"
 coroutinesCore = "1.11.0"
 kotlinxSerializationJson = "1.11.0"
 zxingAndroidEmbedded = "4.3.0"
+media3DatasourceOkhttp = "1.10.1"
 
 [libraries]
 android-dialog = { module = "com.github.toyota-m2k:android-dialog", version.ref = "androidDialog" }
@@ -78,6 +79,7 @@ kotrinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
+androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3DatasourceOkhttp" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

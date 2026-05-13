@@ -12,6 +12,8 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.toyota32k.binder.Binder
@@ -59,6 +61,7 @@ import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
@@ -215,7 +218,14 @@ class PlayerActivity : UtMortalActivity() {
         val metaDb = MetaDB[SlotSettings.currentSlotIndex]
 
         val playlist = Playlist()
+        // ExoPlayer の HTTP/HTTPS 取得を NetClient と同じ OkHttpClient 経由にする。
+        // これで自己署名 BooTube への HTTPS リクエストが NetClient の TrustManager で
+        // 検証され、`Trust anchor not found` を回避できる。
+        val okhttpDataSource = OkHttpDataSource.Factory(NetClient.motherClient)
+        val mediaDataSourceFactory = DefaultDataSource.Factory(application, okhttpDataSource)
         val playerControllerModel = PlayerControllerModel.Builder(application, viewModelScope)
+            .dataSourceFactory(mediaDataSourceFactory)
+            .customOkHttpClient(NetClient.motherClient)
             .supportFullscreen()
             .supportPlaylist(playlist,autoPlay = false,continuousPlay = false)
             .supportChapter(hideChapterViewIfEmpty = true)
