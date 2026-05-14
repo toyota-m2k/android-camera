@@ -351,6 +351,10 @@ object TcClient {
             .put("type", "SecureCamera")
             .put("token", TcServer.updateAuthToken())
             .put("address", address)
+            // todo
+            // .put("ssl", true)
+            // .put("fp", "<fingerprint>)
+
             .toString()
         val request = Request.Builder()
             .url(Authentication.makeAuthUrl("backup/request"))

@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.android.worker)
     implementation(libs.zxing.android.embedded)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.bouncycastle.bcpkix)
 
     implementation(project(path=":libCamera"))
 
