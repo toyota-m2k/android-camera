@@ -8,11 +8,14 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
+import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.VisibilityBinding
 import io.github.toyota32k.binder.observe
@@ -28,6 +31,7 @@ import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
 import io.github.toyota32k.lib.media.editor.handler.save.GenericSaveFileHandler
+import io.github.toyota32k.lib.media.editor.handler.save.ISourceToInputMediaFile
 import io.github.toyota32k.lib.media.editor.handler.split.GenericSplitHandler
 import io.github.toyota32k.lib.media.editor.model.IMediaSourceWithMutableChapterList
 import io.github.toyota32k.lib.media.editor.model.IMultiOutputFileSelector
@@ -37,6 +41,7 @@ import io.github.toyota32k.lib.media.editor.model.ISaveResult
 import io.github.toyota32k.lib.media.editor.model.IVideoSaveResult
 import io.github.toyota32k.lib.media.editor.model.MediaEditorModel
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
@@ -53,6 +58,8 @@ import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
+import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
@@ -83,34 +90,47 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
 class EditorActivity : UtMortalActivity() {
-    class EditorViewModel(application: Application) : AndroidViewModel(application) {
+    class EditorViewModel(application: Application) : AndroidViewModel(application), ISourceToInputMediaFile {
         val metaDb = MetaDB[SlotSettings.currentSlotIndex]
+        val okhttpDataSource = OkHttpDataSource.Factory(NetClient.motherClient)
+        val mediaDataSourceFactory = DefaultDataSource.Factory(application, okhttpDataSource)
         val editorModel = MediaEditorModel.Builder(application, viewModelScope) {
             supportChapter()
-            .supportSnapshot(this@EditorViewModel::onSnapshot)
-            .enableRotateLeft()
-            .enableRotateRight()
-            .enableSeekSmall(0,0)
-            .enableSeekMedium(1000, 3000)
-            .enableSeekLarge(5000, 10000)
-            .enableSliderLock(true)
-            .counterInMs()
-            .snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
-            .supportMagnifySlider { orgModel, duration->
+            dataSourceFactory(mediaDataSourceFactory)
+            customOkHttpClient(NetClient.motherClient)
+            supportSnapshot(this@EditorViewModel::onSnapshot)
+            enableRotateLeft()
+            enableRotateRight()
+            enableSeekSmall(0,0)
+            enableSeekMedium(1000, 3000)
+            enableSeekLarge(5000, 10000)
+            enableSliderLock(true)
+            counterInMs()
+            snapshotSource(PlayerControllerModel.SnapshotSource.CAPTURE_PLAYER, selectable = true)
+            supportMagnifySlider { orgModel, duration->
                 val sp = SliderPartitionDialog.show(SliderPartition.fromModel(orgModel, duration))
                 if (sp==null) orgModel else sp.toModel()
             }
         }
         .supportChapterEditor()
         .supportCrop()
-        .setSaveFileHandler( GenericSaveFileHandler(application, true))
-        .supportSplit(GenericSplitHandler(application, true))
+        .setSaveFileHandler( GenericSaveFileHandler(application, true, sourceToInputMediaFile = this))
+        .supportSplit(GenericSplitHandler(application, true, sourceToInputMediaFile = this))
         .setOutputFileProvider(FileProvider())
         .setOutputFileSelector(FileSelector())
         .enableBuiltInMagnifySlider()
         .build()
         private fun stringInKb(size: Long): String {
             return if (size<0) "uav" else String.format(Locale.US, "%,d KB", size / 1000L)
+        }
+
+        override fun toInputMediaFile(source: IMediaSource): IInputMediaFile {
+            return source.uri.toUri().run {
+                when (scheme?.lowercase()) {
+                    "http", "https" -> OkHttpInputFile(application, source.uri)
+                    else -> toAndroidFile(application)
+                }
+            }
         }
 
         fun safeOverwrite(srcFile: File, dstFile:File):Boolean {
@@ -248,7 +268,7 @@ class EditorActivity : UtMortalActivity() {
         private inner class FileProvider: IOutputFileProvider {
             override suspend fun getOutputFile(
                 mimeType: String,
-                inputFile: AndroidFile
+                inputFile: IInputMediaFile
             ): AndroidFile {
                 return File(application.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), "tc-output").toAndroidFile()
             }
