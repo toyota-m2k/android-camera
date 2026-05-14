@@ -11,7 +11,7 @@ kotlinSerialization = "2.3.21"
 # libraries
 androidUtilitiesVersion = "4.12.1"
 androidBinding = "1.12.2"
-androidServer = "2.0.1"
+androidServer = "2.1.0"
 androidViewex = "1.1.20"
 androidDialog = "6.3.5"
 androidWorker = "2.2.10"
