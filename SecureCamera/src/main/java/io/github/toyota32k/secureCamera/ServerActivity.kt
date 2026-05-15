@@ -1,7 +1,6 @@
 package io.github.toyota32k.secureCamera
 
 import android.app.Application
-import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -28,7 +27,6 @@ import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
@@ -47,10 +45,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 
 class ServerActivity : UtMortalActivity() {
     companion object {
@@ -58,9 +52,11 @@ class ServerActivity : UtMortalActivity() {
     }
     class ServerViewModel(application: Application) : AndroidViewModel(application) {
         private val metaDb:ScDB = MetaDB[SlotSettings.currentSlotIndex]
-        val port = Settings.SecureArchive.myPort
+        val port = Settings.Server.myPort
+        val ssl = Settings.Server.ssl
         val server = TcServer(port)
-        val ipAddress = MutableStateFlow("unknown")
+        lateinit var address: String
+        val hostAddressText = MutableStateFlow("unknown")
         val statusString = MutableStateFlow("Starting...")
         val backupCommand = LiteUnitCommand(::backup)
         val purgeCommand = LiteUnitCommand(::purge)
@@ -76,13 +72,8 @@ class ServerActivity : UtMortalActivity() {
                 server.start()
                 statusString.value = "Running"
                 viewModelScope.launch {
-                    val addr = NetworkUtils.getIpAddress(application)
-                    val index = addr.indexOf( "/")
-                    ipAddress.value = if(index>0) {
-                        addr.substring(0, index)
-                    } else {
-                        addr
-                    }
+                    address = NetworkUtils.getIpAddress(application)
+                    hostAddressText.value = "${if(ssl) "HTTPS" else "HTTP"} - $address:$port"
                 }
             } catch(e:Throwable) {
                 statusString.value = "Error"
@@ -90,38 +81,48 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
-        private fun backupCore(title:String, message:String, backupReq:suspend (String)->Unit) {
-            viewModelScope.launch {
-                if (isBusy.value) return@launch
-                isBusy.value = true
-                try {
-                    if (!Authentication.authenticateAndMessage()) {
-                        return@launch
-                    }
-                    val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
-                        showOkCancelMessageBox(
-                            title,
-                            message,
-                            "OK",
-                            "Cancel"
-                        )
-                    }
-                    if (!decision) {
-                        return@launch
-                    }
-                    backupReq("${ipAddress.value}:${Settings.SecureArchive.myPort}")
-                } finally {
-                    isBusy.value = false
+        private suspend fun backupCore(title:String, message:String, backupReq:suspend (String)->Unit) {
+            if (isBusy.value) return
+            isBusy.value = true
+            try {
+                if (!Authentication.authenticateAndMessage()) {
+                    return
                 }
+                val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
+                    showOkCancelMessageBox(
+                        title,
+                        message,
+                        "OK",
+                        "Cancel"
+                    )
+                }
+                if (!decision) {
+                    return
+                }
+                backupReq("${address}:${port}")
+            } finally {
+                isBusy.value = false
             }
         }
 
         private fun backup() {
-            backupCore("Backup Media Files", "Backup all media files to ${Authentication.activeHostLabel}", TcClient::requestBackupData)
+            viewModelScope.launch {
+                backupCore(
+                    "Backup Media Files",
+                    "Backup all media files to ${Authentication.activeHostLabel}",
+                    TcClient::requestBackupData
+                )
+            }
         }
 
         private fun backupDB() {
-            backupCore("Backup Databases", "Backup databases to ${Authentication.activeHostLabel}", TcClient::requestBackupDB)
+            viewModelScope.launch {
+                backupCore(
+                    "Backup Databases",
+                    "Backup databases to ${Authentication.activeHostLabel}",
+                    TcClient::requestBackupDB
+                )
+            }
         }
 
         private fun purge() {
@@ -136,6 +137,9 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        /**
+         * SAにバックアップ後、ローカルで削除してしまったファイルを、SAから取得しなおして復元する。
+         */
         private fun repair() {
             isBusy.value = true
             viewModelScope.launch {
@@ -193,6 +197,12 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        /**
+         * 新しいデバイスから、SAに古いデバイスの移行を依頼する。
+         * SAは、登録されているデバイスの一覧を返してくるので、Private Camera側でターゲットデバイスを選択すれば、
+         * そのデバイスで登録されたメディアファイルのオーナーが、このデバイスに書き変わり、PlayerActivityの一覧に列挙される。
+         * 移行したメディアファイルは、「アップロード＆パージ済み」になっており、必要ならRestoreすることができる。
+         */
         private fun migrate() {
             isBusy.value = true
             UtImmortalTask.launchTask("migrate") {
@@ -320,7 +330,7 @@ class ServerActivity : UtMortalActivity() {
         binder.owner(this)
 //            .bindCommand(LiteUnitCommand(),controls.closeButton) { finish() }
             .textBinding(controls.serverStatus, viewModel.statusString.map { "Server Status: $it"})
-            .textBinding(controls.serverAddress, viewModel.ipAddress)
+            .textBinding(controls.serverAddress, viewModel.hostAddressText)
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
             .bindCommand(viewModel.repairCommand, controls.repairButton)

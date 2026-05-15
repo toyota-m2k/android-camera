@@ -588,6 +588,57 @@
     </LinearLayout>
 
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="@dimen/dlg_text_large" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1"
+            android:text="@string/enable_ssl"/>
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/enable_ssl_check"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port"
+            />
+        <TextView
+            android:id="@+id/server_port_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:textAlignment="textEnd"
+            tools:text="5001"
+            android:layout_marginEnd="8dp"
+            />
+        <com.google.android.material.button.MaterialButton
+            style="@style/SettingDlgIconButton"
+            android:id="@+id/edit_server_port_button"
+            app:icon="@drawable/ic_edit"
+            />
+    </LinearLayout>
+
     <!-- - - - - - - - - - - - - - - - - - -->
 
     <Button

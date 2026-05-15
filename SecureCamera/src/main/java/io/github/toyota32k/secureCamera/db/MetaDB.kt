@@ -26,6 +26,7 @@ import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
 import io.github.toyota32k.secureCamera.db.ScDB.Companion.BASE_DB_NAME
 import io.github.toyota32k.secureCamera.db.ScDB.Companion.application
+import io.github.toyota32k.secureCamera.db.ScDB.Companion.logger
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
@@ -828,6 +829,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         Uploader.upload(SCApplication.instance, item)
     }
 
+    /**
+     * SecureArchiveからダウンロードしてメディアファイルを置き換えるが、ファイル情報は元のまま。
+     */
     fun restoreFromCloud(item: ItemEx) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
@@ -836,6 +840,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false)
     }
 
+    /**
+     * SecureArchiveからダウンロードして、ファイル情報もSAの情報に合わせて書き換える。
+     */
     fun recoverFromCloud(item: ItemEx) {
         Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true)
     }
@@ -1007,6 +1014,7 @@ object MetaDB {
             SlotSettings.activeSlots.forEach { slotInfo ->
                 get(slotInfo.index).use { db ->
                     db.listEx(listMode).filter(predicate).forEach { item ->
+                        logger.debug("db=${db.slotIndex} ${item.name}")
                         fn(db, item)
                     }
                 }

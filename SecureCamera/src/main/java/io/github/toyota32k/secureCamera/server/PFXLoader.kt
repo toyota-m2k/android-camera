@@ -11,7 +11,6 @@ import org.bouncycastle.asn1.x509.KeyUsage
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import java.math.BigInteger
 import java.nio.file.Files
@@ -20,7 +19,6 @@ import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.security.Security
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
 import java.util.Date
@@ -74,11 +72,12 @@ class PFXLoader private constructor(
         private const val KEY_SIZE = 2048
         private const val SIG_ALGORITHM = "SHA256withRSA"
 
-        init {
-            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-                Security.addProvider(BouncyCastleProvider())
-            }
-        }
+        // 注意: Android には "BC" という名前で機能限定版の BouncyCastle が同梱されており、
+        // Security.addProvider(BouncyCastleProvider()) で上書きしようとしても無視される。
+        // したがって setProvider("BC") で得られるのは縮小版で、SHA256withRSA の ContentSigner
+        // を生成できない。ここでは provider 名を指定せず、JCA に算法名から探させる
+        // (Android では AndroidOpenSSL/Conscrypt が SHA256withRSA を実装している)。
+        // bcpkix の X509v3CertificateBuilder 等のクラス自体は provider 登録なしで使える。
 
         /**
          * 自己署名証明書 + 秘密鍵を生成し、PKCS#12 (PFX) として [path] に保存する。
@@ -141,11 +140,8 @@ class PFXLoader private constructor(
                 )
             }
 
-            val signer = JcaContentSignerBuilder(SIG_ALGORITHM)
-                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                .build(kp.private)
+            val signer = JcaContentSignerBuilder(SIG_ALGORITHM).build(kp.private)
             val cert: X509Certificate = JcaX509CertificateConverter()
-                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
                 .getCertificate(builder.build(signer))
 
             val pw = pfxPassword.toCharArray()

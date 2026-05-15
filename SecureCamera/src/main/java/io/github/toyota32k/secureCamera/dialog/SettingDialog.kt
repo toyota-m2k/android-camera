@@ -10,6 +10,7 @@ import io.github.toyota32k.binder.checkBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.intBinding
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.multiVisibilityBinding
 import io.github.toyota32k.binder.observe
@@ -170,6 +171,8 @@ class SettingDialog : UtDialogEx() {
         val secureArchiveSecondaryForDisplay = secureArchiveSecondaryHost.map { it?.displayName ?: "(n/a)" }
 
         val deviceName = MutableStateFlow(Settings.SecureArchive.deviceName)
+        val port = MutableStateFlow(Settings.Server.myPort)
+        val ssl = MutableStateFlow(Settings.Server.ssl)
 
         val commandNip = LiteCommand(this::updateNip)
         val commandSkipForward = LiteCommand(this::updateSkipForwardSpan)
@@ -249,6 +252,8 @@ class SettingDialog : UtDialogEx() {
                 Settings.SecureArchive.primaryHost = secureArchivePrimaryHost.value
                 Settings.SecureArchive.secondaryHost = secureArchiveSecondaryHost.value
                 Settings.SecureArchive.deviceName = deviceName.value
+                Settings.Server.myPort = port.value
+                Settings.Server.ssl = ssl.value
             }
             if (deviceNameChanged) {
                 UtImmortalTask.launchTask {
@@ -271,6 +276,8 @@ class SettingDialog : UtDialogEx() {
             securityPassword.value = Settings.Security.DEF_PASSWORD
             securityClearAllOnPasswordError.value = Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
             securityNumberOfIncorrectPassword.value = Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+            ssl.value = Settings.Server.DEF_SSL
+            port.value = Settings.Server.DEF_PORT
         }
     }
 
@@ -304,6 +311,8 @@ class SettingDialog : UtDialogEx() {
                     .textBinding(controls.skipForwardText, viewModel.skipForwardText)
                     .textBinding(controls.skipBackwardText, viewModel.skipBackwardText)
                     .textBinding(controls.deviceId, Settings.SecureArchive.clientId.asConstantLiveData())
+                    .intBinding(controls.serverPortText, viewModel.port)
+                    .checkBinding(controls.enableSslCheck, viewModel.ssl)
                     .checkBinding(controls.enablePasswordCheck, viewModel.securityEnablePassword)
                     .checkBinding(controls.blockPasswordErrorCheck, viewModel.securityClearAllOnPasswordError)
                     .checkBinding(controls.hidePanelOnCameraCheck, viewModel.cameraHidePanelOnStart)

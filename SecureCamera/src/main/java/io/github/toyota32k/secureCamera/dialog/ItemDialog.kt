@@ -38,6 +38,7 @@ class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtDialogViewModel() {
         lateinit var item:MutableStateFlow<ItemEx>
         val metaDb = MetaDB[SlotSettings.currentSlotIndex]
+        val enableSyncWithSA = SlotSettings.currentSlotFlow.value.sync
 
         enum class NextAction {
             None,
@@ -131,7 +132,7 @@ class ItemDialog : UtDialogEx() {
         binder
             .textBinding(controls.itemName, viewModel.item.map { it.nameForDisplay})
 //            .visibilityBinding(controls.editVideoButton, ConstantLiveData(viewModel.item.isVideo && viewModel.item.cloud.isFileInLocal), hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local && viewModel.enableSyncWithSA  }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)

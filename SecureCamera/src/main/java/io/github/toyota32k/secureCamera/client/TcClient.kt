@@ -351,10 +351,8 @@ object TcClient {
             .put("type", "SecureCamera")
             .put("token", TcServer.updateAuthToken())
             .put("address", address)
-            // todo
-            // .put("ssl", true)
-            // .put("fp", "<fingerprint>)
-
+            .put("ssl", if(Settings.Server.ssl) "true" else "false")
+            .put("fp", TcServer.fingerprint)
             .toString()
         val request = Request.Builder()
             .url(Authentication.makeAuthUrl("backup/request"))
@@ -373,6 +371,14 @@ object TcClient {
         }
     }
 
+    /**
+     * SecureArchiveにDBのバックアップを要求する。
+     * SecureArchiveは、
+     * - 自身のDB（SecureArchive.db）
+     * - 設定情報（UserSetting.json）
+     * - このクライアント(PrivateCamera)のDB（zip)
+     * をまとめて、PC上に保存する（ディレクトリ指定ダイアログが表示される）
+     */
     suspend fun requestBackupDB(address:String):Boolean {
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
@@ -380,6 +386,8 @@ object TcClient {
             .put("type", "SecureCamera")
             .put("token", TcServer.updateAuthToken())
             .put("address", address)
+            .put("ssl", if(Settings.Server.ssl) "true" else "false")
+            .put("fp", TcServer.fingerprint)
             .toString()
         val request = Request.Builder()
             .url(Authentication.makeAuthUrl("backup-db/request"))

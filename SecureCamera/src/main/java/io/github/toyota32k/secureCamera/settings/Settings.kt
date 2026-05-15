@@ -118,6 +118,13 @@ object Settings {
         }
     }
 
+    object Server {
+        const val DEF_SSL = true
+        const val DEF_PORT = 5001
+        var myPort by spd.pref(DEF_PORT)
+        var ssl by spd.pref(DEF_SSL)
+    }
+
     object SecureArchive {
         var clientId:String by spd.pref("")
         // var primaryAddress:String by spd.pref("")
@@ -138,7 +145,6 @@ object Settings {
                 _secondaryHostCache = v
                 _secondaryHost = v?.toJson()
             }
-        var myPort by spd.pref(5001)
         var deviceName by spd.pref(Build.MODEL?:"Unknown")
         val isConfigured:Boolean get() = primaryHost != null || secondaryHost != null
 
