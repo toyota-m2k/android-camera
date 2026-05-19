@@ -21,7 +21,15 @@ object NetworkUtils {
                     linkProperties: LinkProperties
                 ) {
                     super.onLinkPropertiesChanged(network, linkProperties)
-                    cont.resume(linkProperties.linkAddresses.filter { it.address is Inet4Address }[0].toString())
+                    val addr = linkProperties.linkAddresses.filter { it.address is Inet4Address }[0].toString().run {
+                        val index = indexOf( "/")
+                        if(index>0) {
+                            substring(0, index)
+                        } else {
+                            this
+                        }
+                    }
+                    cont.resume(addr)
                     unregister?.invoke()
                 }
             }

@@ -1,29 +1,140 @@
 package io.github.toyota32k.secureCamera.dialog
 
+import android.Manifest
 import android.os.Bundle
 import android.view.View
+import androidx.core.net.toUri
+import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
+import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.combinatorialVisibilityBinding
+import io.github.toyota32k.binder.command.LiteCommand
+import io.github.toyota32k.binder.command.LiteUnitCommand
+import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.editTextBinding
+import io.github.toyota32k.binder.list.ObservableList
+import io.github.toyota32k.binder.recyclerViewBindingEx
+import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.boodroid.data.PairingUri
 import io.github.toyota32k.dialog.UtDialogEx
+import io.github.toyota32k.dialog.broker.IUtActivityBrokerStoreProvider
+import io.github.toyota32k.dialog.broker.UtPermissionBroker
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.client.BooTubeDiscovery
 import io.github.toyota32k.secureCamera.databinding.DialogAddressBinding
+import io.github.toyota32k.secureCamera.databinding.ListItemDiscoveredServerBinding
+import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 class AddressDialog : UtDialogEx() {
     class AddressDialogViewModel : UtDialogViewModel() {
         val address = MutableStateFlow("")
-        fun initialize(address:String) {
-            this.address.value = address
+        var pairingHost: SecureArchiveHost? = null
+            set(v) {
+                field = v
+                if (v!=null) {
+                    address.value = v.address
+                }
+            }
+
+        fun initialize(host: SecureArchiveHost?) {
+            if (null == host) return // initial
+            if (host.isPairedHost) {
+                pairingHost = host
+            } else {
+                address.value = host.address
+            }
         }
 
-//        fun save() {
-//            Settings.SecureArchive.address = address.value
+        val result: SecureArchiveHost?
+            get() {
+                return if (pairingHost != null && pairingHost?.address == address.value) {
+                    pairingHost
+                } else if (address.value.isNotBlank()) {
+                    SecureArchiveHost(address.value)
+                } else {
+                    null
+                }
+            }
+
+//        data class DiscoveredHostInfo(
+//            val serviceName: String,
+//            val fingerprint: String? = null,
+//            val isHttps: Boolean = false,
+//            val hostname: String? = null,
+//        ) {
+//            companion object {
+//                fun fromHostAddressEntity(src: SecureArchiveHost): DiscoveredHostInfo? {
+//                    val serviceName = src.serviceName ?: return null
+//                    return DiscoveredHostInfo(serviceName,src.fingerprint,src.isHttps,src.hostname)
+//                }
+//            }
 //        }
+
+//        private var selectedHost: DiscoveredHostInfo? = null
+
+        val discovering = MutableStateFlow<Boolean>(false)
+        val commandDiscover = LiteUnitCommand {
+            // （開始されていなければ）mDNSの検索を開始する
+            if (!discovering.value) {
+                discovering.value = true
+                discoveryModel.start(viewModelScope)
+            }
+        }
+
+        class DiscoveryModel {
+//            // mDNS で発見したサーバ由来のメタ情報。手入力に切替えたら null/false にリセットされる。
+//            var serviceName: String? = null
+//            var fingerprint: String? = null
+//            var isHttps: Boolean = false
+//            var hostname: String? = null
+
+            // RecyclerView 用の発見リスト本体
+            val discoveredServers = ObservableList<BooTubeDiscovery.DiscoveredServer>()
+
+            // 「Searching…」の出し分け用 (ObservableList を Flow 化するのは骨が折れるので別管理)
+            val hasDiscoveries = MutableStateFlow(false)
+
+            // BooTubeDiscovery のラッパ。ダイアログ表示中だけ start/stop。
+            private var discovery: BooTubeDiscovery? = null
+
+            fun start(scope: CoroutineScope) {
+                if (discovery != null) return
+                val d = BooTubeDiscovery()
+                discovery = d
+                d.services.onEach { list ->
+                    discoveredServers.replace(list)
+                    hasDiscoveries.value = list.isNotEmpty()
+                }.launchIn(scope)
+                d.start()
+            }
+
+            fun stop() {
+                discovery?.stop()
+                discovery = null
+            }
+        }
+
+        val discoveryModel = DiscoveryModel()
+
+        override fun onCleared() {
+            super.onCleared()
+            discoveryModel.stop()
+        }
+
+
         companion object {
 //            fun createBy(task:IUtImmortalTask, initialAddress:String):AddressDialogViewModel {
 //                return UtImmortalViewModelHelper.createBy(AddressDialogViewModel::class.java, task).apply {
@@ -54,7 +165,45 @@ class AddressDialog : UtDialogEx() {
 //        viewModel = ViewModelProvider(requireActivity())[AddressDialogViewModel::class.java]
         controls = DialogAddressBinding.inflate(inflater.layoutInflater)
         return controls.root.also { _ ->
-            binder.editTextBinding(controls.address, viewModel.address, BindingMode.TwoWay)
+            binder
+                .editTextBinding(controls.address, viewModel.address, BindingMode.TwoWay)
+                .combinatorialVisibilityBinding(viewModel.discovering) {
+                    inverseGone(controls.discoverBtn)
+                    straightGone(controls.discoverResultLabel)
+                    straightGone(controls.discoverResult)
+                }
+                .visibilityBinding(
+                    controls.emptyDiscoveryLabel,
+                    viewModel.discoveryModel.hasDiscoveries.map { !it },
+                    hiddenMode = VisibilityBinding.HiddenMode.HideByGone
+                )
+                .bindCommand(viewModel.commandDiscover, controls.discoverBtn)
+                .bindCommand(LiteUnitCommand(::pairingWithQRCode), controls.scanQrCodeBtn)
+                .recyclerViewBindingEx(controls.discoveredList) {
+                    options(
+                        list = viewModel.discoveryModel.discoveredServers,
+                        inflater = ListItemDiscoveredServerBinding::inflate,
+                        bindView = { itemControls, itemBinder, _, server ->
+                            itemControls.discoveredNameText.text = server.serviceName
+                            // hostname があれば「TOYOTA-PC.local (192.168.0.153:3501)」形式
+                            itemControls.discoveredAddressText.text =
+                                if (!server.hostname.isNullOrEmpty())
+                                    "${server.hostname} (${server.host}:${server.port})"
+                                else
+                                    "${server.host}:${server.port}"
+                            itemControls.httpsBadge.text = if (server.isHttps) "HTTPS" else "HTTP"
+                            itemBinder.reset()
+                            itemBinder.owner(owner)
+                                .bindCommand(
+                                    LiteCommand {
+                                        viewModel.pairingHost = it.toHost()
+                                    },
+                                    itemControls.discoveredItemContainer,
+                                    server,
+                                )
+                        },
+                    )
+                }
         }
     }
 
@@ -63,12 +212,31 @@ class AddressDialog : UtDialogEx() {
 //        super.onPositive()
 //    }
 
+    fun pairingWithQRCode() {
+        if (!QRCodeDialog.hasCamera(context)) return
+        val broker = (requireActivity() as? IUtActivityBrokerStoreProvider)?.activityBrokers?.broker<UtPermissionBroker>() ?: return
+        CoroutineScope(Dispatchers.Main).launch {
+            if(broker.requestPermission(Manifest.permission.CAMERA)) {
+                val tx = QRCodeDialog.show("Pairing", "Scan QR Code on your Boo App") {
+                    it.startsWith("bootube:")
+                } ?: return@launch
+                logger.debug { tx }
+                val pairing = PairingUri.parse(tx.toUri()) ?: return@launch
+                logger.debug { pairing.toString() }
+                viewModel.pairingHost = pairing.toHost()
+            }
+        }
+
+    }
+
+
     companion object {
-        suspend fun show(initialAddress: String): String? {
+        data class Result(val status:Boolean, val host: SecureArchiveHost?)
+        suspend fun show(initialHost: SecureArchiveHost?): Result? {
             return UtImmortalTask.awaitTaskResult("editAddress") {
-                val vm = createViewModel<AddressDialogViewModel> { initialize(initialAddress) }
+                val vm = createViewModel<AddressDialogViewModel> { initialize(initialHost) }
                 if(showDialog(taskName) { AddressDialog() }.status.positive) {
-                    vm.address.value
+                    Result(true,vm.result)
                 } else null
             }
         }

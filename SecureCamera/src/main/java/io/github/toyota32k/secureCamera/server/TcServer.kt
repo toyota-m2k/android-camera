@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera.server
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.PlayerActivity
+import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -29,8 +30,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
+import java.nio.file.Path
 import java.util.Date
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.days
 
 class TcServer(val port:Int) : AutoCloseable {
     companion object {
@@ -45,6 +48,39 @@ class TcServer(val port:Int) : AutoCloseable {
 
         var authToken: String = generateToken()
         val regRange = Regex("bytes=(?<start>\\d+)(?:-(?<end>\\d+))?");
+
+        // ---- SSL (self-signed PFX) -----------------------------------------------------
+        private const val PFX_FILENAME = "server-cert.pfx"
+        // 端末ローカルに置く PFX のパスワード。app-private storage 内のため実質的な防御力は無く、
+        // PKCS#12 仕様上必須となるため固定値で構わない。
+        private const val PFX_PASSWORD = "secureCamera"
+        private const val PFX_CERT_CN = "SecureCamera"
+        private val PFX_VALIDITY = 3650.days
+
+        /** 起動中の TLS 証明書の SHA-256 fingerprint ("AB:CD:..." 形式)。start() 後に有効。 */
+        var fingerprint: String? = null
+            private set
+
+        /** 既存 PFX があれば load、なければ新規生成して load。失敗時は例外を投げる。 */
+        private fun loadOrCreatePfx(): PFXLoader {
+            val ctx = SCApplication.instance.applicationContext
+            val pfxPath: Path = ctx.filesDir.toPath().resolve(PFX_FILENAME)
+            if (!java.nio.file.Files.exists(pfxPath)) {
+                logger.info("Generating self-signed PFX: $pfxPath")
+                // SAN は DHCP で変わる LAN IP を入れない (fingerprint pinning で検証されるため
+                // SAN 内容自体は到達性に影響しないが、エントリ 0 件を避けるため安定識別子だけ入れる)。
+                PFXLoader.createPfxFile(
+                    path = pfxPath,
+                    cn = PFX_CERT_CN,
+                    hostnames = listOf("localhost"),
+                    ipAddresses = listOf("127.0.0.1"),
+                    pfxPassword = PFX_PASSWORD,
+                    validity = PFX_VALIDITY,
+                )
+            }
+            return PFXLoader.loadPfxFile(pfxPath, PFX_PASSWORD)
+        }
+        // -------------------------------------------------------------------------------
 
         private fun videoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest):IHttpResponse {
             return downloadProcCore(request, "video/mp4")
@@ -251,7 +287,10 @@ class TcServer(val port:Int) : AutoCloseable {
     val httpServer = HttpServer(routes)
 
     fun start() {
-        httpServer.start(port)
+        val pfx = loadOrCreatePfx()
+        fingerprint = pfx.getFingerprint()
+        logger.info("Starting HTTPS on port $port (fp=$fingerprint)")
+        httpServer.start(port, pfx.createSSLContext())
     }
 
     override fun close() {

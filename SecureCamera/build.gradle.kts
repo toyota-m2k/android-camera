@@ -4,6 +4,8 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.devtool.ksp)         // for room compiler
+//    kotlin("plugin.serialization") version "2.3.0"
+    alias(libs.plugins.kotlin.serialization)
 //    id("com.google.android.gms.oss-licenses-plugin")
 }
 
@@ -33,7 +35,7 @@ configure<ApplicationExtension> {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.20.1"
+        versionName = "2.22.0"
             testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
     buildFeatures {
@@ -59,6 +61,7 @@ configure<ApplicationExtension> {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.media3.datasource.okhttp)
     implementation(libs.material)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.constraintlayout)
@@ -89,6 +92,10 @@ dependencies {
     implementation(libs.android.media.player)
     implementation(libs.android.media.editor)
     implementation(libs.android.worker)
+    implementation(libs.zxing.android.embedded)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.bouncycastle.bcpkix)
 
     implementation(project(path=":libCamera"))
 
