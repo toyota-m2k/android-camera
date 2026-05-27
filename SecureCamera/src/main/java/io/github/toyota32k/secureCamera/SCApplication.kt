@@ -22,7 +22,7 @@ class SCApplication : Application() {
             private set
         val logger = UtLog("SC", null, SCApplication::class.java)
         init {
-            UtLogConfig.logLevel = if(BuildConfig.DEBUG) Log.VERBOSE else Log.DEBUG
+            UtLogConfig.logLevel = if(BuildConfig.DEBUG) Log.DEBUG else Log.DEBUG
             UtDialogConfig.solidBackgroundOnPhone = false   // phone の場合も、ダイアログの背景を灰色にしない
             UtDialogConfig.defaultGuardColorOfCancellableDialog = UtDialog.GuardColor.DIM
             UtDialogConfig.showInDialogModeAsDefault = false    // dialogモードにすると、ダイアログを表示したときにStatusBarが表示されるため、Player/EditorActivityのサイズが変わって、スクロール位置がリセットされてしまう。
