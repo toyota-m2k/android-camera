@@ -193,25 +193,14 @@ class EditorActivity : UtMortalActivity() {
                 logger.error("cannot overwrite")
             }
         }
+
         private suspend fun addVideoFileAt(pos:Long, outFile: UtJavaFile, newChapterList:List<IChapter>) {
             val date = targetItem.creationDate + pos
-            val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
-            name to File(metaDb.filesDir, name)
-            {
-            }
-            safeOverwrite(output.path, file)
-            val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")
-            val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
-
-            if (firstItem==null) {
-                // 先頭アイテムはリプレース
-                firstItem = metaDb.updateFile(targetItem, newChapterList)
-            } else {
-                val newItem = metaDb.register(name)!!
-                metaDb.setChaptersFor(newItem, newChapterList)
-            }
+            val file = metaDb.createVideoFile(Date(date))
+            safeOverwrite(outFile.path, file)
+            val newItem = metaDb.register(file.name)!!
+            metaDb.setChaptersFor(newItem, newChapterList)
         }
-
 
         suspend fun onVideoSaved(result:ISaveResult) {
             if (!result.succeeded) return
@@ -234,8 +223,10 @@ class EditorActivity : UtMortalActivity() {
                     ) {
                         val sourceInfo = result.sourceInfo as IVideoSourceInfo
                         if (sourceInfo.saveMode == VideoSaveMode.ALL) {
+                            // 全体を保存した場合は、リプレース
                             replaceVideoFile(outFile, newChapterList)
                         } else {
+                            // 一部を抽出した場合は、新規追加
                             val pos = sourceInfo.trimmingRanges.firstOrNull()?.startMs ?: 0L
                             addVideoFileAt(pos, outFile, newChapterList)
                         }
@@ -261,8 +252,8 @@ class EditorActivity : UtMortalActivity() {
                             } else {
                                 val pos = files[r.outputFile] ?: throw IllegalStateException("no position")
                                 val date = targetItem.creationDate + pos
-                                val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
-                                name to File(metaDb.filesDir, name)
+                                val file = metaDb.createVideoFile(Date(date))
+                                file.name to file
                             }
                             safeOverwrite(output.path, file)
                             val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")

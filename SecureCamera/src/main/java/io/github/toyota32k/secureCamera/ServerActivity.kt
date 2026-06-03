@@ -40,7 +40,6 @@ import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -107,7 +106,7 @@ class ServerActivity : UtMortalActivity() {
 
         private fun backup() {
             viewModelScope.launch {
-                if (!Authentication.authenticateAndMessage()) {
+                if (!Authentication.authenticateAndMessage(preferPrimary = true)) {
                     return@launch
                 }
                 backupCore(
@@ -165,40 +164,40 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
-        private fun progressDialogTest() {
-            UtImmortalTask.launchTask("progress test") {
-                if( !showOkCancelMessageBox("Progress Test", "Are you ok?")) {
-                    return@launchTask
-                }
-
-                var cancelled = false
-                val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
-                pvm.message.value = "Progress Test..."
-                pvm.cancelCommand.bindForever { cancelled = true }
-                // プログレスダイアログをモーダル表示
-                launchSubTask {
-                    showDialog(ProgressDialog())
-                }
-
-                for (i in 1..30) {
-                    if(cancelled) {
-                        logger.debug("progress test cancelled at $i")
-                        break
-                    }
-                    pvm.progress.value = i
-                    pvm.progressText.value = "$i / 100"
-                    logger.debug("progress test: $i")
-                    // ここで何か時間のかかる処理を行う
-                    delay(1000)
-                }
-                pvm.closeCommand.invoke(false)
-                if(cancelled) {
-                    showConfirmMessageBox("Progress Test", "Cancelled.")
-                } else {
-                    showConfirmMessageBox("Progress Test", "Completed.")
-                }
-            }
-        }
+//        private fun progressDialogTest() {
+//            UtImmortalTask.launchTask("progress test") {
+//                if( !showOkCancelMessageBox("Progress Test", "Are you ok?")) {
+//                    return@launchTask
+//                }
+//
+//                var canceled = false
+//                val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
+//                pvm.message.value = "Progress Test..."
+//                pvm.cancelCommand.bindForever { canceled = true }
+//                // プログレスダイアログをモーダル表示
+//                launchSubTask {
+//                    showDialog(ProgressDialog())
+//                }
+//
+//                for (i in 1..30) {
+//                    if(cancelled) {
+//                        logger.debug("progress test cancelled at $i")
+//                        break
+//                    }
+//                    pvm.progress.value = i
+//                    pvm.progressText.value = "$i / 100"
+//                    logger.debug("progress test: $i")
+//                    // ここで何か時間のかかる処理を行う
+//                    delay(1000)
+//                }
+//                pvm.closeCommand.invoke(false)
+//                if(cancelled) {
+//                    showConfirmMessageBox("Progress Test", "Cancelled.")
+//                } else {
+//                    showConfirmMessageBox("Progress Test", "Completed.")
+//                }
+//            }
+//        }
 
         /**
          * 新しいデバイスから、SAに古いデバイスの移行を依頼する。
@@ -209,10 +208,13 @@ class ServerActivity : UtMortalActivity() {
         private fun migrate() {
             isBusy.value = true
             UtImmortalTask.launchTask("migrate") {
+                var message:String? = null
+                var cancelled = false
+                var succeeded = false
+                var imported = 0
+                var invalid = 0     // インポートされた無効なエントリーの数
+                var migratedTotal = 0
                 try {
-                    var succeeded = false
-                    var cancelled = false
-                    var message = ""
                     fun shorten(text:String, head:Int=5, tail:Int=5):String {
                         return if(text.length>head+tail) {
                             "${text.substring(0, head)}...${text.substring(text.length-tail)}"
@@ -241,6 +243,7 @@ class ServerActivity : UtMortalActivity() {
                         message = "No data to migrate from ${device.name}."
                         return@launchTask
                     }
+
                     val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
                     pvm.message.value = "Migrating..."
                     pvm.cancelCommand.bindForever { cancelled = true }
@@ -249,8 +252,6 @@ class ServerActivity : UtMortalActivity() {
                         showDialog(ProgressDialog())
                     }
 
-                    var imported = 0
-                    var invalid = 0     // インポートされた無効なエントリーの数
                     try {
                         withContext(Dispatchers.IO) {
                             MetaDB.dbCache().use { dbCache ->
@@ -290,14 +291,17 @@ class ServerActivity : UtMortalActivity() {
                         // マイグレーション終了をサーバーに知らせる
                         pvm.closeCommand.invoke(succeeded)
                         TcClient.endMigration(migration.handle)
-                        if (succeeded) {
-                            showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: ${migration.list.size}")
-                        } else {
-                            showConfirmMessageBox("Migration", "Migration failed.\n$message")
-                        }
+                        migratedTotal = migration.list.size
                     }
                 } finally {
                     isBusy.value = false
+                    if (succeeded) {
+                        showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: $migratedTotal")
+                    } else if (!cancelled) {
+                        showConfirmMessageBox("Migration", message =
+                            if (message!=null) "Migration failed.\n$message"
+                            else "Migration failed.")
+                    }
                 }
             }
         }
@@ -347,4 +351,5 @@ class ServerActivity : UtMortalActivity() {
             }
             .visibilityBinding(controls.progressRing, viewModel.isBusy, hiddenMode = VisibilityBinding.HiddenMode.HideByInvisible)
     }
+
 }
