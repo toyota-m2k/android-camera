@@ -11,6 +11,7 @@ import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.secureCamera.settings.Settings.SecureArchive.isPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -182,11 +183,9 @@ object Authentication {
     /**
      * アクセス可能なホストを primary, secondary の順にチェックし、最初に見つかったホストを activeHostAddress に設定する。
      */
-    private suspend fun checkHost():Result {
-        var empty = true
-
+    private suspend fun checkHost(preferPrimary:Boolean):Result {
         val currentHost = activeHost
-        if(currentHost!=null) {
+        if(currentHost!=null && (!preferPrimary||currentHost.isPrimary)) {
             if(System.currentTimeMillis() - lastCheckTime < 5000) {
                 // 5秒以内の連続呼び出しならチェックしない。
                 return Result.OK
@@ -196,13 +195,14 @@ object Authentication {
             }
         }
 
+        var empty = true
         for(host in Settings.SecureArchive.hosts) {
-            if(currentHost!=host && checkOneHost(host)) {
+            empty = false
+            if (checkOneHost(host)) {
                 activeHost = host
                 lastCheckTime = System.currentTimeMillis()
                 return Result.OK
             }
-            empty = false
         }
         activeHost = null
         return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
@@ -225,8 +225,8 @@ object Authentication {
             }
         }
 
-    val isPrimaryActive:Boolean
-        get() = activeHost?.address == Settings.SecureArchive.primaryHost?.address
+//    val isPrimaryActive:Boolean
+//        get() = activeHost?.address == Settings.SecureArchive.primaryHost?.address
 
 //    /**
 //     * アクセス可能なホストのリストを返す。
@@ -244,8 +244,8 @@ object Authentication {
     /**
      * アクセス可能なホストを見つけて認証する。
      */
-    private suspend fun authenticate():Result {
-        checkHost().let { if(!it.succeeded) return it }
+    private suspend fun authenticate(preferPrimary: Boolean):Result {
+        checkHost(preferPrimary).let { if(!it.succeeded) return it }
         if(checkAuthToken()) return Result.OK
         return if(PasswordDialog.authenticate(activeHostLabel)) Result.OK else Result.CANCELLED
     }
@@ -260,7 +260,7 @@ object Authentication {
         val result = MutableStateFlow<Boolean?>(null)
         var processing = false
 
-        suspend fun authenticate():Boolean {
+        suspend fun authenticate(preferPrimary: Boolean):Boolean {
             val generalAgent = mutex.withLock {
                 if(!processing) {
                     processing = true
@@ -269,7 +269,7 @@ object Authentication {
                 } else false    // ２つ目以降の要求
             }
             if (generalAgent) {
-                val r = internalAuthenticateAndMessage()
+                val r = internalAuthenticateAndMessage(preferPrimary)
                 result.value = r
                 mutex.withLock {
                     processing = false
@@ -280,13 +280,13 @@ object Authentication {
         }
     }
 
-    suspend fun authenticateAndMessage():Boolean {
-        return AuthMediator.authenticate()
+    suspend fun authenticateAndMessage(preferPrimary: Boolean):Boolean {
+        return AuthMediator.authenticate(preferPrimary)
     }
 
 
 
-    private suspend fun internalAuthenticateAndMessage():Boolean {
+    private suspend fun internalAuthenticateAndMessage(preferPrimary: Boolean):Boolean {
         suspend fun showMessage(msg:String):Boolean {
             UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
                 showConfirmMessageBox(null, msg)
@@ -295,7 +295,7 @@ object Authentication {
             return false
         }
         return logger.chronos(level = Log.INFO) {
-            when(authenticate()) {
+            when(authenticate(preferPrimary)) {
                 Result.OK -> true
                 Result.NO_HOST -> showMessage("No hosts are registered.")
                 Result.NO_ACTIVE_HOST -> showMessage("No hosts are active.")

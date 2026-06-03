@@ -216,7 +216,7 @@ class SettingDialog : UtDialogEx() {
         private fun editAddress(n:Int) {
             viewModelScope.launch {
                 val saa = if(n==0) secureArchivePrimaryHost else secureArchiveSecondaryHost
-                val result = AddressDialog.show(saa.value)
+                val result = AddressDialog.show(saa.value, n==0)
                 if(result!=null) {
                     saa.value = result.host
                 }
@@ -323,6 +323,8 @@ class SettingDialog : UtDialogEx() {
                     .visibilityBinding(controls.passwordCountGroup, combine(viewModel.securityClearAllOnPasswordError,viewModel.securityEnablePassword) { c,s-> c&&s })
                     .textBinding(controls.secureArchiveAddressText, viewModel.secureArchivePrimaryForDisplay)
                     .textBinding(controls.secureArchive2ndAddressText, viewModel.secureArchiveSecondaryForDisplay)
+                    .visibilityBinding(controls.primarySslBadge, viewModel.secureArchivePrimaryHost.map { it?.isHttps==true })
+                    .visibilityBinding(controls.secondarySslBadge, viewModel.secureArchiveSecondaryHost.map { it?.isHttps == true})
                     .textBinding(controls.deviceName, viewModel.deviceName)
                     .bindCommand(viewModel.commandNip, controls.allowErrorPlus, +1)
                     .bindCommand(viewModel.commandNip, controls.allowErrorMinus, -1)

@@ -85,7 +85,7 @@ class ServerActivity : UtMortalActivity() {
             if (isBusy.value) return
             isBusy.value = true
             try {
-                if (!Authentication.authenticateAndMessage()) {
+                if (!Authentication.authenticateAndMessage(preferPrimary = true)) {
                     return
                 }
                 val decision = UtImmortalTask.awaitTaskResult("Server.backup") {

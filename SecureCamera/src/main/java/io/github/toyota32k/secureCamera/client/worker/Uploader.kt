@@ -54,7 +54,7 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
 
         // exclusiveRunnerを使って同じターゲットに対する重複アップロードを禁止する
         exclusiveRunner.run(target.slot, target.itemId) {
-            if (!Authentication.authenticateAndMessage()) return error("not authenticated")
+            if (!Authentication.authenticateAndMessage(preferPrimary = false)) return error("not authenticated")
             MetaDB[SlotIndex.fromIndex(target.slot)].use { metaDb ->
                 val item = metaDb.itemExAt(target.itemId)
                     ?: return error("item not found: ${target.itemId} in slot ${target.slot}")

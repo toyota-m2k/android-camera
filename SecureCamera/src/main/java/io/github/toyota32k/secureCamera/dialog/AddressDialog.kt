@@ -7,6 +7,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.VisibilityBinding
+import io.github.toyota32k.binder.checkBinding
 import io.github.toyota32k.binder.combinatorialVisibilityBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
@@ -40,21 +41,26 @@ import kotlinx.coroutines.launch
 
 class AddressDialog : UtDialogEx() {
     class AddressDialogViewModel : UtDialogViewModel() {
+        var isPrimary:Boolean = true
         val address = MutableStateFlow("")
+        val isHttps = MutableStateFlow(false)
         var pairingHost: SecureArchiveHost? = null
             set(v) {
                 field = v
                 if (v!=null) {
                     address.value = v.address
+                    isHttps.value = v.isHttps
                 }
             }
 
-        fun initialize(host: SecureArchiveHost?) {
+        fun initialize(host: SecureArchiveHost?, isPrimary: Boolean) {
             if (null == host) return // initial
+            this.isPrimary = isPrimary
             if (host.isPairedHost) {
                 pairingHost = host
             } else {
                 address.value = host.address
+                isHttps.value = host.isHttps
             }
         }
 
@@ -63,7 +69,7 @@ class AddressDialog : UtDialogEx() {
                 return if (pairingHost != null && pairingHost?.address == address.value) {
                     pairingHost
                 } else if (address.value.isNotBlank()) {
-                    SecureArchiveHost(address.value)
+                    SecureArchiveHost(address.value, isHttps=isHttps.value)
                 } else {
                     null
                 }
@@ -156,7 +162,7 @@ class AddressDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
         widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.COMPACT
-        title = requireActivity().getString(R.string.secure_archive_address)
+        title = requireActivity().getString(if(viewModel.isPrimary) R.string.secure_archive_address else R.string.secure_archive_2nd_address)
         enableFocusManagement()
             .setInitialFocus(R.id.address)
     }
@@ -167,6 +173,7 @@ class AddressDialog : UtDialogEx() {
         return controls.root.also { _ ->
             binder
                 .editTextBinding(controls.address, viewModel.address, BindingMode.TwoWay)
+                .checkBinding(controls.sslCheckbox, viewModel.isHttps, mode= BindingMode.TwoWay)
                 .combinatorialVisibilityBinding(viewModel.discovering) {
                     inverseGone(controls.discoverBtn)
                     straightGone(controls.discoverResultLabel)
@@ -232,9 +239,9 @@ class AddressDialog : UtDialogEx() {
 
     companion object {
         data class Result(val status:Boolean, val host: SecureArchiveHost?)
-        suspend fun show(initialHost: SecureArchiveHost?): Result? {
+        suspend fun show(initialHost: SecureArchiveHost?, isPrimary:Boolean): Result? {
             return UtImmortalTask.awaitTaskResult("editAddress") {
-                val vm = createViewModel<AddressDialogViewModel> { initialize(initialHost) }
+                val vm = createViewModel<AddressDialogViewModel> { initialize(initialHost, isPrimary) }
                 if(showDialog(taskName) { AddressDialog() }.status.positive) {
                     Result(true,vm.result)
                 } else null

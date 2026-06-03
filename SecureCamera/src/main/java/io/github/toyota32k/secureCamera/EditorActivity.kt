@@ -39,7 +39,9 @@ import io.github.toyota32k.lib.media.editor.model.IMultiSplitResult
 import io.github.toyota32k.lib.media.editor.model.IOutputFileProvider
 import io.github.toyota32k.lib.media.editor.model.ISaveResult
 import io.github.toyota32k.lib.media.editor.model.IVideoSaveResult
+import io.github.toyota32k.lib.media.editor.model.IVideoSourceInfo
 import io.github.toyota32k.lib.media.editor.model.MediaEditorModel
+import io.github.toyota32k.lib.media.editor.model.VideoSaveMode
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMutableChapterList
@@ -88,6 +90,7 @@ import java.io.File
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.collections.get
 
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application), ISourceToInputMediaFile {
@@ -177,6 +180,39 @@ class EditorActivity : UtMortalActivity() {
 
         val finishEditing = MutableStateFlow<ItemEx?>(null)
 
+        private suspend fun replaceVideoFile(outFile: UtJavaFile, newChapterList:List<IChapter>) {
+            val targetFile = metaDb.fileOf(targetItem)
+            val newFile = outFile.path
+            if (safeOverwrite(newFile, targetFile)) {
+                // onPause で、saveChapterされないようダーティフラグをクリアしておく
+                editorModel.chapterEditorHandler.clearDirty()
+                // DBを更新
+                finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
+                logger.debug("overwritten.")
+            } else {
+                logger.error("cannot overwrite")
+            }
+        }
+        private suspend fun addVideoFileAt(pos:Long, outFile: UtJavaFile, newChapterList:List<IChapter>) {
+            val date = targetItem.creationDate + pos
+            val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
+            name to File(metaDb.filesDir, name)
+            {
+            }
+            safeOverwrite(output.path, file)
+            val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")
+            val newChapterList = editorModel.chapterEditorHandler.correctChapterList(soughtMap)
+
+            if (firstItem==null) {
+                // 先頭アイテムはリプレース
+                firstItem = metaDb.updateFile(targetItem, newChapterList)
+            } else {
+                val newItem = metaDb.register(name)!!
+                metaDb.setChaptersFor(newItem, newChapterList)
+            }
+        }
+
+
         suspend fun onVideoSaved(result:ISaveResult) {
             if (!result.succeeded) return
             withContext(Dispatchers.IO) {
@@ -196,17 +232,12 @@ class EditorActivity : UtMortalActivity() {
                             newChapterList
                         )
                     ) {
-                        // OKなら上書き保存＆DB更新 --> Editor終了
-                        val targetFile = metaDb.fileOf(targetItem)
-                        val newFile = outFile.path
-                        if (safeOverwrite(newFile, targetFile)) {
-                            // onPause で、saveChapterされないようダーティフラグをクリアしておく
-                            editorModel.chapterEditorHandler.clearDirty()
-                            // DBを更新
-                            finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
-                            logger.debug("overwritten.")
+                        val sourceInfo = result.sourceInfo as IVideoSourceInfo
+                        if (sourceInfo.saveMode == VideoSaveMode.ALL) {
+                            replaceVideoFile(outFile, newChapterList)
                         } else {
-                            logger.error("cannot overwrite")
+                            val pos = sourceInfo.trimmingRanges.firstOrNull()?.startMs ?: 0L
+                            addVideoFileAt(pos, outFile, newChapterList)
                         }
                     }
                 } finally {
@@ -410,7 +441,7 @@ class EditorActivity : UtMortalActivity() {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
             val item = viewModel.metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
             val chapters = viewModel.metaDb.getChaptersFor(item.data)
-            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage()) {
+            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage(preferPrimary = false)) {
                 UtImmortalTask.launchTask {
                     setResultAndFinish(false, item)
                 }

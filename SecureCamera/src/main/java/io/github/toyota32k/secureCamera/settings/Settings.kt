@@ -185,6 +185,8 @@ object Settings {
             primaryHost = null
             secondaryHost = null
         }
+
+        val SecureArchiveHost.isPrimary:Boolean get() = primaryHost!=null && primaryHost == this
     }
 
     object Design {

@@ -245,7 +245,7 @@ class PlayerActivity : UtMortalActivity() {
                     if(source.item.cloud.loadFromCloud) {
                         val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
                         if (bmp==null) {
-                            return null
+                            return BitmapInfo.asError
                         } else {
                             return BitmapInfo.withBitmap(bmp)
                         }
@@ -407,7 +407,7 @@ class PlayerActivity : UtMortalActivity() {
                     if(item.cloud.loadFromCloud) {
                         currentSource.value = null
                         viewModelScope.launch {
-                            if(Authentication.authenticateAndMessage()) {
+                            if(Authentication.authenticateAndMessage(preferPrimary = false)) {
                                 currentSource.value = MediaSource(item)
                             }
                         }

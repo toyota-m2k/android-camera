@@ -542,17 +542,41 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/secure_archive_address"
+            android:layout_gravity="center_vertical"
             />
-        <TextView
-            android:id="@+id/secure_archive_address_text"
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text=""
-            android:textAlignment="textEnd"
-            tools:text="192.168.0.151:6001"
-            android:layout_marginEnd="8dp"
-            />
+            android:layout_gravity="center_vertical"
+            >
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="end"
+                >
+                <ImageView
+                    android:id="@+id/primary_ssl_badge"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_locked"
+                    app:tint="?attr/colorSecondary"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="4dp"
+                    />
+                <TextView
+                    android:id="@+id/secure_archive_address_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textAlignment="textEnd"
+                    tools:text="192.168.0.151:3801"
+                    android:layout_marginEnd="8dp"
+                    />
+
+            </LinearLayout>
+        </FrameLayout>
         <com.google.android.material.button.MaterialButton
             style="@style/SettingDlgIconButton"
             android:id="@+id/edit_secure_archive_address_button"
@@ -569,24 +593,46 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/secure_archive_2nd_address"
+            android:layout_gravity="center_vertical"
             />
-        <TextView
-            android:id="@+id/secure_archive_2nd_address_text"
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text=""
-            android:textAlignment="textEnd"
-            tools:text="192.168.0.151:6001"
-            android:layout_marginEnd="8dp"
-            />
+            android:layout_gravity="center_vertical"
+            >
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="end"
+                >
+                <ImageView
+                    android:id="@+id/secondary_ssl_badge"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_locked"
+                    app:tint="?attr/colorSecondary"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="4dp"
+                    />
+                <TextView
+                    android:id="@+id/secure_archive_2nd_address_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textAlignment="textEnd"
+                    tools:text="192.168.0.151:3801"
+                    android:layout_marginEnd="8dp"
+                    />
+            </LinearLayout>
+        </FrameLayout>
         <com.google.android.material.button.MaterialButton
             style="@style/SettingDlgIconButton"
             android:id="@+id/edit_secure_archive_2nd_address_button"
             app:icon="@drawable/ic_edit"
             />
     </LinearLayout>
-
 
     <TextView
         android:layout_width="wrap_content"

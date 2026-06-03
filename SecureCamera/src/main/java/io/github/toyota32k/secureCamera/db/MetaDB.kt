@@ -137,12 +137,12 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
                 filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
                 else -> return null
             }
-            return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(_:Throwable) { Date() }
+            return try { FilenameHelper.parse(dateString) } catch(_:Throwable) { Date() }
         }
 
         // "yyyy.MM.dd-HH:mm:ss"
-        private val regex4dpDate = Regex("""(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})""")
-        fun filename2dpDate(filename:String): DPDate? {
+        private val regex4dpDate = Regex("""(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})(\.\d+)?""")
+        private fun filename2dpDate(filename:String): DPDate? {
             val dateString = when {
                 filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
                 filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)

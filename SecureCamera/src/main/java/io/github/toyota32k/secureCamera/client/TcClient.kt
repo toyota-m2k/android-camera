@@ -35,7 +35,7 @@ object TcClient {
     suspend fun registerOwnerToSecureArchive():Boolean {
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return false
-        if(!Authentication.authenticateAndMessage()) return false
+        if(!Authentication.authenticateAndMessage(preferPrimary = false)) return false
 
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
@@ -58,7 +58,7 @@ object TcClient {
 
     suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        if(!Authentication.authenticateAndMessage()) return null
+        if(!Authentication.authenticateAndMessage(preferPrimary = false)) return null
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null
         return withContext(Dispatchers.IO) {
@@ -132,7 +132,7 @@ object TcClient {
     data class RepairingItem(val slot: Int, val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
 
     suspend fun getListForRepair(slot:SlotIndex):List<RepairingItem>? {
-        if(!Authentication.authenticateAndMessage()) return null
+        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
         fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
             return sequence<RepairingItem> {
                 for(i in 0..<list.length()) {
@@ -189,7 +189,7 @@ object TcClient {
             }
         }
 
-        if(!Authentication.authenticateAndMessage()) return null
+        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url(Authentication.makeAuthUrl("migration/devices", "o" to Settings.SecureArchive.clientId))
@@ -282,7 +282,7 @@ object TcClient {
                 }
             }.filter { it.isValid }
         }
-        if(!Authentication.authenticateAndMessage()) return null
+        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url(Authentication.makeAuthUrl("migration/start", "n" to Settings.SecureArchive.clientId, "o" to targetClientId))
@@ -318,7 +318,7 @@ object TcClient {
     }
 
     suspend fun reportMigratedOne(handle:String, entry: StoredFileEntry, newId:Int): Boolean {
-        if(!Authentication.authenticateAndMessage()) return false
+        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return false
         return withContext(Dispatchers.IO) {
             val json = JSONObject()
                 .put("handle", handle)
