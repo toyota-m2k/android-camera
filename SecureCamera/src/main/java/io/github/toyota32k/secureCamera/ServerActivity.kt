@@ -107,6 +107,9 @@ class ServerActivity : UtMortalActivity() {
 
         private fun backup() {
             viewModelScope.launch {
+                if (!Authentication.authenticateAndMessage()) {
+                    return@launch
+                }
                 backupCore(
                     "Backup Media Files",
                     "Backup all media files to ${Authentication.activeHostLabel}",
