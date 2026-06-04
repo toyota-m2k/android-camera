@@ -73,6 +73,7 @@ import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
+import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -471,6 +472,9 @@ class EditorActivity : UtMortalActivity() {
                 }
                 onDoubleTap {
                     gestureManager.agent.resetScrollAndScale()
+                }
+                onLongTap {
+                    window.setSecureMode()
                 }
             }
 
