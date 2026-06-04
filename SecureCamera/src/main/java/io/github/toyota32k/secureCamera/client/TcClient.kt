@@ -253,8 +253,9 @@ object TcClient {
         }
     }
 
-    data class MigrationInfo(val handle:String, val list:List<StoredFileEntry>)
-    suspend fun startMigration(targetClientId:String):MigrationInfo? {
+    data class MigrationInfo(val handle:String, val list:List<StoredFileEntry>, val deviceInfo: DeviceInfo)
+    suspend fun startMigration(deviceInfo: DeviceInfo):MigrationInfo? {
+        val targetClientId = deviceInfo.clientId
         fun jsonToItems(list: JSONArray):Sequence<StoredFileEntry> {
             return sequence<StoredFileEntry> {
                 for (i in 0..<list.length()) {
@@ -293,7 +294,7 @@ object TcClient {
                 val json = executeAndGetJsonAsync(request)
                 val handle = json.optString("handle")
                 val list = json.getJSONArray("targets")
-                MigrationInfo(handle, jsonToItems(list).toList())
+                MigrationInfo(handle, jsonToItems(list).toList(), deviceInfo)
             } catch(e:Throwable) {
                 logger.error(e)
                 null

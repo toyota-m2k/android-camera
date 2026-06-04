@@ -21,6 +21,7 @@ import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
@@ -28,6 +29,7 @@ import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.TcClient.DeviceInfo
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -39,11 +41,14 @@ import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.utils.GenericCloseable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.collections.map
+import kotlin.collections.toTypedArray
 
 class ServerActivity : UtMortalActivity() {
     companion object {
@@ -206,102 +211,144 @@ class ServerActivity : UtMortalActivity() {
          * 移行したメディアファイルは、「アップロード＆パージ済み」になっており、必要ならRestoreすることができる。
          */
         private fun migrate() {
-            isBusy.value = true
+            logger.debug()
+
             UtImmortalTask.launchTask("migrate") {
-                var message:String? = null
-                var cancelled = false
-                var succeeded = false
-                var imported = 0
-                var invalid = 0     // インポートされた無効なエントリーの数
-                var migratedTotal = 0
+                isBusy.value = true
                 try {
-                    fun shorten(text:String, head:Int=5, tail:Int=5):String {
-                        return if(text.length>head+tail) {
-                            "${text.substring(0, head)}...${text.substring(text.length-tail)}"
-                        } else {
-                            text
-                        }
-                    }
-                    val devices = TcClient.getDeviceListForMigration() ?: return@launchTask
-                    if(devices.isEmpty()) {
-                        message = "No devices found."
-                        return@launchTask
-                    }
-                    val index = showRadioSelectionBox("Select Device", devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(), 0)
-                    val device = if(index<0 || !showOkCancelMessageBox("Migration", "Are you sure to migrate data from ${devices[index].name}?")) {
-                        cancelled = true
-                        return@launchTask
-                    } else devices[index]
+                    // ターゲットデバイスを選択し、サーバーに対してマイグレーションの開始を宣言する。
+                    val migration = try {
+                        prepareMigration(this)
+                    } catch(e:Throwable) {
+                        logger.error(e, "migration cannot be started")
+                        showConfirmMessageBox(
+                            "Migration",
+                            message = "${e.javaClass.simpleName} ${e.message ?: "unknown exception."}"
+                        )
+                        null
+                    } ?: return@launchTask
 
-                    val migration = TcClient.startMigration(device.clientId)
-                    if(migration==null) {
-                        message = "Failed to start migration."
-                        return@launchTask
-                    }
-                    if(migration.list.isEmpty()) {
-                        // サーバーの仕様上、空のリストを返すことはないが、念のためチェック
-                        message = "No data to migrate from ${device.name}."
-                        return@launchTask
-                    }
-
+                    // プログレスダイアログの準備
                     val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
                     pvm.message.value = "Migrating..."
-                    pvm.cancelCommand.bindForever { cancelled = true }
-                    // プログレスダイアログをモーダル表示
-                    launchSubTask {
-                        showDialog(ProgressDialog())
-                    }
 
+                    // マイグレーション本体
+                    var succeeded = false
                     try {
-                        withContext(Dispatchers.IO) {
-                            MetaDB.dbCache().use { dbCache ->
-                                for (entry in migration.list) {
-                                    if (cancelled) {
-                                        logger.debug("migration cancelled at $imported/$invalid/${migration.list.size}")
-                                        break
-                                    }
-                                    imported++
-                                    pvm.progress.value = imported * 100 / migration.list.size
-                                    pvm.progressText.value = "$imported / ${migration.list.size}"
-                                    // 端末側DBに移行データのエントリーを作る
-                                    val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
-                                    // DB的に移行が出来たことをサーバーに知らせる
-                                    val result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
-                                    if (!result) {
-                                        // この状態になったら
-                                        // - この端末内に、エントリーが追加されている
-                                        // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
-                                        // つまり、表示できないエントリーができてしまう。
-                                        // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
-                                        // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
-                                        // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
-                                        invalid++
-                                        logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
-                                    }
-                                }
-                            }
-                            logger.debug("selected device: ${device.name} / ${device.clientId}")
-                            succeeded = true
-                        }
-                    } catch (e:Throwable) {
+                        succeeded = migrateCore(this, migration, pvm)
+                    } catch (e: Throwable) {
                         logger.error(e, "migration failed")
-                        message = e.message ?: e.toString()
-                        return@launchTask
+                        showConfirmMessageBox(
+                            "Migration",
+                            message = "${e.javaClass.simpleName} ${e.message ?: "unknown exception."}"
+                        )
                     } finally {
-                        // マイグレーション終了をサーバーに知らせる
+                        // プログレスダイアログを閉じる
                         pvm.closeCommand.invoke(succeeded)
+                        // サーバーに対して、マイグレーションの終了を宣言する
                         TcClient.endMigration(migration.handle)
-                        migratedTotal = migration.list.size
                     }
                 } finally {
                     isBusy.value = false
-                    if (succeeded) {
-                        showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: $migratedTotal")
-                    } else if (!cancelled) {
-                        showConfirmMessageBox("Migration", message =
-                            if (message!=null) "Migration failed.\n$message"
-                            else "Migration failed.")
+                }
+            }
+        }
+
+        // 長い文字列（UUID）を XXXXX...XXXXX の書式に短縮する。
+        private fun shorten(text:String, head:Int=5, tail:Int=5):String {
+            return if(text.length>head+tail) {
+                "${text.substring(0, head)}...${text.substring(text.length-tail)}"
+            } else {
+                text
+            }
+        }
+
+        private suspend fun prepareMigration(task:UtImmortalTaskBase) : TcClient.MigrationInfo? {
+            val devices = TcClient.getDeviceListForMigration()
+            var message:String? = null
+            while (true) {
+                if (devices.isNullOrEmpty()) {
+                    message = "No devices found."
+                    break
+                }
+                val index = task.showRadioSelectionBox(
+                    "Select Device",
+                    devices.map { "${it.name} - ${shorten(it.clientId)}" }.toTypedArray(),
+                    0
+                )
+                if (index<0) {
+                    // cancelled
+                    break
+                }
+                if (!task.showOkCancelMessageBox(
+                        "Migration",
+                        "Are you sure to migrate data from ${devices[index].name}?"
+                    )
+                ) {
+                    // cancelled
+                    break
+                }
+
+                val device = devices[index]
+
+                val migration = TcClient.startMigration(device)
+                if (migration == null) {
+                    message = "Failed to start migration."
+                    break
+                }
+                if (migration.list.isEmpty()) {
+                    // サーバーの仕様上、空のリストを返すことはないが、念のためチェック
+                    message = "No data to migrate from ${device.name}."
+                    break
+                }
+                return migration
+            }
+            if (message!=null) {
+                task.showConfirmMessageBox("Migration", message)
+            }
+            return null
+        }
+
+        private suspend fun migrateCore(task:UtImmortalTaskBase, migration:TcClient.MigrationInfo, pvm:ProgressDialog.ProgressViewModel):Boolean {
+            var cancelled = false
+            pvm.message.value = "Migrating..."
+            pvm.cancelCommand.bindForever { cancelled = true }
+            // プログレスダイアログをモーダル表示
+            task.launchSubTask {
+                showDialog(ProgressDialog())
+            }
+
+            return withContext(Dispatchers.IO) {
+                MetaDB.dbCache().use { dbCache ->
+                    var imported = 0
+                    var invalid = 0
+                    for (entry in migration.list) {
+                        if (cancelled) {
+                            logger.debug("migration cancelled at $imported/$invalid/${migration.list.size}")
+                            return@use false
+                        }
+                        imported++
+                        pvm.progress.value = imported * 100 / migration.list.size
+                        pvm.progressText.value = "$imported / ${migration.list.size}"
+                        // 端末側DBに移行データのエントリーを作る
+                        val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
+                        // DB的に移行が出来たことをサーバーに知らせる
+                        val result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
+                        if (!result) {
+                            // この状態になったら
+                            // - この端末内に、エントリーが追加されている
+                            // - サーバー上での移行が失敗しているので、参照先のないエントリーになる。
+                            // つまり、表示できないエントリーができてしまう。
+                            // ロールバックしようかとも考えたが、万が一、サーバーのDB書き換えが成功しているのに通信エラーなどで、
+                            // 応答が得られず、ここに入ってくる可能性があり、その場合は、存在するのに、どの端末からも見えないエントリーに
+                            // なってしまうリスクがあるので、ここは無視して、見えないだけの余分なエントリーが追加されてしまうほうが安全サイドと考えた。
+                            invalid++
+                            logger.error("failed to update item in SecureArchive: ${data.name} / ${data.id}")
+                        }
                     }
+                    logger.debug("selected device: ${migration.deviceInfo.name} / ${migration.deviceInfo.clientId}")
+                    task.showConfirmMessageBox("Migration", "Migration completed.\nImported: $imported (Invalid: $invalid) / Total: ${migration.list.size}")
+                    true
                 }
             }
         }
@@ -313,6 +360,7 @@ class ServerActivity : UtMortalActivity() {
             logger.debug("stop server")
         }
     }
+
 
     private val viewModel by viewModels<ServerViewModel>()
     private lateinit var controls: ActivityServerBinding
