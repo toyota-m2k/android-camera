@@ -265,17 +265,24 @@ class SettingDialog : UtDialogEx() {
 //            cameraTapAction.value = Settings.Camera.DEF_TAP_ACTION
             selfieAction.value = Settings.Camera.DEF_SELFIE_ACTION
             preferHDR.value = Settings.Camera.DEF_PREFER_HDR
+            cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
             preferQuality.value = Settings.Camera.DEF_PREFER_QUALITY
             cameraAspect.value = TcAspect.Default.ratio
             cameraResolution.value = Settings.Camera.DEF_RESOLUTION
-            snapshotResolution.value = Settings.Player.DEF_RESOLUTION
-            cameraHidePanelOnStart.value = Settings.Camera.DEF_HIDE_PANEL_ON_START
+
             playerSpanOfSkipForward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_FORWARD.toFloat())
             playerSpanOfSkipBackward.value = spanToLogSpan(Settings.Player.DEF_SPAN_OF_SKIP_BACKWARD.toFloat())
+            snapshotResolution.value = Settings.Player.DEF_RESOLUTION
+
             securityEnablePassword.value = Settings.Security.DEF_ENABLE_PASSWORD
             securityPassword.value = Settings.Security.DEF_PASSWORD
             securityClearAllOnPasswordError.value = Settings.Security.DEF_CLEAR_ALL_ON_PASSWORD_ERROR
             securityNumberOfIncorrectPassword.value = Settings.Security.DEF_NUMBER_OF_INCORRECT_PASSWORD
+
+            secureArchivePrimaryHost.value = null
+            secureArchiveSecondaryHost.value = null
+            deviceName.value = Settings.SecureArchive.DEF_DEVICE_NAME
+
             ssl.value = Settings.Server.DEF_SSL
             port.value = Settings.Server.DEF_PORT
         }
