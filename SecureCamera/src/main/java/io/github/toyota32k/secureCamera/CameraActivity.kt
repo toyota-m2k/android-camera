@@ -172,10 +172,10 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         }
 
         private fun newVideoFile(): File {
-            return File(metaDb.filesDir, ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION))
+            return metaDb.createVideoFile()
         }
         private fun newImageFile(): File {
-            return File(metaDb.filesDir, ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION))
+            return metaDb.createPhotoFile()
         }
 
         @SuppressLint("MissingPermission")

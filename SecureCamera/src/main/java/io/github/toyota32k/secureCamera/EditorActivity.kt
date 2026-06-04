@@ -39,7 +39,9 @@ import io.github.toyota32k.lib.media.editor.model.IMultiSplitResult
 import io.github.toyota32k.lib.media.editor.model.IOutputFileProvider
 import io.github.toyota32k.lib.media.editor.model.ISaveResult
 import io.github.toyota32k.lib.media.editor.model.IVideoSaveResult
+import io.github.toyota32k.lib.media.editor.model.IVideoSourceInfo
 import io.github.toyota32k.lib.media.editor.model.MediaEditorModel
+import io.github.toyota32k.lib.media.editor.model.VideoSaveMode
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMutableChapterList
@@ -71,6 +73,7 @@ import io.github.toyota32k.secureCamera.dialog.ReportTextDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
+import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.TimeSpan
 import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
@@ -88,6 +91,7 @@ import java.io.File
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.collections.get
 
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application), ISourceToInputMediaFile {
@@ -177,6 +181,28 @@ class EditorActivity : UtMortalActivity() {
 
         val finishEditing = MutableStateFlow<ItemEx?>(null)
 
+        private suspend fun replaceVideoFile(outFile: UtJavaFile, newChapterList:List<IChapter>) {
+            val targetFile = metaDb.fileOf(targetItem)
+            val newFile = outFile.path
+            if (safeOverwrite(newFile, targetFile)) {
+                // onPause で、saveChapterされないようダーティフラグをクリアしておく
+                editorModel.chapterEditorHandler.clearDirty()
+                // DBを更新
+                finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
+                logger.debug("overwritten.")
+            } else {
+                logger.error("cannot overwrite")
+            }
+        }
+
+        private suspend fun addVideoFileAt(pos:Long, outFile: UtJavaFile, newChapterList:List<IChapter>) {
+            val date = targetItem.creationDate + pos
+            val file = metaDb.createVideoFile(Date(date))
+            safeOverwrite(outFile.path, file)
+            val newItem = metaDb.register(file.name)!!
+            metaDb.setChaptersFor(newItem, newChapterList)
+        }
+
         suspend fun onVideoSaved(result:ISaveResult) {
             if (!result.succeeded) return
             withContext(Dispatchers.IO) {
@@ -196,17 +222,14 @@ class EditorActivity : UtMortalActivity() {
                             newChapterList
                         )
                     ) {
-                        // OKなら上書き保存＆DB更新 --> Editor終了
-                        val targetFile = metaDb.fileOf(targetItem)
-                        val newFile = outFile.path
-                        if (safeOverwrite(newFile, targetFile)) {
-                            // onPause で、saveChapterされないようダーティフラグをクリアしておく
-                            editorModel.chapterEditorHandler.clearDirty()
-                            // DBを更新
-                            finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
-                            logger.debug("overwritten.")
+                        val sourceInfo = result.sourceInfo as IVideoSourceInfo
+                        if (sourceInfo.saveMode == VideoSaveMode.ALL) {
+                            // 全体を保存した場合は、リプレース
+                            replaceVideoFile(outFile, newChapterList)
                         } else {
-                            logger.error("cannot overwrite")
+                            // 一部を抽出した場合は、新規追加
+                            val pos = sourceInfo.trimmingRanges.firstOrNull()?.startMs ?: 0L
+                            addVideoFileAt(pos, outFile, newChapterList)
                         }
                     }
                 } finally {
@@ -230,8 +253,8 @@ class EditorActivity : UtMortalActivity() {
                             } else {
                                 val pos = files[r.outputFile] ?: throw IllegalStateException("no position")
                                 val date = targetItem.creationDate + pos
-                                val name = ITcUseCase.defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, Date(date))
-                                name to File(metaDb.filesDir, name)
+                                val file = metaDb.createVideoFile(Date(date))
+                                file.name to file
                             }
                             safeOverwrite(output.path, file)
                             val soughtMap = r.soughtMap ?: throw IllegalStateException("no sought map")
@@ -410,7 +433,7 @@ class EditorActivity : UtMortalActivity() {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
             val item = viewModel.metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
             val chapters = viewModel.metaDb.getChaptersFor(item.data)
-            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage()) {
+            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage(preferPrimary = false)) {
                 UtImmortalTask.launchTask {
                     setResultAndFinish(false, item)
                 }
@@ -449,6 +472,9 @@ class EditorActivity : UtMortalActivity() {
                 }
                 onDoubleTap {
                     gestureManager.agent.resetScrollAndScale()
+                }
+                onLongTap {
+                    window.setSecureMode()
                 }
             }
 

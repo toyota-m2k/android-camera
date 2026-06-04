@@ -40,25 +40,7 @@
             app:tint="?attr/colorOnSurface" />
     </LinearLayout>
 
-    <!-- アドレス -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/address_layout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:hint="@string/address_hint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:endIconMode="clear_text"
-        >
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/address"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text"
-            android:imeOptions="actionDone"
-            />
-    </com.google.android.material.textfield.TextInputLayout>
-
+    <!-- mDNSでの探索結果 -->
     <TextView
         android:id="@+id/discover_result_label"
         android:layout_width="wrap_content"
@@ -89,4 +71,30 @@
             android:scrollbars="vertical" />
     </FrameLayout>
 
+
+    <!-- アドレス -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/address_layout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:hint="@string/address_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:endIconMode="clear_text"
+        >
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/use_https"
+        android:id="@+id/ssl_checkbox"
+        />
 </LinearLayout>

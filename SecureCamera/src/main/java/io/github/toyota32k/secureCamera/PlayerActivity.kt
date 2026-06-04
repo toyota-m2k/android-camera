@@ -81,6 +81,7 @@ import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.IUtPropOwner
 import io.github.toyota32k.utils.UtSorter
@@ -193,22 +194,15 @@ class PlayerActivity : UtMortalActivity() {
                         try {
                             val orgDate = item.date
                             val date = Date(orgDate + pos)
-                            val filename =
-                                ITcUseCase.defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION, date)
-                            file = File(db.filesDir, filename)
+                            file = db.createPhotoFile(date)
                             file.outputStream().use {
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
                                 it.flush()
                             }
-                            db.register(filename)
+                            db.register(file.name)
                         } catch (e: Throwable) {
                             TpLib.logger.error(e)
-                            if (file != null) {
-                                try {
-                                    file.delete()
-                                } catch (_: Throwable) {
-                                }
-                            }
+                            file?.safeDelete()
                             null
                         }
                     }
@@ -245,7 +239,7 @@ class PlayerActivity : UtMortalActivity() {
                     if(source.item.cloud.loadFromCloud) {
                         val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
                         if (bmp==null) {
-                            return null
+                            return BitmapInfo.asError
                         } else {
                             return BitmapInfo.withBitmap(bmp)
                         }
@@ -407,7 +401,7 @@ class PlayerActivity : UtMortalActivity() {
                     if(item.cloud.loadFromCloud) {
                         currentSource.value = null
                         viewModelScope.launch {
-                            if(Authentication.authenticateAndMessage()) {
+                            if(Authentication.authenticateAndMessage(preferPrimary = false)) {
                                 currentSource.value = MediaSource(item)
                             }
                         }

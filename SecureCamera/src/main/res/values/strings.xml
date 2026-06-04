@@ -166,4 +166,6 @@
     <string name="flip_camera">Flip Camera</string>
     <string name="enable_ssl">SSL</string>
     <string name="server_port">PORT</string>
+    <string name="use_https">Use HTTPS</string>
+    <string name="extract">Extract</string>
 </resources>

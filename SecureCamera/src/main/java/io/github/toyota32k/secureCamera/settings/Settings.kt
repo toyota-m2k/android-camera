@@ -126,6 +126,7 @@ object Settings {
     }
 
     object SecureArchive {
+        val DEF_DEVICE_NAME = Build.MODEL?:"Unknown"
         var clientId:String by spd.pref("")
         // var primaryAddress:String by spd.pref("")
         // private var secondaryAddress:String by spd.pref("")
@@ -145,8 +146,8 @@ object Settings {
                 _secondaryHostCache = v
                 _secondaryHost = v?.toJson()
             }
-        var deviceName by spd.pref(Build.MODEL?:"Unknown")
-        val isConfigured:Boolean get() = primaryHost != null || secondaryHost != null
+        var deviceName by spd.pref(DEF_DEVICE_NAME)
+//        val isConfigured:Boolean get() = primaryHost != null || secondaryHost != null
 
         fun updateHost(oldHost: SecureArchiveHost, newHost: SecureArchiveHost) {
             if (primaryHost?.isSameHost(oldHost)==true) {
@@ -182,9 +183,13 @@ object Settings {
         }
 
         fun reset() {
+            clientId = UUID.randomUUID().toString()
+            deviceName = DEF_DEVICE_NAME
             primaryHost = null
             secondaryHost = null
         }
+
+        val SecureArchiveHost.isPrimary:Boolean get() = primaryHost!=null && primaryHost == this
     }
 
     object Design {

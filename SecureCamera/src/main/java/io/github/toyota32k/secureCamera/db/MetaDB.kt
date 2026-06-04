@@ -17,6 +17,10 @@ import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.ScDef
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
+import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -24,6 +28,8 @@ import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.worker.Downloader.Companion.safeDelete
 import io.github.toyota32k.secureCamera.client.worker.Uploader
 import io.github.toyota32k.secureCamera.db.ItemEx.Companion.decodeChaptersString
+import io.github.toyota32k.secureCamera.db.ItemEx.Companion.defaultFileName
+import io.github.toyota32k.secureCamera.db.ItemEx.Companion.extraFileName
 import io.github.toyota32k.secureCamera.db.ScDB.Companion.BASE_DB_NAME
 import io.github.toyota32k.secureCamera.db.ScDB.Companion.application
 import io.github.toyota32k.secureCamera.db.ScDB.Companion.logger
@@ -37,6 +43,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.checkerframework.checker.units.qual.Prefix
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
@@ -45,8 +52,10 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -131,31 +140,46 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
                 .put("chapters", encodedChapters)
 
     companion object {
+        private fun defaultFileName(prefix: String, suffix: String, date:Date?=null):String {
+            return "$prefix${FilenameHelper.formatSeconds(date?:Date())}$suffix"
+        }
+        private fun extraFileName(prefix: String, suffix: String, date:Date?=null):String {
+            return "$prefix${FilenameHelper.formatMillis(date?:Date())}$suffix"
+        }
+        fun defaultFileName(forVideo:Boolean, date:Date?=null):String {
+            return if (forVideo) {
+                defaultFileName(VIDEO_PREFIX, VIDEO_EXTENSION, date)
+            } else {
+                defaultFileName(PHOTO_PREFIX, PHOTO_EXTENSION)
+            }
+        }
+        fun extraFileName(forVideo:Boolean, date:Date?=null):String {
+            return if (forVideo) {
+                extraFileName(VIDEO_PREFIX, VIDEO_EXTENSION, date)
+            } else {
+                extraFileName(PHOTO_PREFIX, PHOTO_EXTENSION)
+            }
+        }
+
         fun filename2date(filename:String): Date? {
             val dateString = when {
                 filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
                 filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
                 else -> return null
             }
-            return try { ITcUseCase.dateFormatForFilename.parse(dateString) } catch(_:Throwable) { Date() }
+            return try { FilenameHelper.parse(dateString) } catch(_:Throwable) { Date() }
         }
 
         // "yyyy.MM.dd-HH:mm:ss"
-        private val regex4dpDate = Regex("""(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})""")
-        fun filename2dpDate(filename:String): DPDate? {
-            val dateString = when {
-                filename.startsWith(ScDef.PHOTO_PREFIX)-> filename.substringAfter(ScDef.PHOTO_PREFIX).substringBefore(ScDef.PHOTO_EXTENSION)
-                filename.startsWith(ScDef.VIDEO_PREFIX)-> filename.substringAfter(ScDef.VIDEO_PREFIX).substringBefore(ScDef.VIDEO_EXTENSION)
-                else -> return null
-            }
-            val matchResult = regex4dpDate.matchEntire(dateString)?: return null
+        private fun filename2dpDate(filename:String): DPDate? {
             return try {
-                DPDate(matchResult.groupValues[1].toInt(), matchResult.groupValues[2].toInt()-1, matchResult.groupValues[3].toInt())
+                val date = filename2date(filename) ?: return null
+                val cal = Calendar.getInstance(TimeZone.getDefault(), Locale.US).apply { time = date }
+                DPDate(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
             } catch (_:Throwable) {
                 null
             }
         }
-
 
         fun creationDate(item:MetaData): Long {
             return filename2date(item.name)?.time ?: 0L
@@ -391,7 +415,6 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
 
     }
-
     @Suppress("PrivatePropertyName")
     private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -403,7 +426,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
 
     /**
-     * DBを初期化する
+    * DBを初期化する
      */
     private fun initialize() {
 
@@ -412,7 +435,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             .build()
 
         CoroutineScope(Dispatchers.IO).launch {
-            // Migration
+        // Migration
             val s = db.kvTable().getAt("INIT")
             if (s == null) {
                 db.kvTable().insert(KeyValueEntry("INIT", "1"))
@@ -421,14 +444,14 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
                 val tbl = db.metaDataTable()
                 val now = Date().time
                 listEx(PlayerActivity.ListMode.ALL).forEach {
-                    if (it.data.rating != 0 || it.data.mark != 0 || it.data.group != 0 || !it.chapterList.isNullOrEmpty()) {
-                        tbl.update(MetaData.modifiedEntry(it.data, attr_date = now))
-                    }
+                if (it.data.rating != 0 || it.data.mark != 0 || it.data.group != 0 || !it.chapterList.isNullOrEmpty()) {
+                    tbl.update(MetaData.modifiedEntry(it.data, attr_date = now))
+                }
                 }
             }
 
             db.metaDataTable().getAll().filter { it.attr_date != 0L }.forEach {
-                logger.debug("${it.name} : ${it.attr_date}")
+            logger.debug("${it.name} : ${it.attr_date}")
             }
             db.close()
 
@@ -449,7 +472,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     inner class KVImpl: IKV {
         override suspend fun put(key:String, value:String) {
             withContext(Dispatchers.IO) {
-                val e = db.kvTable().getAt(key)
+            val e = db.kvTable().getAt(key)
                 if (e == null) {
                     db.kvTable().insert(KeyValueEntry(key, value))
                 } else {
@@ -459,7 +482,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
         override suspend fun get(key: String):String? {
             return withContext(Dispatchers.IO) {
-                db.kvTable().getAt(key)?.value
+            db.kvTable().getAt(key)?.value
             }
         }
     }
@@ -481,9 +504,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         cloud: Int=org?.cloud?:CloudStatus.Local.v,
         allowRetry:Int=0,
         updateAttrDate:Boolean=false
-        ):MetaData? {
+    ):MetaData? {
         return withContext(Dispatchers.IO) {
-            val type = filename2type(name) ?: return@withContext null
+        val type = filename2type(name) ?: return@withContext null
             val file = File(filesDir, name)
             val size = file.length()
             val date = file.lastModified() //.filename2date(name)?.time ?: 0L
@@ -505,21 +528,22 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     suspend fun itemOf(name:String):MetaData? {
         return withContext(Dispatchers.IO) {
-            db.metaDataTable().getDataOf(name)
+        db.metaDataTable().getDataOf(name)
         }
     }
 
     suspend fun itemAt(id:Int):MetaData? {
         return withContext(Dispatchers.IO) {
-            db.metaDataTable().getDataAt(id)
+        db.metaDataTable().getDataAt(id)
         }
     }
 
     suspend fun list(listMode: PlayerActivity.ListMode):List<MetaData> {
         return withContext(Dispatchers.IO) {
-            when (listMode) {
-                PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()
-                PlayerActivity.ListMode.PHOTO -> db.metaDataTable().getImages()
+        when (listMode) {
+            PlayerActivity.ListMode.ALL -> db.metaDataTable().getAll()
+
+            PlayerActivity.ListMode.PHOTO -> db.metaDataTable().getImages()
                 PlayerActivity.ListMode.VIDEO -> db.metaDataTable().getVideos()
             }
         }
@@ -652,6 +676,26 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
     }
+
+    fun createItemFile(forVideo:Boolean, d:Date?=null):File {
+        var date = d ?: Date()
+        var name = defaultFileName(forVideo, date)
+        var file = File(filesDir, name)
+        while (file.exists()) {
+            name = extraFileName(forVideo, date)
+            date = Date(date.time+1)
+            file = File(filesDir, name)
+        }
+        return file
+    }
+    fun createVideoFile(d:Date?=null):File {
+        return createItemFile(forVideo = true, d)
+    }
+    fun createPhotoFile(d: Date?=null):File {
+        return createItemFile(forVideo = false, d)
+    }
+
+
 
     // endregion CREATION
 
