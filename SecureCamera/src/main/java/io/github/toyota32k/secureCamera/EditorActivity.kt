@@ -443,7 +443,7 @@ class EditorActivity : UtMortalActivity() {
 
             binder
                 .visibilityBinding(controls.safeGuard, viewModel.blocking, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-                .observe(viewModel.editorModel.cropHandler.croppingNow) {
+                .observe(viewModel.editorModel.cropHandler.isCroppingNow) {
                     if (it) {
                         gestureManager.agent.resetScrollAndScale()
                     }

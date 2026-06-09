@@ -80,7 +80,7 @@
     <string name="low_quality">Low</string>
     <string name="middle_quality">Middle</string>
     <string name="repair_title">Repair</string>
-    <string name="only_unbacked_up_items">Only Unbacked Up Items</string>
+    <string name="only_unbacked_up_items">Unbacked Up Items</string>
     <string name="duration_label">Duration</string>
     <string name="label_part_span">Span Of A Part</string>
     <string name="label_parts_count">Count Of Parts</string>
@@ -168,4 +168,19 @@
     <string name="server_port">PORT</string>
     <string name="use_https">Use HTTPS</string>
     <string name="extract">Extract</string>
+    <string name="sort">Sort</string>
+    <string name="sort_by">By</string>
+    <string name="sort_by_size">Size</string>
+    <string name="sort_by_date">Date</string>
+    <string name="sort_order">Order</string>
+    <string name="sort_ascend">Ascend</string>
+    <string name="sort_descend">Descend</string>
+    <string name="filter">Filter</string>
+    <string name="offline_items">Offline Items</string>
+    <string name="other_options">Other Options</string>
+    <string name="jump">Jump</string>
+    <string name="top">Top</string>
+    <string name="bottom">Bottom</string>
+    <string name="no_jump">Stay</string>
+    <string name="stay">Stay</string>
 </resources>

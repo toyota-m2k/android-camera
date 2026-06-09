@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    >
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:rowCount="30"
+        android:columnCount="2"
+        >
+        <!-- Row-0 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="2"
+            android:text="@string/sort"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="@dimen/dlg_text_large" />
+
+        <!-- Row-1 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sort_by"
+            android:layout_gravity="center_vertical|start"
+            android:layout_marginStart="18dp"
+            android:textSize="@dimen/dlg_text_medium" />
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/sort_order_selector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_row="1"
+            android:layout_column="1"
+            >
+            >
+            <Button
+                android:id="@+id/radio_sort_by_date"
+                android:text="@string/sort_by_date"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+            <Button
+                android:id="@+id/radio_sort_by_size"
+                android:text="@string/sort_by_size"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+
+        <!-- Row-2 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sort_order"
+            android:layout_marginStart="18dp"
+            android:layout_gravity="center_vertical|start"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/sort_ascend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="2"
+            android:layout_column="1"
+            android:orientation="horizontal"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            >
+            <Button
+                android:id="@+id/radio_ascend"
+                android:text="@string/sort_ascend"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+            <Button
+                android:id="@+id/radio_descend"
+                android:text="@string/sort_descend"
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                style="?attr/materialButtonOutlinedStyle"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <!-- Row-3 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filter"
+            android:layout_marginTop="10dp"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="@dimen/dlg_text_large" />
+
+        <!-- Row-4 -->
+        <CheckBox
+            android:id="@+id/rating_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="4"
+            android:layout_column="0"
+            android:layout_marginStart="10dp"
+            android:textSize="@dimen/dlg_text_medium"
+            android:text="@string/rating_label"
+            android:layout_gravity="center_vertical|start"
+            style="@style/SmallCheckBox"
+            />
+
+        <!-- Row-5 -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/rating_selector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:layout_columnSpan="2"
+            android:layout_gravity="center"
+            android:layout_marginEnd="20dp"
+            app:singleSelection="false"
+            app:selectionRequired="false"
+            android:orientation="horizontal"
+            >
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tg_rating_none"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="30dp"
+                app:icon="@drawable/ic_minus"
+                app:iconPadding="0dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tg_rating_1"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_rating_1"
+                app:iconPadding="0dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tg_rating_2"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_rating_2"
+                app:iconPadding="0dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tg_rating_3"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_rating_3"
+                app:iconPadding="0dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tg_rating_4"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_rating_4"
+                app:iconPadding="0dp"/>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <!-- Row-6 -->
+        <CheckBox
+            android:id="@+id/mark_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="6"
+            android:layout_column="0"
+            android:layout_marginStart="10dp"
+            android:textSize="@dimen/dlg_text_medium"
+            android:text="@string/mark_label"
+            android:layout_gravity="center_vertical|start"
+            style="@style/SmallCheckBox"
+            />
+
+        <!-- Row-7 -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/mark_selector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:layout_columnSpan="2"
+            android:layout_row="7"
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"
+            app:singleSelection="false"
+            app:selectionRequired="false"
+            >
+            <Button
+                android:id="@+id/tg_mark_none"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_minus"
+                app:iconPadding="0dp"/>
+            <Button
+                android:id="@+id/tg_mark_star"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_mark_star"
+                app:iconPadding="0dp"/>
+            <Button
+                android:id="@+id/tg_mark_flag"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_mark_flag"
+                app:iconPadding="0dp"/>
+            <Button
+                android:id="@+id/tg_mark_check"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/min_toggle_button_width"
+                app:icon="@drawable/ic_mark_check"
+                app:iconPadding="0dp"
+                />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <CheckBox
+            android:id="@+id/check_only_un_backup_items"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_column="0"
+            android:layout_columnSpan="2"
+            android:text="@string/only_unbacked_up_items"
+            android:textSize="@dimen/dlg_text_medium"
+            android:layout_gravity="center_vertical|start"
+            style="@style/SmallCheckBox"
+            />
+        <CheckBox
+            android:id="@+id/offline_items"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_column="0"
+            android:layout_columnSpan="2"
+            android:text="@string/offline_items"
+            android:textSize="@dimen/dlg_text_medium"
+            android:layout_gravity="center_vertical|start"
+            style="@style/SmallCheckBox"
+            />
+
+        <CheckBox
+            android:id="@+id/check_start_date"
+            app:layout_constraintTop_toBottomOf="@+id/sort_order_selector"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/dlg_text_medium"
+            android:layout_marginStart="10dp"
+            android:text="@string/start_date"
+            style="@style/SmallCheckBox"
+            />
+        <Button
+            android:id="@+id/start_date_button"
+            android:layout_marginStart="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="2023/08/01"
+            />
+        <DatePicker
+            android:id="@+id/start_date_picker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:datePickerMode="calendar"
+            android:layout_columnSpan="2"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            />
+        <CheckBox
+            android:id="@+id/check_end_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/dlg_text_medium"
+            android:layout_marginStart="10dp"
+            android:text="@string/end_date"
+            style="@style/SmallCheckBox"
+            />
+        <Button
+            android:id="@+id/end_date_button"
+            android:layout_marginStart="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="2023/09/30"
+            />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/jump"
+            android:textColor="?attr/colorPrimary"
+            android:layout_marginTop="10dp"
+            android:layout_columnSpan="2"
+            android:textSize="@dimen/dlg_text_large" />
+
+        <RadioGroup
+            android:id="@+id/radio_jump"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            >
+
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stay"
+            android:layout_columnSpan="2"
+            android:layout_marginStart="10dp"
+            style="@style/SmallRadioButton"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/top"
+            android:layout_columnSpan="2"
+            android:layout_marginStart="10dp"
+            style="@style/SmallRadioButton"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/bottom"
+            android:layout_columnSpan="2"
+            android:layout_marginStart="10dp"
+            style="@style/SmallRadioButton"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+        </RadioGroup>
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/other_options"
+            android:layout_marginTop="10dp"
+            android:textColor="?attr/colorPrimary"
+            android:layout_columnSpan="2"
+            android:textSize="@dimen/dlg_text_large" />
+
+        <CheckBox
+            android:id="@+id/check_allow_delete"
+            android:layout_columnSpan="2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/allow_delete"
+            style="@style/SmallCheckBox"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+        <CheckBox
+            android:id="@+id/check_cloud_test_mode"
+            android:layout_columnSpan="2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/cloud_test_mode"
+            style="@style/SmallCheckBox"
+            android:textSize="@dimen/dlg_text_medium"
+            />
+    </GridLayout>
+
+
+
+</LinearLayout>

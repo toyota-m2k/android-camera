@@ -8,6 +8,7 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.IdRes
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
@@ -147,6 +148,42 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
+    }
+
+
+    data class SortFilterModel(
+        val key:Key,
+        val order:Order,
+        val listMode:ListMode,
+        val rangeStart:DPDate,
+        val rangeEnd:DPDate,
+        val offline:Boolean,
+        val unbackedUp:Boolean,
+        ) {
+        enum class Key(val resId:Int) {
+            Date(R.id.radio_sort_by_date),
+            Size(R.id.radio_sort_by_size),
+            ;
+            private class IDResolver : IIDValueResolver<Key> {
+                override fun id2value(@IdRes id: Int): Key = entries.find { it.resId == id } ?: Date
+                override fun value2id(v: Key): Int = v.resId
+            }
+            companion object {
+                val resolver: IIDValueResolver<Key> by lazy { IDResolver() }
+            }
+        }
+        enum class Order(val resId:Int) {
+            Ascend(R.id.radio_ascend),
+            Descend(R.id.radio_desc),
+            ;
+            private class IDResolver : IIDValueResolver<Order> {
+                override fun id2value(@IdRes id: Int): Order = Order.entries.find { it.resId == id } ?: Order.Ascend
+                override fun value2id(v: Order): Int = v.resId
+            }
+            companion object {
+                val resolver: IIDValueResolver<Order> by lazy { IDResolver() }
+            }
+        }
 
     }
 
@@ -275,6 +312,15 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
         val editPhotoCommand = LiteCommand<RefBitmap>()
+
+        val gotoTopCommand = LiteUnitCommand {
+            val item = playlist.collection.firstOrNull() ?: return@LiteUnitCommand
+            playlist.select(item)
+        }
+        val gotoBottomCommand = LiteUnitCommand {
+            val item = playlist.collection.lastOrNull() ?: return@LiteUnitCommand
+            playlist.select(item)
+        }
 
         val blockingAt = MutableStateFlow(System.currentTimeMillis())              // 画面ロックした時刻
         val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
@@ -612,6 +658,8 @@ class PlayerActivity : UtMortalActivity() {
             .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
+            .bindCommand(viewModel.gotoTopCommand, controls.gotoTopButton)
+            .bindCommand(viewModel.gotoBottomCommand, controls.gotoBottomButton)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .bindCommand(viewModel.editPhotoCommand, this::editPhoto)
             .headlessBinding(viewModel.playlist.currentSelection) {

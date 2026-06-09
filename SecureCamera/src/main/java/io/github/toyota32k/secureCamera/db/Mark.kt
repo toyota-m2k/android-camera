@@ -7,31 +7,11 @@ import io.github.toyota32k.binder.IIDValueResolver
 import io.github.toyota32k.secureCamera.R
 
 enum class Mark(val v:Int, @param:DrawableRes val iconId:Int, @param:IdRes val id:Int) {
-    None(0, R.drawable.ic_none, View.NO_ID),
+    None(0, R.drawable.ic_none, R.id.tg_mark_none),
     Star(1, R.drawable.ic_mark_star, R.id.tg_mark_star),
     Flag(2, R.drawable.ic_mark_flag, R.id.tg_mark_flag),
     Check(3, R.drawable.ic_mark_check, R.id.tg_mark_check),
     ;
-
-//    fun colorStateList(context:Context):ColorStateList {
-//        return context.getColorStateList(colorId)
-//    }
-
-//    @ColorInt
-//    fun defaultColor(context:Context): Int {
-//        return colorStateList(context).defaultColor
-//    }
-
-
-//
-//    @ColorInt
-//    fun selectedColor(context:Context):Int {
-//        return colorStateList(context).getColorForState(intArrayOf(android.R.attr.state_selected), 0)
-//    }
-//
-//    fun icon(context:Context): Drawable {
-//        return ContextCompat.getDrawable(context, iconId) ?: throw IllegalStateException("no icon resource.")
-//    }
 
     private class IDResolver : IIDValueResolver<Mark> {
         override fun id2value(@IdRes id: Int): Mark = Mark.id2value(id)
