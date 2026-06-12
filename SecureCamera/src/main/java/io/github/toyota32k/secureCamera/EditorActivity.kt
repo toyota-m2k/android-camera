@@ -27,7 +27,6 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
-import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
 import io.github.toyota32k.lib.media.editor.handler.save.GenericSaveFileHandler
@@ -50,7 +49,6 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.io.AndroidFile
-import io.github.toyota32k.media.lib.io.HttpFile
 import io.github.toyota32k.media.lib.io.HttpInputFile
 import io.github.toyota32k.media.lib.io.IInputMediaFile
 import io.github.toyota32k.media.lib.io.IOutputMediaFile
@@ -58,8 +56,6 @@ import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
-import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
-import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.OkHttpStreamSource
@@ -91,7 +87,6 @@ import java.io.File
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.collections.get
 
 class EditorActivity : UtMortalActivity() {
     class EditorViewModel(application: Application) : AndroidViewModel(application), ISourceToInputMediaFile {
@@ -128,13 +123,47 @@ class EditorActivity : UtMortalActivity() {
             return if (size<0) "uav" else String.format(Locale.US, "%,d KB", size / 1000L)
         }
 
-        override fun toInputMediaFile(source: IMediaSource): IInputMediaFile {
-            return source.uri.toUri().run {
-                when (scheme?.lowercase()) {
-                    "http", "https" -> OkHttpInputFile(application, source.uri)
-                    else -> toAndroidFile(application)
+        private class InputMediaFileCache {
+            private var cachedInputFile: OkHttpInputFile? = null
+            private var currentUri:String? = null
+
+            private fun createOkHttpMediaFile(context:Context, uri:String): OkHttpInputFile {
+                return cachedInputFile ?: OkHttpInputFile(context, uri).apply {
+                    addRef()
+                    cachedInputFile = this
                 }
             }
+
+            fun release() {
+                synchronized(this) {
+                    cachedInputFile?.release()
+                    cachedInputFile = null
+                    currentUri = null
+                }
+            }
+
+            fun get(context:Context, uri:String): IInputMediaFile {
+                if (uri != currentUri) {
+                    release()
+                }
+                currentUri = uri
+                return uri.toUri().run {
+                    when (scheme?.lowercase()) {
+                        "http", "https" -> createOkHttpMediaFile(context, uri)
+                        else -> toAndroidFile(context)
+                    }
+                }
+            }
+        }
+        private val inputMediaFileCache = InputMediaFileCache()
+
+        fun getInputMediaFile(uri:String): IInputMediaFile {
+            return inputMediaFileCache.get(application, uri)
+        }
+
+        // ISourceToInputMediaFile impl
+        override fun toInputMediaFile(source: IMediaSource): IInputMediaFile {
+            return getInputMediaFile(source.uri)
         }
 
         fun safeOverwrite(srcFile: File, dstFile:File):Boolean {
@@ -321,7 +350,7 @@ class EditorActivity : UtMortalActivity() {
         }
 
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
-            resetInputFile()
+            inputMediaFileCache.release()
             playerModel.setSource(VideoSource(item))
         }
 
@@ -346,30 +375,30 @@ class EditorActivity : UtMortalActivity() {
         }
 
 
-        private val resetableInputFile: UtLazyResetableValue<IInputMediaFile> = UtLazyResetableValue {
-            if(targetItem.cloud.isFileInLocal) {
-                targetFile.toAndroidFile()
-            } else {
-                HttpInputFile(application, OkHttpStreamSource(metaDb.urlOf(targetItem))).apply {
-                    addRef()
-                }
-            }
-        }
-
-        private fun resetInputFile() {
-            resetableInputFile.reset {
-                if(it is HttpInputFile) {
-                    it.release()
-                }
-            }
-        }
+//        private val resetableInputFile: UtLazyResetableValue<IInputMediaFile> = UtLazyResetableValue {
+//            if(targetItem.cloud.isFileInLocal) {
+//                targetFile.toAndroidFile()
+//            } else {
+//                HttpInputFile(application, OkHttpStreamSource(metaDb.urlOf(targetItem))).apply {
+//                    addRef()
+//                }
+//            }
+//        }
+//
+//        private fun resetInputFile() {
+//            resetableInputFile.reset {
+//                if(it is HttpInputFile) {
+//                    it.release()
+//                }
+//            }
+//        }
 
         val playingBeforeBlocked = MutableStateFlow(false)
         val blocking = MutableStateFlow(false)
 
         private fun onSnapshot(pos:Long, bitmap: RefBitmap) {
             val source = (playerModel.currentSource.value as? VideoSource)?.item ?: return
-            if(!source.cloud.isFileInLocal) return
+//            if(!source.cloud.isFileInLocal) return
             CoroutineScope(Dispatchers.IO).launch {
                 PlayerActivity.PlayerViewModel.saveSnapshot(metaDb, source.data, pos, bitmap)
             }
@@ -378,7 +407,7 @@ class EditorActivity : UtMortalActivity() {
         override fun onCleared() {
             super.onCleared()
             logger.debug()
-            resetInputFile()
+            inputMediaFileCache.release()
             playerControllerModel.close()
             HttpInputFile.deleteAllTempFile(getApplication())
         }
@@ -523,11 +552,7 @@ class EditorActivity : UtMortalActivity() {
 //    }
 
     private fun sourceVideoProperties(): Summary {
-        val inFile = if(viewModel.targetItem.cloud.isFileInLocal) {
-            viewModel.targetFile.toAndroidFile()
-        } else {
-            HttpFile(viewModel.targetUri)
-        }
+        val inFile = viewModel.getInputMediaFile(viewModel.targetUri)
         return Analyzer.analyze(inFile)
     }
     private fun showVideoProperties():Boolean {
