@@ -30,6 +30,7 @@ import io.github.toyota32k.binder.headlessBinding
 import io.github.toyota32k.binder.headlessNonnullBinding
 import io.github.toyota32k.binder.list.ObservableList
 import io.github.toyota32k.binder.materialRadioButtonGroupBinding
+import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.recyclerViewBindingEx
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogConfig
@@ -38,7 +39,6 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
-import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
 import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
@@ -60,8 +60,6 @@ import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.VisibleAreaParams.Companion.IDENTITY
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.ScDef.PHOTO_EXTENSION
-import io.github.toyota32k.secureCamera.ScDef.PHOTO_PREFIX
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
@@ -77,6 +75,7 @@ import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
+import io.github.toyota32k.secureCamera.dialog.PlayListOptionsDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
@@ -121,7 +120,11 @@ import kotlin.time.Duration
 
 
 class PlayerActivity : UtMortalActivity() {
-    override val logger = UtLog("PlayerActivity")
+    companion object {
+        val logger = UtLog("PlayerActivity")
+    }
+    override val logger:UtLog = PlayerActivity.logger
+
     enum class ListMode(val resId:Int) {
         ALL(R.id.radio_all),
         PHOTO(R.id.radio_photos),
@@ -139,30 +142,30 @@ class PlayerActivity : UtMortalActivity() {
             fun valueOf(resId: Int, def: ListMode = PHOTO): ListMode {
                 return entries.find { it.resId == resId } ?: def
             }
-            fun valueOf(name:String?):ListMode? {
-                if(name==null) return null
+            fun valueOf(name:String?):ListMode {
+                if(name==null) return ListMode.ALL
                 return try {
                     java.lang.Enum.valueOf(ListMode::class.java, name)
                 } catch (_:Throwable) {
-                    null
+                    ListMode.ALL
                 }
             }
         }
     }
 
-
-    data class SortFilterModel(
+    data class SortOptions(
         val key:Key,
         val order:Order,
-        val listMode:ListMode,
-        val rangeStart:DPDate,
-        val rangeEnd:DPDate,
-        val offline:Boolean,
-        val unbackedUp:Boolean,
-        ) {
-        enum class Key(val resId:Int) {
-            Date(R.id.radio_sort_by_date),
-            Size(R.id.radio_sort_by_size),
+    ) {
+        constructor(src: SortOptions, key: Key = src.key, order: Order = src.order) : this(
+            key,
+            order
+        )
+        // region Types
+
+        enum class Key(val v:Int, val resId:Int) {
+            Date(0, R.id.radio_sort_by_date),
+            Size(1, R.id.radio_sort_by_size),
             ;
             private class IDResolver : IIDValueResolver<Key> {
                 override fun id2value(@IdRes id: Int): Key = entries.find { it.resId == id } ?: Date
@@ -170,21 +173,104 @@ class PlayerActivity : UtMortalActivity() {
             }
             companion object {
                 val resolver: IIDValueResolver<Key> by lazy { IDResolver() }
+                fun fromValue(v:Int, def:Key = Date):Key {
+                    return entries.find { it.v == v } ?: def
+                }
             }
         }
-        enum class Order(val resId:Int) {
-            Ascend(R.id.radio_ascend),
-            Descend(R.id.radio_desc),
+
+        enum class Order(val v:Boolean, val resId:Int, val eff:Int) {
+            Ascend(false, R.id.radio_ascend, 1),
+            Descend(true, R.id.radio_descend, -1),
             ;
             private class IDResolver : IIDValueResolver<Order> {
                 override fun id2value(@IdRes id: Int): Order = Order.entries.find { it.resId == id } ?: Order.Ascend
                 override fun value2id(v: Order): Int = v.resId
             }
             companion object {
+                fun fromValue(v: Boolean, def:Order = Ascend):Order {
+                    return entries.find { it.v == v } ?: def
+                }
                 val resolver: IIDValueResolver<Order> by lazy { IDResolver() }
             }
         }
 
+        // endregion
+
+        // sort
+        fun compare(a: ItemEx, b: ItemEx): Int {
+            return when (key) {
+                Key.Date -> a.creationDate.compareTo(b.creationDate)
+                Key.Size -> a.size.compareTo(b.size)
+            } * order.eff
+        }
+
+        companion object {
+            val initial = SortOptions(
+                key = Key.fromValue(Settings.PlayListSetting.sortKey),
+                order = Order.fromValue(Settings.PlayListSetting.sortOrder),
+            )
+        }
+    }
+
+    data class FilterOptions(
+        val listMode:ListMode,
+        val enableStartDate:Boolean,
+        val startDate:DPDate,
+        val enableEndDate:Boolean,
+        val endDate:DPDate,
+        val enableRatingFilter:Boolean,
+        val ratingFlags:Int,
+        val enableMarkFilter:Boolean,
+        val markFlags:Int,
+        val offline:Boolean,
+        val unbackedUp:Boolean,
+        ) {
+
+        // filter
+        fun filter(item: ItemEx):Boolean {
+            if (!when(listMode) {
+                ListMode.ALL-> true
+                ListMode.VIDEO-> item.isVideo
+                ListMode.PHOTO-> item.isPhoto
+            }) return false
+
+            if (unbackedUp) {
+                if (item.cloud.isFileInCloud) return false
+            }
+            if (offline) {
+                if (!item.cloud.isFileInLocal) return false
+            }
+
+            if (enableRatingFilter && ratingFlags!=0) {
+                if ((item.rating.flag and ratingFlags) == 0) return false
+            }
+            if (enableMarkFilter && markFlags!=0) {
+                if ((item.mark.flag and markFlags) == 0) return false
+            }
+
+            val dpDate = item.dpDate
+            if(enableStartDate && startDate.isValid && dpDate<startDate) return false
+            if(enableEndDate && endDate.isValid && dpDate>endDate) return false
+
+            return true
+        }
+
+        companion object {
+            val initial = FilterOptions(
+                listMode = ListMode.ALL,    // 暫定
+                enableStartDate = Settings.PlayListSetting.enableStartDate,
+                startDate = Settings.PlayListSetting.startDate,
+                enableEndDate = Settings.PlayListSetting.enableEndDate,
+                endDate = Settings.PlayListSetting.endDate,
+                enableRatingFilter = Settings.PlayListSetting.enableRatingFilter,
+                ratingFlags = Settings.PlayListSetting.ratingFlags,
+                enableMarkFilter = Settings.PlayListSetting.enableMarkFilter,
+                markFlags = Settings.PlayListSetting.markFlags,
+                offline = Settings.PlayListSetting.onlyOfflineItems,
+                unbackedUp = Settings.PlayListSetting.onlyUnBackedUpItems
+            )
+        }
     }
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
@@ -305,9 +391,7 @@ class PlayerActivity : UtMortalActivity() {
                     }
                     acc
                 }
-                if(PlayListSettingDialog.show(mm.min, mm.max)) {
-                    playlist.onSettingChanged()
-                }
+                PlayListOptionsDialog.show(this@PlayerViewModel,mm.min, mm.max)
                 allowDelete.value = Settings.PlayListSetting.allowDelete
             }
         }
@@ -375,48 +459,102 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         inner class Playlist : IMediaFeed, IUtPropOwner {
-            private var sortOrder:Int = 1
-            private fun updateSortOrderBySettings() {
-                sortOrder = if(Settings.PlayListSetting.sortOrder) -1 else 1
-            }
+//            private var sortOrder:Int = 1
+//            private fun updateSortOrderBySettings() {
+//                sortOrder = if(Settings.PlayListSetting.sortOrder) -1 else 1
+//            }
             val collection = ObservableList<ItemEx>()
-            val sorter = UtSorter(
-                collection,
-                actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE
-            ) { a, b ->
-                val ta = a.creationDate // filename2date(a)?.time ?: 0L
-                val tb = b.creationDate // filename2date(b)?.time ?: 0L
-                val d = ta - tb
-                sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
-            }
+//            val sorter = UtSorter(
+//                collection,
+//                actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE
+//            ) { a, b ->
+//                val ta = a.creationDate // filename2date(a)?.time ?: 0L
+//                val tb = b.creationDate // filename2date(b)?.time ?: 0L
+//                val d = ta - tb
+//                sortOrder * (if(d<0) -1 else if(d>0) 1 else 0)
+//            }
 
             val currentSelection:StateFlow<ItemEx?> = MutableStateFlow<ItemEx?>(null)
             private var photoSelection:ItemEx? = null
             private var videoSelection:ItemEx? = null
             val isCurrentVideo: Boolean = currentSelection.value?.isVideo==true
-            val listMode = MutableStateFlow(ListMode.ALL)
+//            val listMode = MutableStateFlow(ListMode.ALL)
+
+//            val listOptionsFlow = MutableStateFlow(ListOptions.initial)
+            private var mSortOptions:SortOptions = SortOptions.initial
+            val sortOptions: SortOptions get() = mSortOptions
+            suspend fun updateSortOptions(
+                sortOptions: SortOptions
+            ) {
+                if (sortOptions!=mSortOptions) {
+                    mSortOptions = sortOptions
+                    updateList()
+                }
+            }
+
+            private val sorter = UtSorter(collection, actionOnDuplicate = UtSorter.ActionOnDuplicate.REPLACE ) { a,b->
+                mSortOptions.compare(a,b)
+            }
+
+            private var mFilterOptions:FilterOptions = FilterOptions.initial
+            val filterOptions:FilterOptions get() = mFilterOptions
+            suspend fun updateFilterOptions(filterOptions: FilterOptions) {
+                if (filterOptions!=mFilterOptions) {
+                    mFilterOptions = filterOptions
+                    updateList()
+                }
+            }
+            suspend fun updateListMode(listMode: ListMode) {
+                if (listMode!=mFilterOptions.listMode) {
+                    mFilterOptions = mFilterOptions.copy(listMode = listMode)
+                    updateList()
+                }
+            }
+            val listMode:ListMode get() = mFilterOptions.listMode
+            fun filter(item: ItemEx):Boolean {
+                return mFilterOptions.filter(item)
+            }
+
+            suspend fun updateOptions(sortOptions: SortOptions, filterOptions: FilterOptions) {
+                var modified = false
+                if (sortOptions!=mSortOptions) {
+                    mSortOptions = sortOptions
+                    modified = true
+                }
+                if (filterOptions!=mFilterOptions) {
+                    mFilterOptions = filterOptions
+                    modified = true
+                }
+                if (modified) {
+                    updateList()
+                }
+            }
+
+            suspend fun updateList() {
+                val current = currentSource.value as MediaSource?
+                metaDb.listEx(listMode).filter {
+                    filter(it)
+                }.run {
+                    sorter.replace(this)
+                }
+                when(listMode) {
+                    ListMode.ALL->  select(current?.item)
+                    ListMode.VIDEO -> select(videoSelection)
+                    ListMode.PHOTO -> select(photoSelection)
+                }
+            }
 
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
 
-            private var dateRange = DateRange()
-            private fun List<ItemEx>.filterByDateRange():List<ItemEx> {
-                return this.filter { dateRange.contained(it.dpDate) }
-            }
-
-            suspend fun onSettingChanged() {
-                updateSortOrderBySettings()
-                dateRange.updateBySetting()
-                refreshList()
-            }
-
             init {
-                updateSortOrderBySettings()
-                listMode.onEach(::setListMode).launchIn(viewModelScope)
+                viewModelScope.launch {
+                    updateList()
+                }
             }
 
-            fun select(requestItem:ItemEx?, force:Boolean=true) {
+            fun select(requestItem:ItemEx?, force:Boolean=false) {
                 if(!force && requestItem == currentSelection.value) return
                 if(collection.isEmpty()) {
                     hasNext.value = false
@@ -443,16 +581,21 @@ class PlayerActivity : UtMortalActivity() {
                 currentSelection.mutable.value = item
                 if(item.isVideo) {
                     videoSelection = item
-                    playerControllerModel.playerModel.rotate(Rotation.NONE)
-                    if(item.cloud.loadFromCloud) {
-                        currentSource.value = null
-                        viewModelScope.launch {
-                            if(Authentication.authenticateAndMessage(preferPrimary = false)) {
-                                currentSource.value = MediaSource(item)
-                            }
+                } else if (item.isPhoto) {
+                    photoSelection = item
+                } else {
+                    // invalid item
+                    logger.error("${item.type}")
+                    select(null, true)
+                    return
+                }
+                playerControllerModel.playerModel.rotate(Rotation.NONE)
+                if(item.cloud.loadFromCloud) {
+                    currentSource.value = null
+                    viewModelScope.launch {
+                        if(Authentication.authenticateAndMessage(preferPrimary = false)) {
+                            currentSource.value = MediaSource(item)
                         }
-                    } else {
-                        currentSource.value = MediaSource(item)
                     }
                 } else {
                     currentSource.value = MediaSource(item)
@@ -467,18 +610,15 @@ class PlayerActivity : UtMortalActivity() {
                 return collection.indexOf(item)
             }
 
-            suspend fun refreshList() {
-                setListMode(listMode.value)
-            }
-
             fun addItem(item:ItemEx) {
-                if(when(listMode.value){
-                    ListMode.ALL-> true
-                    ListMode.PHOTO->item.isPhoto
-                    ListMode.VIDEO->item.isVideo
-                }) {
+                if (mFilterOptions.filter(item)) {
                     sorter.add(item)
                     select(item)
+                }
+            }
+            fun addItemNotSelect(item:ItemEx) {
+                if (mFilterOptions.filter(item)) {
+                    sorter.add(item)
                 }
             }
 
@@ -490,32 +630,8 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun replaceItem(item:ItemEx) {
-                val index = collection.indexOfFirst { it.id == item.id }
-                if(index>=0) {
-                    sorter.add(item)
-                    select(item)
-                }
-            }
-
-            private suspend fun setListMode(mode:ListMode) {
-                val newList = metaDb.listEx(mode).filterByDateRange().run {
-                    if(Settings.PlayListSetting.onlyUnBackedUpItems) {
-                        filter { !it.cloud.isFileInCloud }
-                    } else {
-                        this
-                    }
-                }
-                setFileList(newList, mode)
-            }
-
-            private fun setFileList(list:Collection<ItemEx>, newMode:ListMode) {
-                val current = currentSource.value as MediaSource?
-                sorter.replace(list)
-                when(newMode) {
-                    ListMode.ALL->  select(current?.item)
-                    ListMode.VIDEO -> select(videoSelection)
-                    ListMode.PHOTO -> select(photoSelection)
-                }
+                removeItem(item.id)
+                addItem(item)
             }
 
             override fun next() {
@@ -562,9 +678,7 @@ class PlayerActivity : UtMortalActivity() {
         init {
             viewModelScope.launch {
                 val mode = ListMode.valueOf(metaDb.KV.get(KEY_CURRENT_LIST_MODE))
-                if(mode!=null) {
-                    playlist.listMode.value = mode
-                }
+                playlist.updateListMode(mode)
                 val name = metaDb.KV.get(KEY_CURRENT_ITEM) ?: return@launch
                 val item = metaDb.itemExOf(name) ?: return@launch
                 playlist.select(item)
@@ -578,13 +692,10 @@ class PlayerActivity : UtMortalActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 val source = playlist.currentSelection.value ?: return@launch
                 if (source.isVideo) {
-                    val newItem = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
-                    if (playlist.listMode.value != ListMode.VIDEO) {
-                        withContext(Dispatchers.Main) {
-                            playlist.sorter.add(
-                                ItemEx(newItem,metaDb.slotIndex.index,null)
-                            )
-                        }
+                    val newMetaData = saveSnapshot(metaDb, source.data, pos, bitmap) ?: return@launch
+                    val newItem = ItemEx(newMetaData,metaDb.slotIndex.index,null)
+                    withContext(Dispatchers.Main) {
+                        playlist.addItemNotSelect(newItem)
                     }
                 } else {
                     editPhotoCommand.invoke(bitmap)
@@ -593,7 +704,7 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         fun saveListModeAndSelection() {
-            val listMode = playlist.listMode.value
+            val listMode = playlist.listMode
             val currentItem = playlist.currentSelection.value
 
             // onCleared で metaDb.close() されるので、MetaDB を新たに取得しておく
@@ -653,9 +764,10 @@ class PlayerActivity : UtMortalActivity() {
         fun icCloud() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
         fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
+        val listModeFlow = MutableStateFlow(viewModel.playlist.listMode)
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).orientation))
         binder.owner(this)
-            .materialRadioButtonGroupBinding(controls.listMode, viewModel.playlist.listMode, ListMode.IDResolver)
+            .materialRadioButtonGroupBinding(controls.listMode, listModeFlow, ListMode.IDResolver)
             .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.gotoTopCommand, controls.gotoTopButton)
@@ -670,6 +782,9 @@ class PlayerActivity : UtMortalActivity() {
             }
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
+            }
+            .observe(listModeFlow) { listMode->
+                viewModel.playlist.updateListMode(listMode)
             }
             .recyclerViewBindingEx<ItemEx,ListItemBinding>(controls.listView) {
                 list(viewModel.playlist.collection)
@@ -779,7 +894,7 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playlist.removeItem(c.itemId)
             }
             DBChange.Type.Refresh -> {
-                viewModel.playlist.refreshList()
+                viewModel.playlist.updateList()
             }
         }
     }
@@ -953,7 +1068,7 @@ class PlayerActivity : UtMortalActivity() {
             viewModel.blockingAt.value = 0
             if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
                 controls.mediaPlayerView.associatePlayer()
-                lifecycleScope.launch { viewModel.playlist.refreshList() }
+                lifecycleScope.launch { viewModel.playlist.updateList() }
             } else if(viewModel.playingBeforeBlocked.value) {
                 viewModel.playingBeforeBlocked.value = false
                 viewModel.playerControllerModel.playerModel.play()

@@ -35,9 +35,9 @@ configure<ApplicationExtension> {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.23.1"
-            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        }
+        versionName = "2.24.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
     buildFeatures {
         buildConfig = true
         viewBinding = true

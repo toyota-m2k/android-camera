@@ -8,7 +8,6 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
-import io.github.toyota32k.lib.camera.usecase.ITcUseCase
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.logger.UtLog
@@ -43,7 +42,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.checkerframework.checker.units.qual.Prefix
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
@@ -79,9 +77,9 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
     val duration:Long
         get() = data.duration
     val mark:Mark
-        get() = Mark.valueOf(data.mark)
+        get() = Mark.fromValue(data.mark)
     val rating:Rating
-        get() = Rating.valueOf(data.rating)
+        get() = Rating.fromValue(data.rating)
     val cloud:CloudStatus
         get() = CloudStatus.valueOf(data.cloud)
     val nameForDisplay:String

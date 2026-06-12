@@ -161,8 +161,8 @@ class PlayListSettingDialog : UtDialogEx() {
             .bindCommand(viewModel.commandEditEndDate, controls.editEndDateButton)
             .datePickerBinding(controls.startDatePicker, viewModel.startDate, selectCommand = viewModel.commandEndEdit)
             .datePickerBinding(controls.endDatePicker, viewModel.endDate, selectCommand = viewModel.commandEndEdit)
-            .enableBinding(controls.startDatePicker, viewModel.showStartDatePicker)
-            .enableBinding(controls.endDatePicker, viewModel.showEndDatePicker)
+            .visibilityBinding(controls.startDatePicker, viewModel.showStartDatePicker)
+            .visibilityBinding(controls.endDatePicker, viewModel.showEndDatePicker)
             .multiVisibilityBinding( arrayOf(controls.startDateText,controls.editStartDateButton), viewModel.enableStartDate)
             .multiVisibilityBinding(arrayOf(controls.endDateText, controls.editEndDateButton), viewModel.enableEndDate)
 

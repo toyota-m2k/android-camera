@@ -135,7 +135,7 @@ class ItemDialog : UtDialogEx() {
             .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local && viewModel.enableSyncWithSA  }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud && viewModel.enableSyncWithSA }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .enableBinding(controls.editVideoButton, viewModel.item.map { !it.isPhoto})
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
