@@ -3,6 +3,7 @@ package io.github.toyota32k.secureCamera
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -42,6 +43,7 @@ import io.github.toyota32k.lib.media.editor.model.IVideoSourceInfo
 import io.github.toyota32k.lib.media.editor.model.MediaEditorModel
 import io.github.toyota32k.lib.media.editor.model.VideoSaveMode
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.IMediaMetadataRetrieverSource
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
@@ -411,7 +413,7 @@ class EditorActivity : UtMortalActivity() {
             HttpInputFile.deleteAllTempFile(getApplication())
         }
 
-        inner class VideoSource(val item: ItemEx) : IMediaSourceWithMutableChapterList {
+        inner class VideoSource(val item: ItemEx) : IMediaSourceWithMutableChapterList, IMediaMetadataRetrieverSource {
             override val name:String
                 get() = item.name
 //            private val file: File = item.file
@@ -426,6 +428,12 @@ class EditorActivity : UtMortalActivity() {
             val chapterList: IMutableChapterList = MutableChapterList(item.chapterList ?: emptyList())
             override suspend fun getChapterList(): IMutableChapterList {
                 return chapterList
+            }
+
+            override suspend fun <T> withMediaMetadataRetriever(fn:suspend (MediaMetadataRetriever) -> T): T {
+                return getInputMediaFile(targetUri).openMetadataRetriever().useObj {
+                    fn(it)
+                }
             }
         }
 

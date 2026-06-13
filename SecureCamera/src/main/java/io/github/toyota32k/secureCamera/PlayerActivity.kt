@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.util.Size
 import android.view.View
@@ -49,6 +50,7 @@ import io.github.toyota32k.lib.player.model.BitmapInfo
 import io.github.toyota32k.lib.player.model.IBitmapInfo
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
+import io.github.toyota32k.lib.player.model.IMediaMetadataRetrieverSource
 import io.github.toyota32k.lib.player.model.IMediaSource
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.IPhotoLoader
@@ -60,7 +62,9 @@ import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.VisibleAreaParams.Companion.IDENTITY
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
@@ -381,7 +385,9 @@ class PlayerActivity : UtMortalActivity() {
             viewModelScope.launch {
                 data class MinMax(var min:DPDate,var max:DPDate)
                 val list = metaDb.listEx(ListMode.ALL)
-                val mm = list.fold(MinMax(DPDate.InvalidMax, DPDate.InvalidMin)) { acc, item->
+                val current = playlist.currentSelection.value?.dpDate ?: DPDate.Today
+                val mm = MinMax(current,current)
+                list.fold(mm) { acc, item->
                     val dp = item.dpDate
                     if(dp<acc.min) {
                         acc.min = dp
@@ -442,7 +448,7 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter {
+        inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter, IMediaMetadataRetrieverSource {
             override val name:String
                 get() = item.name
             override val id: String
@@ -455,6 +461,17 @@ class PlayerActivity : UtMortalActivity() {
             override var startPosition = AtomicLong()
             override suspend fun getChapterList(): IChapterList {
                 return if(item.chapterList!=null) ChapterList(item.chapterList.toMutableList()) else IChapterList.Empty
+            }
+
+            override suspend fun <T> withMediaMetadataRetriever(fn: suspend (MediaMetadataRetriever) -> T): T {
+                val inFile = if(item.cloud.isFileInLocal) {
+                    metaDb.fileOf(item).toAndroidFile()
+                } else {
+                    OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item))
+                }
+                return inFile.openMetadataRetriever().useObj {
+                    fn (it)
+                }
             }
         }
 

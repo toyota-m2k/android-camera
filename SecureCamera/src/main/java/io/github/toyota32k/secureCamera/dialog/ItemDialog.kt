@@ -21,6 +21,8 @@ import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.media.lib.io.HttpFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
+import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.DBChange
@@ -64,7 +66,7 @@ class ItemDialog : UtDialogEx() {
             val inFile = if(item.cloud.isFileInLocal) {
                 metaDb.fileOf(item).toAndroidFile()
             } else {
-                HttpFile(metaDb.urlOf(item))
+                OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item))
             }
             val summary = Analyzer.analyze(inFile)
             ReportTextDialog.show(item.name, summary.toString())
