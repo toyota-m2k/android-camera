@@ -12,7 +12,7 @@
     <!-- Play List -->
     <LinearLayout
         android:id="@+id/list_panel"
-        android:layout_width="320dp"
+        android:layout_width="340dp"
         android:layout_height="0dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -37,28 +37,47 @@
                 app:selectionRequired="true"
                 android:layout_weight="1"
                 >
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/radio_all"
-                    android:text="@string/list_all"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    style="?attr/materialButtonOutlinedStyle"
-                    />
-                <Button
+                    android:minWidth="@dimen/min_toggle_button_width"
+                    app:icon="@drawable/ic_media_all"
+                    app:iconPadding="0dp"/>
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/radio_videos"
-                    android:text="@string/list_videos"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    style="?attr/materialButtonOutlinedStyle"
-                    />
-                <Button
+                    android:minWidth="@dimen/min_toggle_button_width"
+                    app:icon="@drawable/ic_media_video"
+                    app:iconPadding="0dp"/>
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/radio_photos"
-                    android:text="@string/list_photos"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    style="?attr/materialButtonOutlinedStyle"
-                    />
+                    android:minWidth="@dimen/min_toggle_button_width"
+                    app:icon="@drawable/ic_media_photo"
+                    app:iconPadding="0dp"/>
             </com.google.android.material.button.MaterialButtonToggleGroup>
+            <ImageButton
+                android:id="@+id/goto_top_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:src="@drawable/ic_up"
+                android:background="?attr/selectableItemBackground"
+                app:tint="?attr/colorSecondaryVariant" />
+            <ImageButton
+                android:id="@+id/goto_bottom_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:src="@drawable/ic_down"
+                android:background="?attr/selectableItemBackground"
+                app:tint="?attr/colorSecondaryVariant" />
             <ImageButton
                 android:id="@+id/list_setting_button"
                 android:layout_width="40dp"

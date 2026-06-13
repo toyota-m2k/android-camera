@@ -109,6 +109,10 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        /**
+         * SAに対してバックアップの開始を要求
+         * - すべての（sync==trueの）MetaDBが対象
+         */
         private fun backup() {
             viewModelScope.launch {
                 if (!Authentication.authenticateAndMessage(preferPrimary = true)) {
@@ -122,6 +126,11 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        /**
+         * すべてのScDBを(SAが稼働している)PCにバックアップする
+         * SAのDBも同じフォルダにバックアップされる。
+         * ただし、DBのリストアは未実装。
+         */
         private fun backupDB() {
             viewModelScope.launch {
                 backupCore(
@@ -132,6 +141,10 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        /**
+         * バックアップ済みアイテムのローカルファイルを一括削除
+         * - カレントMetaDBだけが対象
+         */
         private fun purge() {
             isBusy.value = true
             viewModelScope.launch {
@@ -146,6 +159,7 @@ class ServerActivity : UtMortalActivity() {
 
         /**
          * SAにバックアップ後、ローカルで削除してしまったファイルを、SAから取得しなおして復元する。
+         * - カレントMetaDBだけが対象
          */
         private fun repair() {
             isBusy.value = true
@@ -168,41 +182,6 @@ class ServerActivity : UtMortalActivity() {
                 }
             }
         }
-
-//        private fun progressDialogTest() {
-//            UtImmortalTask.launchTask("progress test") {
-//                if( !showOkCancelMessageBox("Progress Test", "Are you ok?")) {
-//                    return@launchTask
-//                }
-//
-//                var canceled = false
-//                val pvm = createViewModel<ProgressDialog.ProgressViewModel>()
-//                pvm.message.value = "Progress Test..."
-//                pvm.cancelCommand.bindForever { canceled = true }
-//                // プログレスダイアログをモーダル表示
-//                launchSubTask {
-//                    showDialog(ProgressDialog())
-//                }
-//
-//                for (i in 1..30) {
-//                    if(cancelled) {
-//                        logger.debug("progress test cancelled at $i")
-//                        break
-//                    }
-//                    pvm.progress.value = i
-//                    pvm.progressText.value = "$i / 100"
-//                    logger.debug("progress test: $i")
-//                    // ここで何か時間のかかる処理を行う
-//                    delay(1000)
-//                }
-//                pvm.closeCommand.invoke(false)
-//                if(cancelled) {
-//                    showConfirmMessageBox("Progress Test", "Cancelled.")
-//                } else {
-//                    showConfirmMessageBox("Progress Test", "Completed.")
-//                }
-//            }
-//        }
 
         /**
          * 新しいデバイスから、SAに古いデバイスの移行を依頼する。

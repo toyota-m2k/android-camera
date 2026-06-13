@@ -21,6 +21,8 @@ import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.media.lib.io.HttpFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
+import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.DBChange
@@ -64,7 +66,7 @@ class ItemDialog : UtDialogEx() {
             val inFile = if(item.cloud.isFileInLocal) {
                 metaDb.fileOf(item).toAndroidFile()
             } else {
-                HttpFile(metaDb.urlOf(item))
+                OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item))
             }
             val summary = Analyzer.analyze(inFile)
             ReportTextDialog.show(item.name, summary.toString())
@@ -135,7 +137,7 @@ class ItemDialog : UtDialogEx() {
             .visibilityBinding(controls.backupButton, viewModel.item.map { it.cloud == CloudStatus.Local && viewModel.enableSyncWithSA  }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
-            .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud && viewModel.enableSyncWithSA }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .enableBinding(controls.editVideoButton, viewModel.item.map { !it.isPhoto})
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)

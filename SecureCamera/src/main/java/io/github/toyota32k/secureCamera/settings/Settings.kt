@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.TcAspect
+import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.utils.IThemeList
@@ -220,14 +221,20 @@ object Settings {
     }
 
     object PlayListSetting {
+        var sortKey by spd.pref(0)  // 0: Date / 1: Size
         var sortOrder by spd.pref(false)    // 日付昇順がデフォルト
         var enableStartDate by spd.pref(false)
         var enableEndDate by spd.pref(false)
-        var startDateInt by spd.pref(0)
-        var endDateInt by spd.pref(0)
+        var startDateInt by spd.pref(DPDate.InvalidMin.intValue)
+        var endDateInt by spd.pref(DPDate.InvalidMax.intValue)
         var cloudTestMode by spd.pref(false)
         var onlyUnBackedUpItems by spd.pref(false)
+        var onlyOfflineItems by spd.pref(false)
         var allowDelete by spd.pref(false)
+        var enableRatingFilter by spd.pref(false)
+        var enableMarkFilter by spd.pref(false)
+        var ratingFlags by spd.pref(0)
+        var markFlags by spd.pref(0)
 
         var startDate: DPDate
             get() = DPDate.fromInt(startDateInt)
@@ -242,6 +249,61 @@ object Settings {
             enableEndDate = false
             cloudTestMode = false
             onlyUnBackedUpItems = false
+            ratingFlags = 0
+            markFlags = 0
+            allowDelete = false
+            sortKey = 0
+            startDateInt = 0
+            endDateInt = 0
+        }
+        fun set(sortKey: PlayerActivity.SortOptions.Key, sortOrder: PlayerActivity.SortOptions.Order,
+                enableStartDate:Boolean, enableEndDate:Boolean, startDate:DPDate, endDate:DPDate,
+                enableRatingFilter:Boolean, ratingFlags:Int, enableMarkFilter: Boolean, markFlags:Int,
+                onlyOfflineItems:Boolean, onlyUnBackedUpItems:Boolean,
+                allowDelete:Boolean, cloudTestMode:Boolean,
+        ) {
+            if (sortKey.v!=this.sortKey) {
+                this.sortKey = sortKey.v
+            }
+            if (sortOrder.v != this.sortOrder) {
+                this.sortOrder = sortOrder.v
+            }
+            if (enableStartDate != this.enableStartDate) {
+                this.enableStartDate = enableStartDate
+            }
+            if (enableEndDate != this.enableEndDate) {
+                this.enableEndDate = enableEndDate
+            }
+            if (startDate != this.startDate) {
+                this.startDate = startDate
+            }
+            if (endDate != this.endDate) {
+                this.endDate = endDate
+            }
+            if (enableRatingFilter!=this.enableRatingFilter) {
+                this.enableRatingFilter = enableRatingFilter
+            }
+            if (ratingFlags != this.ratingFlags) {
+                this.ratingFlags = ratingFlags
+            }
+            if (enableMarkFilter != this.enableMarkFilter) {
+                this.enableMarkFilter = enableMarkFilter
+            }
+            if (markFlags != this.markFlags) {
+                this.markFlags = markFlags
+            }
+            if (onlyOfflineItems != this.onlyOfflineItems) {
+                this.onlyOfflineItems = onlyOfflineItems
+            }
+            if (onlyUnBackedUpItems != this.onlyUnBackedUpItems) {
+                this.onlyUnBackedUpItems = onlyUnBackedUpItems
+            }
+            if (allowDelete != this.allowDelete) {
+                this.allowDelete = allowDelete
+            }
+            if (cloudTestMode != this.cloudTestMode) {
+                this.cloudTestMode = cloudTestMode
+            }
         }
     }
 

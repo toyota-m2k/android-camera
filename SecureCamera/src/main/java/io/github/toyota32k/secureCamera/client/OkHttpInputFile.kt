@@ -10,16 +10,12 @@ import io.github.toyota32k.media.lib.io.HttpMediaDataSource
 import io.github.toyota32k.media.lib.io.IHttpStreamSource
 import io.github.toyota32k.media.lib.io.IInputMediaFile
 import io.github.toyota32k.media.lib.legacy.converter.Converter
-import io.github.toyota32k.server.HttpErrorResponse
 import io.github.toyota32k.utils.GenericCloseable
 import okhttp3.Call
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.ResponseBody
 import java.io.IOException
 import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * HTTP サーバー上のメディアファイルをソースとしてトランスコードを実行するため IInputMediaFile実装クラス
@@ -36,6 +32,7 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
         fun deleteAllTempFile(context:Context) {
             HttpMediaDataSource.deleteAllTempFile(context)
         }
+        val logger:UtLog get() = NetClient.logger
     }
 
 
@@ -47,17 +44,19 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
     class HttpStreamSource(private val url:String): IHttpStreamSource {
         override var length: Long = -1
         private var response: Response? = null
+        private var stream: InputStream? = null
+        private var call: Call? = null
 
         override fun open(): InputStream {
             val request = Request.Builder()
                 .get()
                 .url(url)
                 .build()
-            return NetClient.motherClient.newCall(request).execute().run {
+            return NetClient.motherClient.newCall(request).apply { call = this }.execute().run {
                 response = this
                 if (isSuccessful) {
                     length = body.contentLength()
-                    body.byteStream()
+                    body.byteStream().apply { stream = this }
                 } else {
                     throw IOException("cannot retrieve data.")
                 }
@@ -65,8 +64,25 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
         }
 
         override fun close() {
-            response?.close()    // このcloseが必要なのかどうか不明だが念のため。
-            response = null
+            logger.debug()
+            try {
+                stream?.close()
+                stream = null
+            } catch(e: Throwable) {
+                logger.error(e)
+            }
+            try {
+                response?.close()
+                response = null
+            } catch (e: Throwable) {
+                logger.error(e)
+            }
+        }
+
+        override fun cancel() {
+            logger.debug()
+            call?.cancel()
+            call = null
         }
     }
 
@@ -86,6 +102,7 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
                 length = dataSource!!.getSize()
             }
             refCount++
+            logger.debug("REF=$refCount")
             dataSource!!
         }
     }
@@ -105,6 +122,7 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
         synchronized(this) {
             if(refCount>0) {
                 refCount--
+                logger.debug("REF=$refCount")
                 if (refCount == 0) {
 //                    length = dataSource?.getSize() ?: -1
                     dataSource?.dispose()
@@ -117,13 +135,32 @@ class OkHttpInputFile(context: Context, private val streamSource: IHttpStreamSou
     }
 
     override fun openExtractor(): CloseableExtractor {
-        val extractor = MediaExtractor().apply { setDataSource(prepare())}
-        return CloseableExtractor(extractor, GenericCloseable { release() })
+        val src = prepare()
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(src)
+            return CloseableExtractor(extractor, GenericCloseable { release() })
+        } catch(e:Throwable) {
+            logger.error(e)
+            release()
+            throw e
+        }
     }
 
     override fun openMetadataRetriever(): CloseableMediaMetadataRetriever {
-        val retriever = MediaMetadataRetriever().apply { setDataSource(prepare())}
-        return CloseableMediaMetadataRetriever(retriever, GenericCloseable { release() })
+        val src = prepare()
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(src)
+            return CloseableMediaMetadataRetriever(retriever, GenericCloseable {
+                retriever.close()
+                release()
+            })
+        } catch (e: Throwable) {
+            logger.error(e)
+            release()
+            throw e
+        }
     }
 
     /**
