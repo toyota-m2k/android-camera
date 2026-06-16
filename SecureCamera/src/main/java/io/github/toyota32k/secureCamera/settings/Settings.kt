@@ -8,6 +8,7 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.utils.IThemeList
 import io.github.toyota32k.secureCamera.utils.ThemeInfo
@@ -28,6 +29,7 @@ object Settings {
         if(SecureArchive.clientId.isEmpty()) {
             SecureArchive.clientId = UUID.randomUUID().toString()
         }
+        Authentication.resetWithSettings()
     }
 
     object ThemeList: IThemeList {

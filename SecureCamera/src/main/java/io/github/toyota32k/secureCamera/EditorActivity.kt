@@ -60,6 +60,7 @@ import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
+import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -72,7 +73,6 @@ import io.github.toyota32k.secureCamera.settings.SlotSettings
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDeleteFile
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.TimeSpan
-import io.github.toyota32k.utils.UtLazyResetableValue
 import io.github.toyota32k.utils.android.CompatBackKeyDispatcher
 import io.github.toyota32k.utils.android.RefBitmap
 import io.github.toyota32k.utils.android.UtJavaFile
@@ -311,13 +311,14 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
+        val authKeeper = AuthKeeper()
+
         val playerControllerModel get() = editorModel.playerControllerModel
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
         val targetItem:ItemEx get() = videoSource.item
         val targetFile:File get() = metaDb.fileOf(targetItem)
-        val targetUri:String get() = metaDb.urlOf(targetItem)
-
+        val targetUri:String get() = videoSource.uri
         private inner class FileProvider: IOutputFileProvider {
             override suspend fun getOutputFile(
                 mimeType: String,
@@ -352,6 +353,11 @@ class EditorActivity : UtMortalActivity() {
 
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
             inputMediaFileCache.release()
+            if (item.cloud.loadFromCloud) {
+                authKeeper.start()
+            } else {
+                authKeeper.close()
+            }
             playerModel.setSource(VideoSource(item))
         }
 
@@ -410,6 +416,7 @@ class EditorActivity : UtMortalActivity() {
             logger.debug()
             inputMediaFileCache.release()
             playerControllerModel.close()
+            authKeeper.close()
             HttpInputFile.deleteAllTempFile(getApplication())
         }
 
@@ -420,7 +427,7 @@ class EditorActivity : UtMortalActivity() {
             override val id: String
                 get() = name
             override val uri: String
-                get() = metaDb.urlOf(item)
+                get() = metaDb.urlOf(item) { authKeeper.authHost }
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -431,7 +438,7 @@ class EditorActivity : UtMortalActivity() {
             }
 
             override suspend fun <T> withMediaMetadataRetriever(fn:suspend (MediaMetadataRetriever) -> T): T {
-                return getInputMediaFile(targetUri).openMetadataRetriever().useObj {
+                return getInputMediaFile(uri).openMetadataRetriever().useObj {
                     fn(it)
                 }
             }
@@ -469,7 +476,7 @@ class EditorActivity : UtMortalActivity() {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
             val item = viewModel.metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
             val chapters = viewModel.metaDb.getChaptersFor(item.data)
-            if(item.cloud.loadFromCloud && !Authentication.authenticateAndMessage(preferPrimary = false)) {
+            if(item.cloud.loadFromCloud && !Authentication.authenticate().message()) {
                 UtImmortalTask.launchTask {
                     setResultAndFinish(false, item)
                 }
@@ -570,6 +577,7 @@ class EditorActivity : UtMortalActivity() {
     override fun onPause() {
         logger.debug()
         super.onPause()
+        viewModel.authKeeper.pause()
         viewModel.saveChapters()  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blocking.value = true
@@ -599,6 +607,7 @@ class EditorActivity : UtMortalActivity() {
                 }
             }
         }
+        viewModel.authKeeper.resume()
     }
 
     override fun onDestroy() {

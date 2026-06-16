@@ -54,7 +54,7 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
 
         // exclusiveRunnerを使って同じターゲットに対する重複アップロードを禁止する
         exclusiveRunner.run(target.slot, target.itemId) {
-            if (!Authentication.authenticateAndMessage(preferPrimary = false)) return error("not authenticated")
+            val host = Authentication.autoAuth() ?: return error("not authenticated")
             MetaDB[SlotIndex.fromIndex(target.slot)].use { metaDb ->
                 val item = metaDb.itemExAt(target.itemId)
                     ?: return error("item not found: ${target.itemId} in slot ${target.slot}")
@@ -62,7 +62,7 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
                 if (!file.exists()) {
                     return error("file not found: ${file.absolutePath}")
                 }
-                if (!TcClient.registerOwnerToSecureArchive()) {
+                if (!TcClient.registerOwnerToSecureArchive(host.activeHost)) {
                     return error("cannot register owner info.")
                 }
                 val contentType = if (item.isPhoto) "image/png" else "video/mp4"
@@ -104,11 +104,11 @@ class Uploader(context: Context, params: WorkerParameters) : UtTaskWorker(contex
                             .addFormDataPart("File", item.name, body)
                             .build()
                         val request = Request.Builder()
-                            .url(Authentication.makeUrl("slot${target.slot}/upload"))
+                            .url(host.makeUrl("slot${target.slot}/upload"))
 //                            .url("http://${Authentication.activeHostAddress}/slot${target.slot}/upload")
                             .post(multipartBody)
                             .build()
-                        val code = executeAsync(request, canceller).use {
+                        val code = executeAsync(request, host.activeHost, canceller).use {
                             it.code
                         }
                         if (code == 200) {

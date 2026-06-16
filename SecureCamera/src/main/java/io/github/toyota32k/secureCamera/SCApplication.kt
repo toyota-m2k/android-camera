@@ -5,16 +5,11 @@ import android.graphics.Rect
 import android.util.Log
 import io.github.toyota32k.boodroid.data.ActiveHostTracker
 import io.github.toyota32k.dialog.UtDialog
-import io.github.toyota32k.dialog.UtDialogBase
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtStandardString
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.logger.UtLogConfig
-import io.github.toyota32k.secureCamera.client.BooTubeDiscovery
-import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.Settings
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 
 class SCApplication : Application() {
     companion object {

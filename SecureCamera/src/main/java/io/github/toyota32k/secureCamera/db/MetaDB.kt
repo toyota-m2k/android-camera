@@ -22,6 +22,7 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
+import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.worker.Downloader.Companion.safeDelete
@@ -94,10 +95,14 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
         filename2dpDate(name) ?: DPDate.Invalid
     }
 
-    val serverUri:String
-        get() = Authentication.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+    val serverUri:String?
+        get() = Authentication.currentHost?.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
             "o" to Settings.SecureArchive.clientId, "c" to id)
             // "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+    fun serverUri(host:AuthHost):String {
+        return host.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+            "o" to Settings.SecureArchive.clientId, "c" to id)
+    }
 
 //    val uri:String
 //        get() {
@@ -589,11 +594,34 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
     fun urlOf(item:ItemEx):String {
         return if(item.cloud.loadFromCloud) {
-            item.serverUri
+            item.serverUri ?: throw IllegalStateException("not authenticated")
         } else {
             fileOf(item).toUri().toString()
         }
     }
+    fun urlOf(item:ItemEx, getHost:(()->AuthHost?)):String {
+        return if(item.cloud.loadFromCloud) {
+            val host = getHost() ?: return "" // invalid url
+            item.serverUri(host)
+        } else {
+            fileOf(item).toUri().toString()
+        }
+    }
+    fun urlOf(item:ItemEx, host:AuthHost):String {
+        return if(item.cloud.loadFromCloud) {
+            item.serverUri(host)
+        } else {
+            fileOf(item).toUri().toString()
+        }
+    }
+//    suspend fun urlOf(item:ItemEx, getHost:(suspend ()->AuthHost?)?=null):String? {
+//        if (!item.cloud.loadFromCloud) {
+//            return fileOf(item).toUri().toString()
+//        } else {
+//            val host = (if(getHost==null) Authentication.autoAuth() else getHost()) ?: return null
+//            return item.serverUri(host)
+//        }
+//    }
 
     private suspend fun makeAll() {
         val isNeedUpdate = {m:MetaData->
@@ -831,7 +859,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
     }
 
-    suspend fun repairWithBackup(context: Context, ri: RepairingItem) {
+    suspend fun repairWithBackup(context: Context, ri: RepairingItem, host: AuthHost) {
         val chapters = decodeChaptersString(ri.chapters).toList()
         val item = ItemEx(MetaData(
             id = ri.originalId,
@@ -851,7 +879,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             category = ri.category
         ), slotIndex.index, chapters)
         withContext(Dispatchers.IO) {
-            val duration = Analyzer.analyze(HttpInputFile(context, item.serverUri)).duration
+            val duration = Analyzer.analyze(HttpInputFile(context, item.serverUri(host))).duration
             val newData = MetaData.modifiedEntry(item.data, duration = duration)
             db.metaDataTable().insert(newData)
             db.chapterDataTable().setForOwner(newData.id, chapters.map { ChapterData(0,newData.id, it.position, it.label, it.skip) })
@@ -874,19 +902,19 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     /**
      * SecureArchiveからダウンロードしてメディアファイルを置き換えるが、ファイル情報は元のまま。
      */
-    fun restoreFromCloud(item: ItemEx) {
+    fun restoreFromCloud(item: ItemEx, host: AuthHost) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return
         }
-        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false)
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false, item.serverUri(host))
     }
 
     /**
      * SecureArchiveからダウンロードして、ファイル情報もSAの情報に合わせて書き換える。
      */
-    fun recoverFromCloud(item: ItemEx) {
-        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true)
+    fun recoverFromCloud(item: ItemEx, host: AuthHost) {
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true, item.serverUri(host))
     }
 
     /**

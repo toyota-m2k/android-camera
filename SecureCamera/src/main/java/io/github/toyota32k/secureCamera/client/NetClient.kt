@@ -2,7 +2,6 @@ package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.SCApplication
-import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -18,12 +17,12 @@ import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.security.SecureRandom
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 object NetClient {
@@ -42,9 +41,10 @@ object NetClient {
     private val shortClient:OkHttpClient by lazy {
         motherClient
             .newBuilder()
-            .connectTimeout(30.seconds.toJavaDuration())
-            .readTimeout(30.seconds.toJavaDuration())
-            .writeTimeout(30.seconds.toJavaDuration()).build()
+            .callTimeout(1.seconds)
+            .connectTimeout(1.seconds)
+            .readTimeout(1.seconds)
+            .writeTimeout(1.seconds).build()
     }
 
     val logger = UtLog("Net",null,this::class.java)
@@ -52,11 +52,11 @@ object NetClient {
     /**
      * リトライ付き executeAsync
      */
-    private suspend fun tryExecuteAsync(client: OkHttpClient, req: Request, canceller: Canceller?, host: SecureArchiveHost?=null):Response {
+    private suspend fun tryExecuteAsync(client: OkHttpClient, req: Request, canceller: Canceller?, host: SecureArchiveHost):Response {
         return try {
             client.newCall(req).executeAsync(canceller)
         } catch(e:IOException) {
-            if (host==null || !isReResolvableFailure(e)) throw e
+            if (!isReResolvableFailure(e)) throw e
             val rebuilt = tryRebuildWithFreshAddress(req, host) ?: throw e
             logger.warn("Connection failed (${e.javaClass.simpleName}); retrying with refreshed address ${rebuilt.url}")
             client.newCall(rebuilt).executeAsync(canceller)
@@ -96,12 +96,12 @@ object NetClient {
         return req.newBuilder().url(newUrl).build()
     }
 
-    suspend fun executeAsync(req: Request, canceller: Canceller?=null, host: SecureArchiveHost? = Authentication.activeHost): Response {
+    suspend fun executeAsync(req: Request, host: SecureArchiveHost, canceller: Canceller?=null): Response {
         logger.debug("${req.url}")
         return tryExecuteAsync(motherClient, req, canceller, host)
     }
 
-    suspend fun shortCallAsync(req:Request, host: SecureArchiveHost? = Authentication.activeHost): Response? {
+    suspend fun shortCallAsync(req:Request, host: SecureArchiveHost): Response? {
         return try {
             tryExecuteAsync(shortClient, req, null, host)
         } catch(e:Throwable) {
@@ -110,7 +110,7 @@ object NetClient {
         }
     }
 
-    suspend fun executeAndGetJsonAsync(req: Request, host: SecureArchiveHost?= Authentication.activeHost): JSONObject {
+    suspend fun executeAndGetJsonAsync(req: Request, host: SecureArchiveHost): JSONObject {
         return tryExecuteAsync(motherClient, req, null, host).use { res ->
             if (res.code != 200) throw IllegalStateException("Server Response Error (${res.code})")
             val body = res.body.use { it.string() }

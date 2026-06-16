@@ -66,6 +66,7 @@ import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.databinding.ListItemBinding
@@ -80,7 +81,6 @@ import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListOptionsDialog
-import io.github.toyota32k.secureCamera.dialog.PlayListSettingDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -448,6 +448,8 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
+        val authKeeper = AuthKeeper()
+
         inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter, IMediaMetadataRetrieverSource {
             override val name:String
                 get() = item.name
@@ -610,9 +612,8 @@ class PlayerActivity : UtMortalActivity() {
                 if(item.cloud.loadFromCloud) {
                     currentSource.value = null
                     viewModelScope.launch {
-                        if(Authentication.authenticateAndMessage(preferPrimary = false)) {
-                            currentSource.value = MediaSource(item)
-                        }
+                        Authentication.autoAuth() ?: return@launch
+                        currentSource.value = MediaSource(item)
                     }
                 } else {
                     currentSource.value = MediaSource(item)
@@ -738,6 +739,7 @@ class PlayerActivity : UtMortalActivity() {
 
         override fun onCleared() {
             super.onCleared()
+            authKeeper.close()
             saveListModeAndSelection()
             metaDb.close()
             playerControllerModel.close()
@@ -791,8 +793,11 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.gotoBottomCommand, controls.gotoBottomButton)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .bindCommand(viewModel.editPhotoCommand, this::editPhoto)
-            .headlessBinding(viewModel.playlist.currentSelection) {
+            .observe(viewModel.playlist.currentSelection) { item->
                 manipulationAgent.resetScrollAndScale()
+                if (item?.cloud?.loadFromCloud==true) {
+                    viewModel.authKeeper.start()
+                }
             }
             .headlessBinding(viewModel.playerControllerModel.playerModel.rotation) {
                 manipulationAgent.resetScroll()
@@ -942,13 +947,19 @@ class PlayerActivity : UtMortalActivity() {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item2)
                     ItemDialog.ItemViewModel.NextAction.PurgeLocal -> viewModel.metaDb.purgeLocalFile(item2)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
-                        if(viewModel.playlist.isCurrentVideo) {
-                            viewModel.playlist.select(null,true)
+                        if (viewModel.playlist.isCurrentVideo) {
+                            viewModel.playlist.select(null, true)
                         }
-                        viewModel.metaDb.restoreFromCloud(item2)
+                        val host = Authentication.autoAuth()
+                        if (host != null) {
+                            viewModel.metaDb.restoreFromCloud(item2, host)
+                        }
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
-                        viewModel.metaDb.recoverFromCloud(item2)
+                        val host = Authentication.autoAuth()
+                        if (host != null) {
+                            viewModel.metaDb.recoverFromCloud(item2, host)
+                        }
                     }
 
                     ItemDialog.ItemViewModel.NextAction.Delete -> {
@@ -1073,6 +1084,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     override fun onPause() {
+        viewModel.authKeeper.pause()
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blockingAt.value = System.currentTimeMillis()
         viewModel.playerControllerModel.playerModel.pause()
@@ -1103,5 +1115,6 @@ class PlayerActivity : UtMortalActivity() {
         } else {
             afterUnblocked()
         }
+        viewModel.authKeeper.resume()
     }
 }

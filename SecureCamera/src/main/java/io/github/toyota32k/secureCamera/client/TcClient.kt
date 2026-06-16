@@ -8,12 +8,14 @@ import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
+import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.server.TcServer
+import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import kotlinx.coroutines.Dispatchers
@@ -32,22 +34,20 @@ object TcClient {
         return String.format(Locale.US, "%,d KB", size / 1000L)
     }
 
-    suspend fun registerOwnerToSecureArchive():Boolean {
+    suspend fun registerOwnerToSecureArchive(host: SecureArchiveHost):Boolean {
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return false
-        if(!Authentication.authenticateAndMessage(preferPrimary = false)) return false
-
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
             .put("name", Settings.SecureArchive.deviceName)
             .put("type", "SecureCamera")
             .toString()
         val request = Request.Builder()
-            .url(Authentication.makeUrl("owner"))
+            .url(host.makeUrl("owner"))
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return try {
-            NetClient.executeAndGetJsonAsync(request)
+            NetClient.executeAndGetJsonAsync(request, host)
             logger.info("owner registered.")
             true
         } catch (e:Throwable) {
@@ -58,15 +58,16 @@ object TcClient {
 
     suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        if(!Authentication.authenticateAndMessage(preferPrimary = false)) return null
+        val host = Authentication.autoAuth() ?: return null
+
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(db.urlOf(item))
+                .url(db.urlOf(item, host))
                 .build()
             try {
-                executeAsync(request, null).use { response ->
+                executeAsync(request, host.activeHost).use { response ->
                     if (response.isSuccessful) {
                         response.body.use { body ->
                             body.byteStream().use { inStream ->
@@ -87,8 +88,7 @@ object TcClient {
 
     data class RepairingItem(val slot: Int, val id:Int, val originalId:Int, val name:String, val size:Long, val type:String, val registeredDate:Long, val lastModifiedDate:Long, val creationDate:Long, val metaInfo:String, val deleted:Int, val extAttrDate:Long, val rating:Int, val mark:Int, val label:String, val category:String, val chapters:String, val duration:Long)
 
-    suspend fun getListForRepair(slot:SlotIndex):List<RepairingItem>? {
-        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
+    suspend fun getListForRepair(host: AuthHost, slot:SlotIndex):List<RepairingItem>? {
         fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
             return sequence<RepairingItem> {
                 for(i in 0..<list.length()) {
@@ -119,11 +119,11 @@ object TcClient {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
 //                .url("http://${Authentication.activeHostAddress}/${slot.slotId}/list?auth=${Authentication.authToken}&f=vp&o=${Settings.SecureArchive.clientId}")
-                .url(Authentication.makeAuthUrl("${slot.slotId}/list", "f" to "vp",  "o" to Settings.SecureArchive.clientId))
+                .url(host.makeAuthUrl("${slot.slotId}/list", "f" to "vp",  "o" to Settings.SecureArchive.clientId))
                 .get()
                 .build()
             try {
-                val json = executeAndGetJsonAsync(request)
+                val json = executeAndGetJsonAsync(request, host.activeHost)
                 jsonToItems(json.getJSONArray("list")).toList()
             } catch(e:Throwable) {
                 logger.error(e)
@@ -133,7 +133,7 @@ object TcClient {
     }
 
     data class DeviceInfo(val name:String, val clientId:String)
-    suspend fun getDeviceListForMigration():List<DeviceInfo>? {
+    suspend fun getDeviceListForMigration(host:AuthHost):List<DeviceInfo>? {
         fun jsonToItems(list: JSONArray):Sequence<DeviceInfo> {
             return sequence<DeviceInfo> {
                 for (i in 0..<list.length()) {
@@ -145,15 +145,14 @@ object TcClient {
             }
         }
 
-        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(Authentication.makeAuthUrl("migration/devices", "o" to Settings.SecureArchive.clientId))
+                .url(host.makeAuthUrl("migration/devices", "o" to Settings.SecureArchive.clientId))
 //                .url("http://${Authentication.activeHostAddress}/migration/devices?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}")
                 .get()
                 .build()
             try {
-                val json = executeAndGetJsonAsync(request)
+                val json = executeAndGetJsonAsync(request, host.activeHost)
                 jsonToItems(json.getJSONArray("list")).toList()
             } catch(e:Throwable) {
                 logger.error(e)
@@ -209,8 +208,8 @@ object TcClient {
         }
     }
 
-    data class MigrationInfo(val handle:String, val list:List<StoredFileEntry>, val deviceInfo: DeviceInfo)
-    suspend fun startMigration(deviceInfo: DeviceInfo):MigrationInfo? {
+    data class MigrationInfo(val handle:String, val list:List<StoredFileEntry>, val deviceInfo: DeviceInfo, val host: AuthHost)
+    suspend fun startMigration(host:AuthHost, deviceInfo: DeviceInfo):MigrationInfo? {
         val targetClientId = deviceInfo.clientId
         fun jsonToItems(list: JSONArray):Sequence<StoredFileEntry> {
             return sequence<StoredFileEntry> {
@@ -239,33 +238,32 @@ object TcClient {
                 }
             }.filter { it.isValid }
         }
-        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return null
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(Authentication.makeAuthUrl("migration/start", "n" to Settings.SecureArchive.clientId, "o" to targetClientId))
+                .url(host.makeAuthUrl("migration/start", "n" to Settings.SecureArchive.clientId, "o" to targetClientId))
 //                .url("http://${Authentication.activeHostAddress}/migration/start?auth=${Authentication.authToken}&n=${Settings.SecureArchive.clientId}&o=$targetClientId")
                 .get()
                 .build()
             try {
-                val json = executeAndGetJsonAsync(request)
+                val json = executeAndGetJsonAsync(request, host.activeHost)
                 val handle = json.optString("handle")
                 val list = json.getJSONArray("targets")
-                MigrationInfo(handle, jsonToItems(list).toList(), deviceInfo)
+                MigrationInfo(handle, jsonToItems(list).toList(), deviceInfo, host)
             } catch(e:Throwable) {
                 logger.error(e)
                 null
             }
         }
     }
-    suspend fun endMigration(handle:String):Boolean {
+    suspend fun endMigration(migrationInfo: MigrationInfo):Boolean {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
-                .url(Authentication.makeAuthUrl("migration/end", "h" to handle))
+                .url(migrationInfo.host.makeAuthUrl("migration/end", "h" to migrationInfo.handle))
 //                .url("http://${Authentication.activeHostAddress}/migration/end?h=$handle")
                 .get()
                 .build()
             try {
-                executeAndGetJsonAsync(request)
+                executeAndGetJsonAsync(request,migrationInfo.host.activeHost)
                 true
             } catch(e:Throwable) {
                 logger.error(e)
@@ -274,11 +272,10 @@ object TcClient {
         }
     }
 
-    suspend fun reportMigratedOne(handle:String, entry: StoredFileEntry, newId:Int): Boolean {
-        if(!Authentication.authenticateAndMessage(preferPrimary = true)) return false
+    suspend fun reportMigratedOne(migrationInfo: MigrationInfo, entry: StoredFileEntry, newId:Int): Boolean {
         return withContext(Dispatchers.IO) {
             val json = JSONObject()
-                .put("handle", handle)
+                .put("handle", migrationInfo.handle)
                 .put("oldOwnerId", entry.ownerId)
                 .put("slot", entry.slot)
                 .put("oldOriginalId", entry.originalId)
@@ -286,12 +283,12 @@ object TcClient {
                 .put("newOriginalId", "$newId")
                 .toString()
             val request = Request.Builder()
-                .url(Authentication.makeAuthUrl("migration/exec"))
+                .url(migrationInfo.host.makeAuthUrl("migration/exec"))
 //                .url("http://${Authentication.activeHostAddress}/migration/exec?auth=${Authentication.authToken}")
                 .put(json.toRequestBody("application/json".toMediaType()))
                 .build()
             try {
-                executeAndGetJsonAsync(request)
+                executeAndGetJsonAsync(request, migrationInfo.host.activeHost)
                 true
             } catch(e:Throwable) {
                 logger.error(e)
@@ -301,7 +298,7 @@ object TcClient {
         }
     }
 
-    suspend fun requestBackupData(address:String): Boolean {
+    suspend fun requestBackupData(host:AuthHost, address:String): Boolean {
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
             .put("name", Build.MODEL)
@@ -312,13 +309,13 @@ object TcClient {
             .put("fp", TcServer.fingerprint)
             .toString()
         val request = Request.Builder()
-            .url(Authentication.makeAuthUrl("backup/request"))
+            .url(host.makeAuthUrl("backup/request"))
 //            .url("http://${Authentication.activeHostAddress}/backup/request")
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return withContext(Dispatchers.IO) {
             try {
-                NetClient.executeAndGetJsonAsync(request)
+                NetClient.executeAndGetJsonAsync(request, host.activeHost)
                 ServerActivity.Companion.logger.info("backup started.")
                 true
             } catch (e:Throwable) {
@@ -336,7 +333,7 @@ object TcClient {
      * - このクライアント(PrivateCamera)のDB（zip)
      * をまとめて、PC上に保存する（ディレクトリ指定ダイアログが表示される）
      */
-    suspend fun requestBackupDB(address:String):Boolean {
+    suspend fun requestBackupDB(host:AuthHost, address:String):Boolean {
         val json = JSONObject()
             .put("id", Settings.SecureArchive.clientId)
             .put("name", Build.MODEL)
@@ -347,13 +344,13 @@ object TcClient {
             .put("fp", TcServer.fingerprint)
             .toString()
         val request = Request.Builder()
-            .url(Authentication.makeAuthUrl("backup-db/request"))
+            .url(host.makeAuthUrl("backup-db/request"))
 //            .url("http://${Authentication.activeHostAddress}/backup-db/request")
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return withContext(Dispatchers.IO) {
             try {
-                NetClient.executeAndGetJsonAsync(request)
+                NetClient.executeAndGetJsonAsync(request, host.activeHost)
                 logger.info("backup-db accepted.")
                 true
             } catch (e:Throwable) {
