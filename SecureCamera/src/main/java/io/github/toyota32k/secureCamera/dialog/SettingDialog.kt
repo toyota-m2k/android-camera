@@ -260,8 +260,8 @@ class SettingDialog : UtDialogEx() {
             Authentication.resetWithSettings()
             if (deviceNameChanged) {
                 UtImmortalTask.launchTask {
-                    Settings.SecureArchive.hosts.forEach {
-                        TcClient.registerOwnerToSecureArchive(it)
+                    Authentication.connectableHosts().forEach {
+                        TcClient.registerOwnerToSecureArchive(it.activeHost)
                     }
                 }
             }

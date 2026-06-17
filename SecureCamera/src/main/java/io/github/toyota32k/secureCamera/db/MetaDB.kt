@@ -96,7 +96,7 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
     }
 
     val serverUri:String?
-        get() = Authentication.currentHost?.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+        get() = (Authentication.currentHost?: Authentication.anyHost)?.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
             "o" to Settings.SecureArchive.clientId, "c" to id)
             // "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
     fun serverUri(host:AuthHost):String {
@@ -594,7 +594,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
     fun urlOf(item:ItemEx):String {
         return if(item.cloud.loadFromCloud) {
-            item.serverUri ?: throw IllegalStateException("not authenticated")
+            item.serverUri ?: throw IllegalStateException("no host")
         } else {
             fileOf(item).toUri().toString()
         }

@@ -25,6 +25,7 @@ object Authentication {
     }
 
     var currentHost: AuthHost? = null
+    val anyHost: AuthHost? = hosts.firstOrNull()
 
     enum class Result(val msg:String, val succeeded:Boolean=false, val error:Boolean=false) {
         OK("ok",true),
