@@ -130,10 +130,10 @@ class PlayerActivity : UtMortalActivity() {
     }
     override val logger:UtLog = PlayerActivity.logger
 
-    enum class ListMode(val resId:Int) {
-        ALL(R.id.radio_all),
-        PHOTO(R.id.radio_photos),
-        VIDEO(R.id.radio_videos)
+    enum class ListMode(val resId:Int, val key:Int) {
+        ALL(R.id.radio_all, 0),
+        PHOTO(R.id.radio_photos, 2),
+        VIDEO(R.id.radio_videos, 1)
         ;
         object IDResolver: IIDValueResolver<ListMode> {
             override fun id2value(id:Int) : ListMode {
@@ -154,6 +154,9 @@ class PlayerActivity : UtMortalActivity() {
                 } catch (_:Throwable) {
                     ListMode.ALL
                 }
+            }
+            fun fromKey(key:Int, def:ListMode=ALL): ListMode {
+                return entries.find { it.key == key } ?: def
             }
         }
     }
@@ -219,7 +222,6 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     data class FilterOptions(
-        val listMode:ListMode,
         val enableStartDate:Boolean,
         val startDate:DPDate,
         val enableEndDate:Boolean,
@@ -234,11 +236,11 @@ class PlayerActivity : UtMortalActivity() {
 
         // filter
         fun filter(item: ItemEx):Boolean {
-            if (!when(listMode) {
-                ListMode.ALL-> true
-                ListMode.VIDEO-> item.isVideo
-                ListMode.PHOTO-> item.isPhoto
-            }) return false
+//            if (!when(listMode) {
+//                ListMode.ALL-> true
+//                ListMode.VIDEO-> item.isVideo
+//                ListMode.PHOTO-> item.isPhoto
+//            }) return false
 
             if (unbackedUp) {
                 if (item.cloud.isFileInCloud) return false
@@ -263,7 +265,6 @@ class PlayerActivity : UtMortalActivity() {
 
         companion object {
             val initial = FilterOptions(
-                listMode = ListMode.ALL,    // 暫定
                 enableStartDate = Settings.PlayListSetting.enableStartDate,
                 startDate = Settings.PlayListSetting.startDate,
                 enableEndDate = Settings.PlayListSetting.enableEndDate,
@@ -280,7 +281,7 @@ class PlayerActivity : UtMortalActivity() {
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
         companion object {
-            const val KEY_CURRENT_LIST_MODE = "ListMode"
+//            const val KEY_CURRENT_LIST_MODE = "ListMode"
             const val KEY_CURRENT_ITEM = "CurrentItem"
             var maskParams: MaskCoreParams? = null
 
@@ -416,6 +417,7 @@ class PlayerActivity : UtMortalActivity() {
         val blockingAt = MutableStateFlow(System.currentTimeMillis())              // 画面ロックした時刻
         val playingBeforeBlocked = MutableStateFlow(false)  // 画面ロックされる前に再生中だった --> unlock時に再生を再開する。
         val allowDelete = MutableStateFlow(Settings.PlayListSetting.allowDelete)
+        val listMode = MutableStateFlow<ListMode>(Settings.PlayListSetting.listMode)
 
         class DateRange {
             private var minDate:DPDate = DPDate.Invalid
@@ -540,13 +542,15 @@ class PlayerActivity : UtMortalActivity() {
                     updateList()
                 }
             }
-            suspend fun updateListMode(listMode: ListMode) {
-                if (listMode!=mFilterOptions.listMode) {
-                    mFilterOptions = mFilterOptions.copy(listMode = listMode)
-                    updateList()
-                }
-            }
-            val listMode:ListMode get() = mFilterOptions.listMode
+
+//            suspend fun updateListMode(listMode: ListMode) {
+//                if (listMode!=this.listMode.value) {
+//                    Settings.PlayListSetting.listMode = listMode
+//                    mFilterOptions = mFilterOptions.copy(listMode = listMode)
+//                    updateList()
+//                }
+//            }
+//            val listMode:ListMode get() = mFilterOptions.listMode
             fun filter(item: ItemEx):Boolean {
                 return mFilterOptions.filter(item)
             }
@@ -568,6 +572,7 @@ class PlayerActivity : UtMortalActivity() {
 
             suspend fun updateList() {
                 val current = currentSource.value as MediaSource?
+                val listMode = listMode.value
                 metaDb.listEx(listMode).filter {
                     filter(it)
                 }.run {
@@ -583,12 +588,6 @@ class PlayerActivity : UtMortalActivity() {
             override val currentSource = MutableStateFlow<IMediaSource?>(null)
             override val hasNext = MutableStateFlow(false)
             override val hasPrevious = MutableStateFlow(false)
-
-            init {
-                viewModelScope.launch {
-                    updateList()
-                }
-            }
 
             fun select(requestItem:ItemEx?, force:Boolean=false) {
                 if(!force && requestItem == currentSelection.value) return
@@ -666,8 +665,12 @@ class PlayerActivity : UtMortalActivity() {
             }
 
             fun replaceItem(item:ItemEx) {
-                removeItem(item.id)
-                addItem(item)
+                val index = collection.indexOfFirst { it.id == item.id }
+                if (index>=0) {
+                    collection.set(index, item)
+                } else {
+                    addItem(item)
+                }
             }
 
             override fun next() {
@@ -713,8 +716,6 @@ class PlayerActivity : UtMortalActivity() {
 
         init {
             viewModelScope.launch {
-                val mode = ListMode.valueOf(metaDb.KV.get(KEY_CURRENT_LIST_MODE))
-                playlist.updateListMode(mode)
                 val name = metaDb.KV.get(KEY_CURRENT_ITEM) ?: return@launch
                 val item = metaDb.itemExOf(name) ?: return@launch
                 playlist.select(item)
@@ -740,14 +741,14 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         fun saveListModeAndSelection() {
-            val listMode = playlist.listMode
+            val listMode = this.listMode.value
             val currentItem = playlist.currentSelection.value
 
             // onCleared で metaDb.close() されるので、MetaDB を新たに取得しておく
             val db = MetaDB[SlotSettings.currentSlotIndex]
             CoroutineScope(Dispatchers.IO).launch {
                 db.use { _ ->
-                    metaDb.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
+//                    metaDb.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
                     if (currentItem != null) {
                         metaDb.KV.put(KEY_CURRENT_ITEM, currentItem.name)
                     }
@@ -801,10 +802,9 @@ class PlayerActivity : UtMortalActivity() {
         fun icCloud() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud)!!
         fun icCloudFull() = AppCompatResources.getDrawable(this, R.drawable.ic_cloud_full)!!
 
-        val listModeFlow = MutableStateFlow(viewModel.playlist.listMode)
         controls.listView.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager(this).orientation))
         binder.owner(this)
-            .materialRadioButtonGroupBinding(controls.listMode, listModeFlow, ListMode.IDResolver)
+            .materialRadioButtonGroupBinding(controls.listMode, viewModel.listMode, ListMode.IDResolver)
             .visibilityBinding(controls.safeGuard, viewModel.blockingAt.map { it>0 }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .bindCommand(viewModel.ensureVisibleCommand,this::ensureVisible)
             .bindCommand(viewModel.gotoTopCommand, controls.gotoTopButton)
@@ -820,8 +820,11 @@ class PlayerActivity : UtMortalActivity() {
             .add {
                 viewModel.playerControllerModel.windowMode.disposableObserve(this, ::onWindowModeChanged)
             }
-            .observe(listModeFlow) { listMode->
-                viewModel.playlist.updateListMode(listMode)
+            .observe(viewModel.listMode) { listMode->
+                if (Settings.PlayListSetting.listMode != listMode) {
+                    Settings.PlayListSetting.listMode = listMode
+                }
+                viewModel.playlist.updateList()
             }
             .recyclerViewBindingEx<ItemEx,ListItemBinding>(controls.listView) {
                 list(viewModel.playlist.collection)

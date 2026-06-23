@@ -149,7 +149,6 @@ class PlayListOptionsDialog : UtDialogEx() {
             ) { // 8-9
                     args ->
                 PlayerActivity.FilterOptions(
-                    listMode = orgFilterOption.listMode,
                     args[0] as Boolean,
                     args[1] as DPDate,
                     args[2] as Boolean,

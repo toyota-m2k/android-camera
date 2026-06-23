@@ -223,6 +223,7 @@ object Settings {
     }
 
     object PlayListSetting {
+        var listModeKey by spd.pref(0)
         var sortKey by spd.pref(0)  // 0: Date / 1: Size
         var sortOrder by spd.pref(false)    // 日付昇順がデフォルト
         var enableStartDate by spd.pref(false)
@@ -244,6 +245,9 @@ object Settings {
         var endDate:DPDate
             get() = DPDate.fromInt(endDateInt)
             set(v) { endDateInt = v.intValue }
+        var listMode: PlayerActivity.ListMode
+            get() = PlayerActivity.ListMode.fromKey(listModeKey)
+            set(v) { listModeKey = v.key }
 
         fun reset() {
             sortOrder = false

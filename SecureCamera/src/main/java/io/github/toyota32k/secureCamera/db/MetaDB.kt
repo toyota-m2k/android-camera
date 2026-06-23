@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.io.HttpInputFile
@@ -213,6 +214,7 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
 interface IKV {
     suspend fun put(key:String, value:String)
     suspend fun get(key:String):String?
+    suspend fun del(key:String)
 }
 
 /**
@@ -417,6 +419,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
 
+        const val KEY_EDIT_TARGET_NAME:String="EditTargetName";
+        const val KEY_EDIT_CROP_PARAMS:String="EditCropParams"
+
     }
     @Suppress("PrivatePropertyName")
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -475,7 +480,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     inner class KVImpl: IKV {
         override suspend fun put(key:String, value:String) {
             withContext(Dispatchers.IO) {
-            val e = db.kvTable().getAt(key)
+                val e = db.kvTable().getAt(key)
                 if (e == null) {
                     db.kvTable().insert(KeyValueEntry(key, value))
                 } else {
@@ -485,12 +490,39 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
         override suspend fun get(key: String):String? {
             return withContext(Dispatchers.IO) {
-            db.kvTable().getAt(key)?.value
+                db.kvTable().getAt(key)?.value
+            }
+        }
+        override suspend fun del(key: String) {
+            withContext(Dispatchers.IO) {
+                val e = db.kvTable().getAt(key) ?: return@withContext
+                db.kvTable().delete(e)
             }
         }
     }
     @Suppress("PropertyName")
     val KV:IKV by lazy { KVImpl() }
+
+    suspend fun saveCropParams(name:String, crop:VisibleAreaParams) {
+        if (crop != null) {
+            KV.put(KEY_EDIT_TARGET_NAME, name)
+            KV.put(KEY_EDIT_CROP_PARAMS, crop.serialize() ?: "")
+        } else {
+            KV.del(KEY_EDIT_TARGET_NAME)
+            KV.del(KEY_EDIT_CROP_PARAMS)
+        }
+    }
+
+
+    suspend fun loadCropParams(name:String):VisibleAreaParams {
+        return if (name == KV.get(KEY_EDIT_TARGET_NAME)) {
+            KV.get(KEY_EDIT_CROP_PARAMS)?.let { s ->
+                return VisibleAreaParams.fromJson(s)
+            } ?: VisibleAreaParams.IDENTITY
+        } else {
+            VisibleAreaParams.IDENTITY
+        }
+    }
 
 
     private fun filename2type(filename:String): Int? {
