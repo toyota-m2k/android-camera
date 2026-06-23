@@ -52,6 +52,7 @@ import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaMetadataRetrieverSource
 import io.github.toyota32k.lib.player.model.IMediaSource
+import io.github.toyota32k.lib.player.model.IMediaSourcePreparer
 import io.github.toyota32k.lib.player.model.IMediaSourceWithChapter
 import io.github.toyota32k.lib.player.model.IPhotoLoader
 import io.github.toyota32k.lib.player.model.PhotoSizeOption
@@ -450,7 +451,7 @@ class PlayerActivity : UtMortalActivity() {
 
         val authKeeper = AuthKeeper()
 
-        inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter, IMediaMetadataRetrieverSource {
+        inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter, IMediaMetadataRetrieverSource, IMediaSourcePreparer {
             override val name:String
                 get() = item.name
             override val id: String
@@ -475,6 +476,22 @@ class PlayerActivity : UtMortalActivity() {
                     fn (it)
                 }
             }
+
+            /**
+             * Playlist から選択されたメディアをプレーヤーにセットする直前に呼ばれる。
+             * 認証して、
+             */
+            override suspend fun onSourceLoading(): Boolean {
+                if (item.cloud.loadFromCloud) {
+                    if (!authKeeper.isActive) {
+                        val host = Authentication.authAndMessage() ?: return false
+                        authKeeper.start(host)
+                    }
+                }
+                return true
+            }
+
+            override suspend fun onSourceLoaded() {}
         }
 
         inner class Playlist : IMediaFeed, IUtPropOwner {
@@ -609,15 +626,16 @@ class PlayerActivity : UtMortalActivity() {
                     return
                 }
                 playerControllerModel.playerModel.rotate(Rotation.NONE)
-                if(item.cloud.loadFromCloud) {
-                    currentSource.value = null
-                    viewModelScope.launch {
-                        Authentication.autoAuth() ?: return@launch
-                        currentSource.value = MediaSource(item)
-                    }
-                } else {
-                    currentSource.value = MediaSource(item)
-                }
+//                if(item.cloud.loadFromCloud) {
+//                    currentSource.value = null
+//                    viewModelScope.launch {
+//                        Authentication.authAndMessage() ?: return@launch
+//                        currentSource.value = MediaSource(item)
+//                    }
+//                } else {
+//                    currentSource.value = MediaSource(item)
+//                }
+                currentSource.value = MediaSource(item)
                 hasPrevious.mutable.value = index>0
                 hasNext.mutable.value = index<collection.size-1
                 ensureVisibleCommand.invoke()
@@ -795,9 +813,6 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.editPhotoCommand, this::editPhoto)
             .observe(viewModel.playlist.currentSelection) { item->
                 manipulationAgent.resetScrollAndScale()
-                if (item?.cloud?.loadFromCloud==true) {
-                    viewModel.authKeeper.start()
-                }
             }
             .headlessBinding(viewModel.playerControllerModel.playerModel.rotation) {
                 manipulationAgent.resetScroll()
@@ -950,13 +965,13 @@ class PlayerActivity : UtMortalActivity() {
                         if (viewModel.playlist.isCurrentVideo) {
                             viewModel.playlist.select(null, true)
                         }
-                        val host = Authentication.autoAuth()
+                        val host = Authentication.authAndMessage()
                         if (host != null) {
                             viewModel.metaDb.restoreFromCloud(item2, host)
                         }
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
-                        val host = Authentication.autoAuth()
+                        val host = Authentication.authAndMessage()
                         if (host != null) {
                             viewModel.metaDb.recoverFromCloud(item2, host)
                         }

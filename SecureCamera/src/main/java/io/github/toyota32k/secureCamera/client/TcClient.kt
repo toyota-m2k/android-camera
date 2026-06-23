@@ -58,7 +58,7 @@ object TcClient {
 
     suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        val host = Authentication.autoAuth() ?: return null
+        val host = Authentication.authAndMessage() ?: return null
 
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null

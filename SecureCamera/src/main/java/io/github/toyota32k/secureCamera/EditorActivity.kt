@@ -353,11 +353,6 @@ class EditorActivity : UtMortalActivity() {
 
         fun setSource(item: ItemEx, chapters:List<IChapter>) {
             inputMediaFileCache.release()
-            if (item.cloud.loadFromCloud) {
-                authKeeper.start()
-            } else {
-                authKeeper.close()
-            }
             playerModel.setSource(VideoSource(item))
         }
 
@@ -476,11 +471,16 @@ class EditorActivity : UtMortalActivity() {
             val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
             val item = viewModel.metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
             val chapters = viewModel.metaDb.getChaptersFor(item.data)
-            if(item.cloud.loadFromCloud && !Authentication.authenticate().message()) {
-                UtImmortalTask.launchTask {
-                    setResultAndFinish(false, item)
+            if(item.cloud.loadFromCloud) {
+                val host = Authentication.authAndMessage()
+                if (host!=null) {
+                    viewModel.authKeeper.start(host)
+                } else {
+                    UtImmortalTask.launchTask {
+                        setResultAndFinish(false, item)
+                    }
+                    return@launch
                 }
-                return@launch
             }
             viewModel.setSource(item, chapters)
 

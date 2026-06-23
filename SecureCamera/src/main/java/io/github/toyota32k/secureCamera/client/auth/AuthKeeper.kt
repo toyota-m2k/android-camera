@@ -11,18 +11,15 @@ import java.lang.AutoCloseable
 import kotlin.time.Duration.Companion.minutes
 
 class AuthKeeper: AutoCloseable {
-    private class Keeper(var authHost:AuthHost? = Authentication.currentHost) {
+    private class Keeper(initialHost:AuthHost?) {
+        var authHost:AuthHost? = initialHost ?: Authentication.currentHost
         private suspend fun ensure(): AuthHost? {
             val host = authHost
             if (host == null) {
-                authHost = Authentication.autoAuth()
+                authHost = Authentication.authAndMessage()
             } else {
                 if (host.authenticate() == AuthHost.AuthResult.OFFLINE) {
-                    if (Authentication.authenticate().message()) {
-                        authHost = Authentication.currentHost
-                    } else {
-                        authHost = null
-                    }
+                    authHost = Authentication.authAndMessage()
                 }
             }
             return authHost
@@ -57,10 +54,11 @@ class AuthKeeper: AutoCloseable {
 
     private var keeper: Keeper? = null
     val authHost:AuthHost? = keeper?.authHost
-    fun start() {
+    val isActive:Boolean get() = authHost!=null
+    fun start(host:AuthHost?=null) {
         synchronized(this) {
             if (keeper != null) return
-            keeper = Keeper().apply { keepAlive() }
+            keeper = Keeper(host).apply { keepAlive() }
         }
     }
     fun pause() {

@@ -3,6 +3,12 @@ package io.github.toyota32k.secureCamera.client.auth
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.secureCamera.settings.Settings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 object Authentication {
     private val logger = AuthHost.logger
@@ -26,6 +32,7 @@ object Authentication {
 
     var currentHost: AuthHost? = null
     val anyHost: AuthHost? = hosts.firstOrNull()
+    private val mutex = Mutex()
 
     enum class Result(val msg:String, val succeeded:Boolean=false, val error:Boolean=false) {
         OK("ok",true),
@@ -35,18 +42,24 @@ object Authentication {
         ;
         suspend fun message():Boolean {
             if (error) {
-                UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
-                    showConfirmMessageBox(null, msg)
-                    true
+                mutex.withLock {
+                    UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
+                        showConfirmMessageBox(null, msg)
+                        true
+                    }
                 }
             }
             return succeeded
         }
     }
 
-    suspend fun autoAuth():AuthHost? {
-        authenticate().message()
-        return currentHost
+    /**
+     * primary/secondaryのうち、接続可能なホストに対して認証い、エラーメッセージも表示する。
+     */
+    suspend fun authAndMessage():AuthHost? {
+        return if (authenticate().message()) {
+            currentHost
+        } else null
     }
 
     /**
@@ -59,7 +72,7 @@ object Authentication {
         if (hosts.isEmpty()) return Result.NO_HOST
         for(host in hosts) {
             val r = authenticate(host)
-            if (r == Result.NO_ACTIVE_HOST) continue
+            if (r.error) continue
             return r
         }
         return Result.NO_ACTIVE_HOST
@@ -69,14 +82,17 @@ object Authentication {
      * 指定したホストに対して認証を行う
      */
     suspend fun authenticate(authHost:AuthHost):Result {
-        return when (authHost.authenticate()) {
-            AuthHost.AuthResult.AUTHORIZED -> {
-                logger.info("select ${authHost.displayName}")
-                currentHost = authHost
-                Result.OK
+        return mutex.withLock {
+            when (authHost.authenticate()) {
+                AuthHost.AuthResult.AUTHORIZED -> {
+                    logger.info("select ${authHost.displayName}")
+                    currentHost = authHost
+                    Result.OK
+                }
+
+                AuthHost.AuthResult.OFFLINE -> Result.NO_ACTIVE_HOST
+                AuthHost.AuthResult.CANCELLED -> Result.CANCELLED
             }
-            AuthHost.AuthResult.OFFLINE -> Result.NO_ACTIVE_HOST
-            AuthHost.AuthResult.CANCELLED -> Result.CANCELLED
         }
     }
 }

@@ -74,6 +74,9 @@ class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or 
         return isHostInService(activeHost)
     }
 
+    private var lastResult: AuthResult? = null
+    private var lastAuthAt:Long = 0L
+
     /**
      * 認証用の最上位API
      * - 同時（１秒以内）の認証要求を１つにまとめる
@@ -83,6 +86,11 @@ class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or 
         var authResult: MutableStateFlow<AuthResult?>
 
         mutex.withLock {
+            val last = lastResult
+            if (last == AuthResult.AUTHORIZED && System.currentTimeMillis() - lastAuthAt < 1000L) {
+                // 認証成功後１秒以内の認証要求は省略する
+                return last
+            }
             if (authResultFlow == null) {
                 authResultFlow = MutableStateFlow(null)
                 responsible = true
@@ -95,8 +103,9 @@ class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or 
         return if (responsible) {
             authenticateCore().also { result ->
                 authResult.value = result
-                delay(1.seconds)    // 1秒間は結果を維持する
                 mutex.withLock {
+                    lastResult = result
+                    lastAuthAt = System.currentTimeMillis()
                     authResultFlow = null
                 }
             }

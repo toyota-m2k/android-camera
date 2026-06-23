@@ -73,7 +73,7 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
 
     override suspend fun doWork(): Result {
         val target = DLTargetParams(inputData)
-        val host = Authentication.autoAuth() ?: return error("not authenticated")
+        val host = Authentication.authAndMessage() ?: return error("not authenticated")
         val itemId = target.itemId
         val slot = target.slot
         if (slot < 0 || itemId < 0) return error("invalid item")

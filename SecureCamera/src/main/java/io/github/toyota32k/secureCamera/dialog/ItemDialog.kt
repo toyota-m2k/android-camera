@@ -5,11 +5,9 @@ import android.view.View
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.VisibilityBinding
-import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.ReliableCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -18,7 +16,6 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
-import io.github.toyota32k.media.lib.io.HttpFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.secureCamera.SCApplication
@@ -71,7 +68,7 @@ class ItemDialog : UtDialogEx() {
                 val inFile = if (item.cloud.isFileInLocal) {
                     metaDb.fileOf(item).toAndroidFile()
                 } else {
-                    val host = Authentication.autoAuth() ?: return@launch
+                    val host = Authentication.authAndMessage() ?: return@launch
                     OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item, host))
                 }
                 val summary = Analyzer.analyze(inFile)
