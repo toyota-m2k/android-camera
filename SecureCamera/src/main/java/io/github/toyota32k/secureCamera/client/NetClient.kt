@@ -2,6 +2,7 @@ package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.SCApplication
+import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -98,7 +99,9 @@ object NetClient {
 
     suspend fun executeAsync(req: Request, host: SecureArchiveHost, canceller: Canceller?=null): Response {
         logger.debug("${req.url}")
-        return tryExecuteAsync(motherClient, req, canceller, host)
+        return AuthKeeper.globalPause().use {
+            tryExecuteAsync(motherClient, req, canceller, host)
+        }
     }
 
     suspend fun shortCallAsync(req:Request, host: SecureArchiveHost): Response? {

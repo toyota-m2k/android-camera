@@ -66,11 +66,14 @@ object Authentication {
      * primary/secondaryのうち、接続可能なホストに対して認証を行う。
      */
     suspend fun authenticate():Result {
-        if (currentHost?.authenticate()==AuthHost.AuthResult.AUTHORIZED) {
-            return Result.OK
+        when (currentHost?.authenticate()) {
+            AuthHost.AuthResult.AUTHORIZED-> return Result.OK
+            AuthHost.AuthResult.CANCELLED-> return Result.CANCELLED
+            else -> {}
         }
         if (hosts.isEmpty()) return Result.NO_HOST
         for(host in hosts) {
+            if (host == currentHost) continue
             val r = authenticate(host)
             if (r.error) continue
             return r

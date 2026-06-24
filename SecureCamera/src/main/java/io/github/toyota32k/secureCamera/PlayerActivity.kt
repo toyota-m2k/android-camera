@@ -451,8 +451,6 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        val authKeeper = AuthKeeper()
-
         inner class MediaSource(val item: ItemEx) : IMediaSourceWithChapter, IMediaMetadataRetrieverSource, IMediaSourcePreparer {
             override val name:String
                 get() = item.name
@@ -485,9 +483,8 @@ class PlayerActivity : UtMortalActivity() {
              */
             override suspend fun onSourceLoading(): Boolean {
                 if (item.cloud.loadFromCloud) {
-                    if (!authKeeper.isActive) {
-                        val host = Authentication.authAndMessage() ?: return false
-                        authKeeper.start(host)
+                    if (!AuthKeeper.isActive) {
+                        AuthKeeper.start() ?: return false
                     }
                 }
                 return true
@@ -758,7 +755,6 @@ class PlayerActivity : UtMortalActivity() {
 
         override fun onCleared() {
             super.onCleared()
-            authKeeper.close()
             saveListModeAndSelection()
             metaDb.close()
             playerControllerModel.close()
@@ -781,6 +777,7 @@ class PlayerActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
+        AuthKeeper.attach(this)
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -968,13 +965,13 @@ class PlayerActivity : UtMortalActivity() {
                         if (viewModel.playlist.isCurrentVideo) {
                             viewModel.playlist.select(null, true)
                         }
-                        val host = Authentication.authAndMessage()
+                        val host = AuthKeeper.start()
                         if (host != null) {
                             viewModel.metaDb.restoreFromCloud(item2, host)
                         }
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
-                        val host = Authentication.authAndMessage()
+                        val host = AuthKeeper.start()
                         if (host != null) {
                             viewModel.metaDb.recoverFromCloud(item2, host)
                         }
@@ -1102,7 +1099,7 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     override fun onPause() {
-        viewModel.authKeeper.pause()
+        AuthKeeper.pause(this)
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blockingAt.value = System.currentTimeMillis()
         viewModel.playerControllerModel.playerModel.pause()
@@ -1133,6 +1130,11 @@ class PlayerActivity : UtMortalActivity() {
         } else {
             afterUnblocked()
         }
-        viewModel.authKeeper.resume()
+        AuthKeeper.resume(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        AuthKeeper.detach(this)
     }
 }

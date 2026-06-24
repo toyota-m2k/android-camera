@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
+import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -73,7 +74,7 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
 
     override suspend fun doWork(): Result {
         val target = DLTargetParams(inputData)
-        val host = Authentication.authAndMessage() ?: return error("not authenticated")
+        val host = AuthKeeper.tryAuth() ?: return error("not authenticated")
         val itemId = target.itemId
         val slot = target.slot
         if (slot < 0 || itemId < 0) return error("invalid item")

@@ -339,8 +339,6 @@ class EditorActivity : UtMortalActivity() {
             }
         }
 
-        val authKeeper = AuthKeeper()
-
         val playerControllerModel get() = editorModel.playerControllerModel
         val playerModel get() = playerControllerModel.playerModel
         private val videoSource get() = playerModel.currentSource.value as VideoSource
@@ -425,8 +423,7 @@ class EditorActivity : UtMortalActivity() {
                 val item = metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
                 val chapters = metaDb.getChaptersFor(item.data)
                 if (item.cloud.loadFromCloud) {
-                    val host = Authentication.authAndMessage() ?: return@withLock false
-                    authKeeper.start(host)
+                    if (AuthKeeper.start() == null) return@withLock false
                 }
                 setSource(item, chapters)
                 val crop = metaDb.loadCropParams(name)
@@ -471,7 +468,6 @@ class EditorActivity : UtMortalActivity() {
             logger.debug()
             inputMediaFileCache.release()
             playerControllerModel.close()
-            authKeeper.close()
             HttpInputFile.deleteAllTempFile(getApplication())
         }
 
@@ -482,7 +478,7 @@ class EditorActivity : UtMortalActivity() {
             override val id: String
                 get() = name
             override val uri: String
-                get() = metaDb.urlOf(item) { authKeeper.authHost }
+                get() = metaDb.urlOf(item) { AuthKeeper.authHost }
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -525,6 +521,7 @@ class EditorActivity : UtMortalActivity() {
         hideActionBar()
         hideStatusBar()
 
+        AuthKeeper.attach(this)
         binder.owner(this)
 
         lifecycleScope.launch {
@@ -629,7 +626,7 @@ class EditorActivity : UtMortalActivity() {
         logger.debug()
         super.onPause()
         periodicalSaveJob?.cancel()
-        viewModel.authKeeper.pause()
+        AuthKeeper.pause(this)
         lifecycleScope.launch { viewModel.saveEditingParams() }  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blocking.value = true
@@ -659,7 +656,7 @@ class EditorActivity : UtMortalActivity() {
                 }
             }
         }
-        viewModel.authKeeper.resume()
+        AuthKeeper.resume(this)
         periodicalSaveJob = lifecycleScope.launch {
             while (isActive) {
                 delay(30.seconds)
@@ -671,6 +668,7 @@ class EditorActivity : UtMortalActivity() {
     override fun onDestroy() {
         logger.debug()
         super.onDestroy()
+        AuthKeeper.detach(this)
     }
 
     class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {

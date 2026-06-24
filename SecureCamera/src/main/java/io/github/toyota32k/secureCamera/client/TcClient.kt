@@ -9,6 +9,7 @@ import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.AuthHost
+import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -58,7 +59,7 @@ object TcClient {
 
     suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        val host = Authentication.authAndMessage() ?: return null
+        val host = AuthKeeper.start() ?: return null
 
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null
