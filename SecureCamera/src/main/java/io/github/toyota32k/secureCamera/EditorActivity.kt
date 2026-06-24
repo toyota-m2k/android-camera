@@ -221,23 +221,23 @@ class EditorActivity : UtMortalActivity() {
             editorModel.chapterEditorHandler.clearDirty()
         }
 
-        private suspend fun replaceVideoFile(outFile: UtJavaFile, newChapterList:List<IChapter>) {
-            val targetFile = metaDb.fileOf(targetItem)
+        private suspend fun replaceVideoFile(outFile: UtJavaFile, replacingItem:ItemEx, newChapterList:List<IChapter>) {
+            val targetFile = metaDb.fileOf(replacingItem)
             val newFile = outFile.path
             if (safeOverwrite(newFile, targetFile)) {
                 // onPause で、saveChapterされないようダーティフラグをクリアしておく
                 clearDirty()
 
                 // DBを更新
-                finishEditing.value = metaDb.updateFile(targetItem, newChapterList)
+                finishEditing.value = metaDb.updateFile(replacingItem, newChapterList)
                 logger.debug("overwritten.")
             } else {
                 logger.error("cannot overwrite")
             }
         }
 
-        private suspend fun addVideoFileAt(pos:Long, outFile: UtJavaFile, newChapterList:List<IChapter>) {
-            val date = targetItem.creationDate + pos
+        private suspend fun addVideoFileAt(pos:Long, headTime:Long, outFile: UtJavaFile, newChapterList:List<IChapter>) {
+            val date = headTime + pos
             val file = metaDb.createVideoFile(Date(date))
             safeOverwrite(outFile.path, file)
             val newItem = metaDb.register(file.name)!!
@@ -256,6 +256,9 @@ class EditorActivity : UtMortalActivity() {
                     val newChapterList =
                         editorModel.chapterEditorHandler.correctChapterList(soughtMap)
                     try {
+                        val replacingItem = targetItem ?: throw IllegalStateException("no target")
+                        val headTime = replacingItem.creationDate
+
                         // 確認ダイアログ
                         val srcLen = result.convertResult.report?.input?.size ?: -1
                         val dstLen = result.convertResult.report?.output?.size ?: -1
@@ -270,11 +273,11 @@ class EditorActivity : UtMortalActivity() {
                             val sourceInfo = result.sourceInfo as IVideoSourceInfo
                             if (sourceInfo.saveMode == VideoSaveMode.ALL) {
                                 // 全体を保存した場合は、リプレース
-                                replaceVideoFile(outFile, newChapterList)
+                                replaceVideoFile(outFile, replacingItem, newChapterList)
                             } else {
                                 // 一部を抽出した場合は、新規追加
                                 val pos = sourceInfo.trimmingRanges.firstOrNull()?.startMs ?: 0L
-                                addVideoFileAt(pos, outFile, newChapterList)
+                                addVideoFileAt(pos, headTime, outFile, newChapterList)
                             }
                         }
                     } finally {
@@ -289,6 +292,8 @@ class EditorActivity : UtMortalActivity() {
                 savingLock.withLock {
                     val count = result.results.size
                     try {
+                        val replacingItem = targetItem ?: throw IllegalStateException("no target")
+                        val headTime = replacingItem.creationDate
                         if (result.succeeded && UtImmortalTask.awaitTaskResult {
                                 showOkCancelMessageBox(
                                     "Split File",
@@ -301,11 +306,11 @@ class EditorActivity : UtMortalActivity() {
                                 val output = (r.outputFile as AndroidFile).utFile as UtJavaFile
                                 val (name, file) = if (i == 0) {
                                     // 先頭は上書き
-                                    targetItem.name to targetFile
+                                    replacingItem.name to metaDb.fileOf(replacingItem)
                                 } else {
                                     val pos = files[r.outputFile]
                                         ?: throw IllegalStateException("no position")
-                                    val date = targetItem.creationDate + pos
+                                    val date = headTime + pos
                                     val file = metaDb.createVideoFile(Date(date))
                                     file.name to file
                                 }
@@ -317,7 +322,7 @@ class EditorActivity : UtMortalActivity() {
 
                                 if (firstItem == null) {
                                     // 先頭アイテムはリプレース
-                                    firstItem = metaDb.updateFile(targetItem, newChapterList)
+                                    firstItem = metaDb.updateFile(replacingItem, newChapterList)
                                 } else {
                                     val newItem = metaDb.register(name)!!
                                     metaDb.setChaptersFor(newItem, newChapterList)
@@ -328,6 +333,8 @@ class EditorActivity : UtMortalActivity() {
                             // 先頭itemを選択した状態でエディタを終了
                             finishEditing.value = firstItem
                         }
+                    } catch(e: Throwable) {
+                        logger.error(e)
                     } finally {
                         for (f in files.keys) {
                             f.safeDelete()
@@ -339,10 +346,10 @@ class EditorActivity : UtMortalActivity() {
 
         val playerControllerModel get() = editorModel.playerControllerModel
         val playerModel get() = playerControllerModel.playerModel
-        private val videoSource get() = playerModel.currentSource.value as VideoSource
-        val targetItem:ItemEx get() = videoSource.item
-        val targetFile:File get() = metaDb.fileOf(targetItem)
-        val targetUri:String get() = videoSource.uri
+        val videoSource:VideoSource? get() = playerModel.currentSource.value as? VideoSource
+        val targetItem:ItemEx? get() = videoSource?.item
+//        val targetFile:File? get() = targetItem?.run { metaDb.fileOf(this) }
+//        val targetUri:String? get() = videoSource?.uri
         private inner class FileProvider: IOutputFileProvider {
             override suspend fun getOutputFile(
                 mimeType: String,
@@ -387,8 +394,7 @@ class EditorActivity : UtMortalActivity() {
         suspend fun saveEditingParams() {
             if (!savingLock.tryLock()) return
             try {
-                val source = playerModel.currentSource.value as? EditorViewModel.VideoSource
-                    ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
+                val source = videoSource  ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
                 val target = source.item.data
                 if (editorModel.chapterEditorHandler.isDirty) {
                     val chapterList =
@@ -407,7 +413,7 @@ class EditorActivity : UtMortalActivity() {
                 val crop = editorModel.cropHandler.maskViewModel.getParams()
                 if (crop != prevCropParams) {
                     prevCropParams = crop
-                    metaDb.saveCropParams(targetItem.name, crop)
+                    metaDb.saveCropParams(target.name, crop)
                 }
             } catch(e:Throwable) {
                 logger.error(e)
@@ -522,8 +528,8 @@ class EditorActivity : UtMortalActivity() {
         binder.owner(this)
 
         lifecycleScope.launch {
-            val name = intent.extras?.getString(KEY_FILE_NAME) ?: throw IllegalStateException("no source")
-            if (!viewModel.loadEditingParams(name)) {
+            val name = intent.extras?.getString(KEY_FILE_NAME)
+            if (name==null || !viewModel.loadEditingParams(name)) {
                 UtImmortalTask.launchTask { setResultAndFinish(updated=false) }
                 return@launch
             }
@@ -609,12 +615,13 @@ class EditorActivity : UtMortalActivity() {
 //        } else "${formatPercent(permillage)} (${formatTime(current, total)}/${formatTime(total,total)})"
 //    }
 
-    private fun sourceVideoProperties(): Summary {
-        val inFile = viewModel.getInputMediaFile(viewModel.targetUri)
+    private fun sourceVideoProperties(uri:String): Summary {
+        val inFile = viewModel.getInputMediaFile(uri)
         return Analyzer.analyze(inFile)
     }
     private fun showVideoProperties():Boolean {
-        ReportTextDialog.show(viewModel.targetItem.name, sourceVideoProperties().toString())
+        val videoSource = viewModel.videoSource?: return false
+        ReportTextDialog.show(videoSource.name, sourceVideoProperties(videoSource.uri).toString())
         return true
     }
 
@@ -690,7 +697,7 @@ class EditorActivity : UtMortalActivity() {
         private suspend fun UtImmortalTaskBase.setResultAndFinish(updated:Boolean, item:ItemEx?=null) {
             (getActivity() as? EditorActivity)?.apply {
                 setResult(if(updated) RESULT_OK else RESULT_CANCELED, Intent().apply {
-                    putExtra(KEY_FILE_NAME, (item?:viewModel.targetItem).name)
+                    putExtra(KEY_FILE_NAME, (item?:viewModel.targetItem)?.name ?: intent.extras?.getString(KEY_FILE_NAME) ?: "")
                 })
                 finish()
             }
