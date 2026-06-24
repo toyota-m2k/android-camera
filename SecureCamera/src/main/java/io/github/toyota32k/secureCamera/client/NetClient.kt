@@ -1,8 +1,6 @@
 package io.github.toyota32k.secureCamera.client
 
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.SCApplication
-import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -24,7 +22,6 @@ import javax.net.ssl.TrustManager
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
 object NetClient {
     val motherClient : OkHttpClient by lazy {
@@ -77,7 +74,7 @@ object NetClient {
      * 変わっていない、もしくは解決失敗の場合は null。
      */
     private suspend fun tryRebuildWithFreshAddress(req: Request, host: SecureArchiveHost): Request? {
-        val ctx = SCApplication.instance.applicationContext
+//        val ctx = SCApplication.instance.applicationContext
         val svc = host.serviceName ?: return null
         val resolved = BooTubeDiscovery.resolveOnce( svc) ?: return null
         val newAddr = "${resolved.host}:${resolved.port}"
@@ -99,9 +96,7 @@ object NetClient {
 
     suspend fun executeAsync(req: Request, host: SecureArchiveHost, canceller: Canceller?=null): Response {
         logger.debug("${req.url}")
-        return AuthKeeper.globalPause().use {
-            tryExecuteAsync(motherClient, req, canceller, host)
-        }
+        return tryExecuteAsync(motherClient, req, canceller, host)
     }
 
     suspend fun shortCallAsync(req:Request, host: SecureArchiveHost): Response? {

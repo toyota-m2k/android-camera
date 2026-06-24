@@ -67,7 +67,6 @@ import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.TcClient
-import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityPlayerBinding
 import io.github.toyota32k.secureCamera.databinding.ListItemBinding
@@ -483,9 +482,7 @@ class PlayerActivity : UtMortalActivity() {
              */
             override suspend fun onSourceLoading(): Boolean {
                 if (item.cloud.loadFromCloud) {
-                    if (!AuthKeeper.isActive) {
-                        AuthKeeper.start() ?: return false
-                    }
+                    if (Authentication.authAndMessage()==null) return false
                 }
                 return true
             }
@@ -777,7 +774,6 @@ class PlayerActivity : UtMortalActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Settings.initialize(application)
-        AuthKeeper.attach(this)
 
         controls = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(controls.root)
@@ -965,13 +961,13 @@ class PlayerActivity : UtMortalActivity() {
                         if (viewModel.playlist.isCurrentVideo) {
                             viewModel.playlist.select(null, true)
                         }
-                        val host = AuthKeeper.start()
+                        val host = Authentication.authAndMessage()
                         if (host != null) {
                             viewModel.metaDb.restoreFromCloud(item2, host)
                         }
                     }
                     ItemDialog.ItemViewModel.NextAction.Repair -> {
-                        val host = AuthKeeper.start()
+                        val host = Authentication.authAndMessage()
                         if (host != null) {
                             viewModel.metaDb.recoverFromCloud(item2, host)
                         }
@@ -1099,7 +1095,6 @@ class PlayerActivity : UtMortalActivity() {
     }
 
     override fun onPause() {
-        AuthKeeper.pause(this)
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blockingAt.value = System.currentTimeMillis()
         viewModel.playerControllerModel.playerModel.pause()
@@ -1130,11 +1125,5 @@ class PlayerActivity : UtMortalActivity() {
         } else {
             afterUnblocked()
         }
-        AuthKeeper.resume(this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        AuthKeeper.detach(this)
     }
 }

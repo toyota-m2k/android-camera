@@ -9,7 +9,6 @@ import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
 import io.github.toyota32k.secureCamera.client.NetClient.executeAsync
 import io.github.toyota32k.secureCamera.client.auth.AuthHost
-import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -48,7 +47,7 @@ object TcClient {
             .put(json.toRequestBody("application/json".toMediaType()))
             .build()
         return try {
-            NetClient.executeAndGetJsonAsync(request, host)
+            executeAndGetJsonAsync(request, host)
             logger.info("owner registered.")
             true
         } catch (e:Throwable) {
@@ -59,7 +58,7 @@ object TcClient {
 
     suspend fun getPhoto(db:ScDB, item:ItemEx): Bitmap? {
         if(!item.isPhoto) return null
-        val host = AuthKeeper.start() ?: return null
+        val host = Authentication.authAndMessage() ?: return null
 
 //        val address = Settings.SecureArchive.address
 //        if(address.isEmpty()) return null
@@ -91,7 +90,7 @@ object TcClient {
 
     suspend fun getListForRepair(host: AuthHost, slot:SlotIndex):List<RepairingItem>? {
         fun jsonToItems(list: JSONArray):Sequence<RepairingItem> {
-            return sequence<RepairingItem> {
+            return sequence {
                 for(i in 0..<list.length()) {
                     val o = list.getJSONObject(i)
                     yield(RepairingItem(
@@ -136,7 +135,7 @@ object TcClient {
     data class DeviceInfo(val name:String, val clientId:String)
     suspend fun getDeviceListForMigration(host:AuthHost):List<DeviceInfo>? {
         fun jsonToItems(list: JSONArray):Sequence<DeviceInfo> {
-            return sequence<DeviceInfo> {
+            return sequence {
                 for (i in 0..<list.length()) {
                     val o = list.getJSONObject(i)
                     yield(DeviceInfo(
@@ -213,7 +212,7 @@ object TcClient {
     suspend fun startMigration(host:AuthHost, deviceInfo: DeviceInfo):MigrationInfo? {
         val targetClientId = deviceInfo.clientId
         fun jsonToItems(list: JSONArray):Sequence<StoredFileEntry> {
-            return sequence<StoredFileEntry> {
+            return sequence {
                 for (i in 0..<list.length()) {
                     val o = list.getJSONObject(i)
                     yield(StoredFileEntry(
@@ -316,11 +315,11 @@ object TcClient {
             .build()
         return withContext(Dispatchers.IO) {
             try {
-                NetClient.executeAndGetJsonAsync(request, host.activeHost)
-                ServerActivity.Companion.logger.info("backup started.")
+                executeAndGetJsonAsync(request, host.activeHost)
+                ServerActivity.logger.info("backup started.")
                 true
             } catch (e:Throwable) {
-                ServerActivity.Companion.logger.error(e)
+                ServerActivity.logger.error(e)
                 false
             }
         }
@@ -351,7 +350,7 @@ object TcClient {
             .build()
         return withContext(Dispatchers.IO) {
             try {
-                NetClient.executeAndGetJsonAsync(request, host.activeHost)
+                executeAndGetJsonAsync(request, host.activeHost)
                 logger.info("backup-db accepted.")
                 true
             } catch (e:Throwable) {

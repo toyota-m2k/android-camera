@@ -6,7 +6,6 @@ import androidx.work.WorkerParameters
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
-import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -28,7 +27,6 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
         fun download(context: Context, item: ItemEx, filePath: String, updateFileStatus: Boolean, serverUri:String) {
             val data = DLTargetParams(item, filePath, updateFileStatus, serverUri).produce()
             executeOneTimeWorker<Downloader>(context, data)
-//            logger.debug("request accepted: slot=${item.slot}, itemId=${item.id}, url=${item.serverUri?:"error"}, filePath=$filePath, updateFileStatus=$updateFileStatus")
         }
 
         fun File.safeDelete() {
@@ -74,7 +72,7 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
 
     override suspend fun doWork(): Result {
         val target = DLTargetParams(inputData)
-        val host = AuthKeeper.tryAuth() ?: return error("not authenticated")
+        val host = Authentication.authAndMessage() ?: return error("not authenticated")
         val itemId = target.itemId
         val slot = target.slot
         if (slot < 0 || itemId < 0) return error("invalid item")

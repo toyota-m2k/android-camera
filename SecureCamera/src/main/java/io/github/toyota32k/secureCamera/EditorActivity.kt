@@ -33,7 +33,6 @@ import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
 import io.github.toyota32k.lib.media.editor.handler.save.GenericSaveFileHandler
 import io.github.toyota32k.lib.media.editor.handler.save.ISourceToInputMediaFile
 import io.github.toyota32k.lib.media.editor.handler.split.GenericSplitHandler
-import io.github.toyota32k.lib.media.editor.model.CropHandler
 import io.github.toyota32k.lib.media.editor.model.IMediaSourceWithMutableChapterList
 import io.github.toyota32k.lib.media.editor.model.IMultiOutputFileSelector
 import io.github.toyota32k.lib.media.editor.model.IMultiSplitResult
@@ -62,7 +61,6 @@ import io.github.toyota32k.media.lib.report.Summary
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
-import io.github.toyota32k.secureCamera.client.auth.AuthKeeper
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityEditorBinding
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -423,7 +421,7 @@ class EditorActivity : UtMortalActivity() {
                 val item = metaDb.itemExOf(name) ?: throw IllegalStateException("no item")
                 val chapters = metaDb.getChaptersFor(item.data)
                 if (item.cloud.loadFromCloud) {
-                    if (AuthKeeper.start() == null) return@withLock false
+                    if (Authentication.authAndMessage() == null) return@withLock false
                 }
                 setSource(item, chapters)
                 val crop = metaDb.loadCropParams(name)
@@ -478,7 +476,7 @@ class EditorActivity : UtMortalActivity() {
             override val id: String
                 get() = name
             override val uri: String
-                get() = metaDb.urlOf(item) { AuthKeeper.authHost }
+                get() = metaDb.urlOf(item) { Authentication.currentHost }
             override val trimming: Range = Range.empty
             override val type: String
                 get() = name.substringAfterLast(".", "")
@@ -521,7 +519,6 @@ class EditorActivity : UtMortalActivity() {
         hideActionBar()
         hideStatusBar()
 
-        AuthKeeper.attach(this)
         binder.owner(this)
 
         lifecycleScope.launch {
@@ -626,7 +623,6 @@ class EditorActivity : UtMortalActivity() {
         logger.debug()
         super.onPause()
         periodicalSaveJob?.cancel()
-        AuthKeeper.pause(this)
         lifecycleScope.launch { viewModel.saveEditingParams() }  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blocking.value = true
@@ -656,7 +652,6 @@ class EditorActivity : UtMortalActivity() {
                 }
             }
         }
-        AuthKeeper.resume(this)
         periodicalSaveJob = lifecycleScope.launch {
             while (isActive) {
                 delay(30.seconds)
@@ -668,7 +663,6 @@ class EditorActivity : UtMortalActivity() {
     override fun onDestroy() {
         logger.debug()
         super.onDestroy()
-        AuthKeeper.detach(this)
     }
 
     class Broker(activity:FragmentActivity) : UtActivityBroker<String,String?>() {
