@@ -25,6 +25,7 @@ class SCApplication : Application() {
             UtDialogConfig.dialogMarginOnPortrait = Rect(5,10,5,10)
             UtDialogConfig.showDialogImmediately = UtDialogConfig.ShowDialogMode.Commit
             UtDialogConfig.draggable = true
+            UtDialogConfig.dialogTheme = io.github.toyota32k.dialog.R.style.UtDialogThemeTertiary
         }
     }
 

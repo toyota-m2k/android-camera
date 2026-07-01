@@ -939,12 +939,15 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
+    /**
+     * EditorActivity から戻ってきたときにアイテムを選択する
+     */
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
         val item = viewModel.metaDb.itemExOf(name) ?: return
         if(update) {
             viewModel.playlist.replaceItem(item)
         }
-        viewModel.playlist.select(item)
+        viewModel.playlist.select(item, true)
     }
 
     private fun startEditing(item:ItemEx) {
