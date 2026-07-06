@@ -26,7 +26,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="10dp"
-            android:textColor="?attr/colorOnTertiaryFixed"
+            android:textColor="?attr/colorOnTertiary"
             tools:text="192.168.0.12:5001"
             />
         <com.google.android.material.button.MaterialButton
@@ -36,8 +36,8 @@
             android:paddingHorizontal="8dp"
             android:paddingTop="6dp"
             android:foregroundGravity="center"
-            android:backgroundTint="?attr/colorTertiaryFixedDim"
-            app:iconTint="?attr/colorOnTertiaryFixed"
+            android:backgroundTint="?attr/colorTertiaryContainer"
+            app:iconTint="?attr/colorOnTertiaryContainer"
             app:icon="@drawable/ic_setting"
             />
     </LinearLayout>
