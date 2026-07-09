@@ -504,7 +504,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     val KV:IKV by lazy { KVImpl() }
 
     suspend fun saveCropParams(name:String, crop:VisibleAreaParams) {
-        if (crop != null) {
+        if (!crop.isIdentity) {
             KV.put(KEY_EDIT_TARGET_NAME, name)
             KV.put(KEY_EDIT_CROP_PARAMS, crop.serialize() ?: "")
         } else {

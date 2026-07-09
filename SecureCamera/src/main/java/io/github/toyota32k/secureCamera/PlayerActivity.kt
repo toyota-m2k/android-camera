@@ -36,8 +36,8 @@ import io.github.toyota32k.binder.recyclerViewBindingEx
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
@@ -1005,7 +1005,7 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    private suspend fun UtImmortalTaskBase.editItem(item:ItemEx) {
+    private suspend fun IUtImmortalTask.editItem(item:ItemEx) {
         if (item.isVideo) {
             viewModel.saveListModeAndSelection()
             viewModel.playlist.select(null)

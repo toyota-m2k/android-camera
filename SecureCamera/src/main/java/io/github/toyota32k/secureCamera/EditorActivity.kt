@@ -24,8 +24,8 @@ import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.broker.UtActivityBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
@@ -358,8 +358,9 @@ class EditorActivity : UtMortalActivity() {
                 return File(application.cacheDir ?: throw java.lang.IllegalStateException("no cacheDir"), "tc-output").toAndroidFile()
             }
 
-            override suspend fun finalize(result: ISaveResult) {
+            override suspend fun finalize(result: ISaveResult): ISaveResult {
                 onVideoSaved(result)
+                return result
             }
         }
 
@@ -694,7 +695,7 @@ class EditorActivity : UtMortalActivity() {
         const val KEY_FILE_NAME = "video_source"
         val logger = UtLog("Editor", null, this::class.java)
 
-        private suspend fun UtImmortalTaskBase.setResultAndFinish(updated:Boolean, item:ItemEx?=null) {
+        private suspend fun IUtImmortalTask.setResultAndFinish(updated:Boolean, item:ItemEx?=null) {
             (getActivity() as? EditorActivity)?.apply {
                 setResult(if(updated) RESULT_OK else RESULT_CANCELED, Intent().apply {
                     putExtra(KEY_FILE_NAME, (item?:viewModel.targetItem)?.name ?: intent.extras?.getString(KEY_FILE_NAME) ?: "")

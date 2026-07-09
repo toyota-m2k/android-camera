@@ -20,10 +20,9 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
-import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
@@ -294,7 +293,7 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
-        private suspend fun prepareMigration(host: AuthHost, task:UtImmortalTaskBase) : TcClient.MigrationInfo? {
+        private suspend fun prepareMigration(host: AuthHost, task: IUtImmortalTask) : TcClient.MigrationInfo? {
             val devices = TcClient.getDeviceListForMigration(host)
             var message:String? = null
             while (true) {
@@ -340,12 +339,12 @@ class ServerActivity : UtMortalActivity() {
             return null
         }
 
-        private suspend fun migrateCore(task:UtImmortalTaskBase, migration:TcClient.MigrationInfo, pvm:ProgressDialog.ProgressViewModel):Boolean {
+        private suspend fun migrateCore(task: IUtImmortalTask, migration:TcClient.MigrationInfo, pvm:ProgressDialog.ProgressViewModel):Boolean {
             var cancelled = false
             pvm.message.value = "Migrating..."
             pvm.cancelCommand.bindForever { cancelled = true }
             // プログレスダイアログをモーダル表示
-            task.launchSubTask {
+            task.subTask().launchTask {
                 showDialog(ProgressDialog())
             }
 
