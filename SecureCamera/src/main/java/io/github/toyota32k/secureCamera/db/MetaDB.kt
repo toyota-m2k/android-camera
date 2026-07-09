@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.chapter.Chapter
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.media.lib.io.HttpInputFile
@@ -22,6 +23,7 @@ import io.github.toyota32k.secureCamera.ScDef.VIDEO_EXTENSION
 import io.github.toyota32k.secureCamera.ScDef.VIDEO_PREFIX
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.client.TcClient.RepairingItem
+import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.client.worker.Downloader
 import io.github.toyota32k.secureCamera.client.worker.Downloader.Companion.safeDelete
@@ -94,10 +96,14 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
         filename2dpDate(name) ?: DPDate.Invalid
     }
 
-    val serverUri:String
-        get() = Authentication.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+    val serverUri:String?
+        get() = (Authentication.currentHost?: Authentication.anyHost)?.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
             "o" to Settings.SecureArchive.clientId, "c" to id)
             // "http://${Authentication.activeHostAddress}/slot${slot}/${if(isVideo) "video" else "photo"}?auth=${Authentication.authToken}&o=${Settings.SecureArchive.clientId}&c=${id}"
+    fun serverUri(host:AuthHost):String {
+        return host.makeAuthUrl("slot${slot}/${if(isVideo) "video" else "photo"}",
+            "o" to Settings.SecureArchive.clientId, "c" to id)
+    }
 
 //    val uri:String
 //        get() {
@@ -208,6 +214,7 @@ data class ItemEx(val data: MetaData, val slot:Int, val chapterList: List<IChapt
 interface IKV {
     suspend fun put(key:String, value:String)
     suspend fun get(key:String):String?
+    suspend fun del(key:String)
 }
 
 /**
@@ -412,6 +419,9 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             }
         }
 
+        const val KEY_EDIT_TARGET_NAME:String="EditTargetName";
+        const val KEY_EDIT_CROP_PARAMS:String="EditCropParams"
+
     }
     @Suppress("PrivatePropertyName")
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -470,7 +480,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     inner class KVImpl: IKV {
         override suspend fun put(key:String, value:String) {
             withContext(Dispatchers.IO) {
-            val e = db.kvTable().getAt(key)
+                val e = db.kvTable().getAt(key)
                 if (e == null) {
                     db.kvTable().insert(KeyValueEntry(key, value))
                 } else {
@@ -480,12 +490,39 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
         override suspend fun get(key: String):String? {
             return withContext(Dispatchers.IO) {
-            db.kvTable().getAt(key)?.value
+                db.kvTable().getAt(key)?.value
+            }
+        }
+        override suspend fun del(key: String) {
+            withContext(Dispatchers.IO) {
+                val e = db.kvTable().getAt(key) ?: return@withContext
+                db.kvTable().delete(e)
             }
         }
     }
     @Suppress("PropertyName")
     val KV:IKV by lazy { KVImpl() }
+
+    suspend fun saveCropParams(name:String, crop:VisibleAreaParams) {
+        if (!crop.isIdentity) {
+            KV.put(KEY_EDIT_TARGET_NAME, name)
+            KV.put(KEY_EDIT_CROP_PARAMS, crop.serialize() ?: "")
+        } else {
+            KV.del(KEY_EDIT_TARGET_NAME)
+            KV.del(KEY_EDIT_CROP_PARAMS)
+        }
+    }
+
+
+    suspend fun loadCropParams(name:String):VisibleAreaParams {
+        return if (name == KV.get(KEY_EDIT_TARGET_NAME)) {
+            KV.get(KEY_EDIT_CROP_PARAMS)?.let { s ->
+                return VisibleAreaParams.fromJson(s)
+            } ?: VisibleAreaParams.IDENTITY
+        } else {
+            VisibleAreaParams.IDENTITY
+        }
+    }
 
 
     private fun filename2type(filename:String): Int? {
@@ -589,11 +626,34 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     }
     fun urlOf(item:ItemEx):String {
         return if(item.cloud.loadFromCloud) {
-            item.serverUri
+            item.serverUri ?: throw IllegalStateException("no host")
         } else {
             fileOf(item).toUri().toString()
         }
     }
+    fun urlOf(item:ItemEx, getHost:(()->AuthHost?)):String {
+        return if(item.cloud.loadFromCloud) {
+            val host = getHost() ?: return "" // invalid url
+            item.serverUri(host)
+        } else {
+            fileOf(item).toUri().toString()
+        }
+    }
+    fun urlOf(item:ItemEx, host:AuthHost):String {
+        return if(item.cloud.loadFromCloud) {
+            item.serverUri(host)
+        } else {
+            fileOf(item).toUri().toString()
+        }
+    }
+//    suspend fun urlOf(item:ItemEx, getHost:(suspend ()->AuthHost?)?=null):String? {
+//        if (!item.cloud.loadFromCloud) {
+//            return fileOf(item).toUri().toString()
+//        } else {
+//            val host = (if(getHost==null) Authentication.autoAuth() else getHost()) ?: return null
+//            return item.serverUri(host)
+//        }
+//    }
 
     private suspend fun makeAll() {
         val isNeedUpdate = {m:MetaData->
@@ -831,7 +891,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
         }
     }
 
-    suspend fun repairWithBackup(context: Context, ri: RepairingItem) {
+    suspend fun repairWithBackup(context: Context, ri: RepairingItem, host: AuthHost) {
         val chapters = decodeChaptersString(ri.chapters).toList()
         val item = ItemEx(MetaData(
             id = ri.originalId,
@@ -851,7 +911,7 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
             category = ri.category
         ), slotIndex.index, chapters)
         withContext(Dispatchers.IO) {
-            val duration = Analyzer.analyze(HttpInputFile(context, item.serverUri)).duration
+            val duration = Analyzer.analyze(HttpInputFile(context, item.serverUri(host))).duration
             val newData = MetaData.modifiedEntry(item.data, duration = duration)
             db.metaDataTable().insert(newData)
             db.chapterDataTable().setForOwner(newData.id, chapters.map { ChapterData(0,newData.id, it.position, it.label, it.skip) })
@@ -874,19 +934,19 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
     /**
      * SecureArchiveからダウンロードしてメディアファイルを置き換えるが、ファイル情報は元のまま。
      */
-    fun restoreFromCloud(item: ItemEx) {
+    fun restoreFromCloud(item: ItemEx, host: AuthHost) {
         if(item.cloud != CloudStatus.Cloud) {
             logger.warn("not need restore : ${item.name} (${item.cloud})")
             return
         }
-        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false)
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, false, item.serverUri(host))
     }
 
     /**
      * SecureArchiveからダウンロードして、ファイル情報もSAの情報に合わせて書き換える。
      */
-    fun recoverFromCloud(item: ItemEx) {
-        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true)
+    fun recoverFromCloud(item: ItemEx, host: AuthHost) {
+        Downloader.download(SCApplication.instance, item, fileOf(item).absolutePath, true, item.serverUri(host))
     }
 
     /**

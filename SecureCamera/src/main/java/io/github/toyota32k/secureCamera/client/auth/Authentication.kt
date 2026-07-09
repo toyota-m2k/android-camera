@@ -1,305 +1,100 @@
 package io.github.toyota32k.secureCamera.client.auth
 
-import android.util.Log
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeBase64
-import io.github.toyota32k.secureCamera.client.auth.HashUtils.encodeHex
-import io.github.toyota32k.secureCamera.client.NetClient
-import io.github.toyota32k.secureCamera.client.TcClient
-import io.github.toyota32k.secureCamera.dialog.PasswordDialog
-import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
 import io.github.toyota32k.secureCamera.settings.Settings
-import io.github.toyota32k.secureCamera.settings.Settings.SecureArchive.isPrimary
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import org.json.JSONObject
 
 object Authentication {
-    private val logger = UtLog("Auth", TcClient.logger, this::class.java)
-    const val PWD_SEED = "y6c46S/PBqd1zGFwghK2AFqvSDbdjl+YL/DKXgn/pkECj0x2fic5hxntizw5"
+    private val logger = AuthHost.logger
 
-    var authToken:String? = null
-        private set
-    var challenge:String? = null
-        private set
-    var activeHost: SecureArchiveHost? = null
-        private set
+    val hosts = mutableListOf<AuthHost>()
 
-    fun makeUrl(path:String):String
-        = activeHost?.makeUrl(path) ?: throw IllegalStateException("No Active Host")
-    fun makeAuthUrl(cmd:String, vararg queries: Pair<String,Any?>):String {
-        return StringBuilder(makeUrl(cmd))
-            .append("?auth=")
-            .append(authToken)
-            .apply {
-                queries.fold(this) { acc, pair ->
-                    acc.append("&").append(pair.first)
-                        .apply {
-                            if (pair.second!=null) {
-                                append("=").append(pair.second)
-                            }
-                        }
-                }
-            }.toString().apply {
-                logger.debug(this)
-            }
-    }
-
-    fun reset() {
-        authToken = null
-        challenge = null
-    }
-
-    private fun challengeFromResponse(res: Response):String {
-        if(res.code != 401 || res.body.contentType() != "application/json".toMediaType()) {
-            throw IllegalStateException("unknown response from the server.")
+    fun resetWithSettings() {
+        hosts.clear()
+        currentHost = null
+        Settings.SecureArchive.primaryHost?.also { primary ->
+            hosts.add(AuthHost(primary, "Primary"))
         }
-        val body = res.body.use { it.string() }
-        val j =  JSONObject(body)
-        return j.optString("challenge").apply { challenge = this }
-    }
-
-    private fun authTokenFromResponse(res:Response):String {
-        if(res.code!=200 || res.body.contentType() != "application/json".toMediaType()) {
-            throw IllegalStateException("unknown response from the server.")
-        }
-        val body = res.body.use { it.string() }
-        val j =  JSONObject(body)
-        return j.optString("token").apply { authToken = this }
-    }
-
-    private val authUrl:String
-        get() = makeUrl("auth")
-
-    private fun authUrlWithToken(token:String):String
-        = "$authUrl/$token"
-
-    private suspend fun getChallenge():String? {
-        val req = Request.Builder()
-            .url(authUrlWithToken(""))
-            .get()
-            .build()
-        return try {
-            NetClient.executeAsync(req).use { res ->
-                challengeFromResponse(res)
-            }
-        } catch (e:Throwable) {
-            logger.error(e)
-            null
+        Settings.SecureArchive.secondaryHost?.also { secondary ->
+            hosts.add(AuthHost(secondary, "Secondary"))
         }
     }
 
-    private fun getPassPhrase(password:String, challenge:String) : String {
-        val hashedPassword = HashUtils.sha256(password, PWD_SEED).encodeHex()
-        return HashUtils.sha256(challenge, hashedPassword).encodeBase64()
+    suspend fun connectableHosts():List<AuthHost> {
+        return hosts.filter { it.isConnectable() }
     }
 
-    suspend fun authWithPassword(password:String) : Boolean {
-        return withContext(Dispatchers.IO) {
-            val challenge = challenge ?: getChallenge() ?: return@withContext false
-            val passPhrase = getPassPhrase(password, challenge)
-            val req = Request.Builder()
-                .url(authUrl)
-                .put(passPhrase.toRequestBody("text/plain".toMediaType()))
-                .build()
-            try {
-                NetClient.executeAsync(req).use { res ->
-                    if (res.code == 200) {
-                        // OK
-                        authTokenFromResponse(res)
-                        true
-                    } else {
-                        val c = challengeFromResponse(res)
-                        if (c != challenge) {
-                            null// to be retried.
-                        } else {
-                            false
-                        }
-                    }
-                } ?: authWithPassword(password)
-            } catch (e:Throwable) {
-                logger.error(e)
-                false
-            }
-        }
-    }
+    var currentHost: AuthHost? = null
+    val anyHost: AuthHost? = hosts.firstOrNull()
+    private val mutex = Mutex()
 
-    private suspend fun checkAuthToken():Boolean {
-        val token = authToken ?: return false
-        return withContext(Dispatchers.IO) {
-            val req = Request.Builder()
-                .url(authUrlWithToken(token))
-                .get()
-                .build()
-            try {
-                NetClient.executeAsync(req).use { res ->
-                    if (res.code == 200) {
-                        // OK
-                        true
-                    } else {
-                        challengeFromResponse(res)
-                        false
-                    }
-                }
-            } catch(e:Throwable) {
-                logger.error(e)
-                false
-            }
-        }
-
-    }
-
-    enum class Result(val msg:String, val succeeded:Boolean=false) {
+    enum class Result(val msg:String, val succeeded:Boolean=false, val error:Boolean=false) {
         OK("ok",true),
-        NO_HOST("No host is registered."),
-        NO_ACTIVE_HOST("No active host is found."),
+        NO_HOST("No host is registered.", false, true),
+        NO_ACTIVE_HOST("No active host is found.", false, true),
         CANCELLED("Cancelled by user.")
-    }
-
-    private var lastCheckTime:Long = 0L
-
-    /**
-     * 指定されたホストがアクセス可能かチェックする。
-     */
-    private suspend fun checkOneHost(host: SecureArchiveHost):Boolean {
-        val scheme = if (host.isHttps) "https" else "http"
-        val url = "$scheme://${host.address}/nop"
-        val req = Request.Builder().url(url).get().build()
-        val result = NetClient.shortCallAsync(req)
-        return result?.isSuccessful == true
-    }
-
-    /**
-     * アクセス可能なホストを primary, secondary の順にチェックし、最初に見つかったホストを activeHostAddress に設定する。
-     */
-    private suspend fun checkHost(preferPrimary:Boolean):Result {
-        val currentHost = activeHost
-        if(currentHost!=null && (!preferPrimary||currentHost.isPrimary)) {
-            if(System.currentTimeMillis() - lastCheckTime < 5000) {
-                // 5秒以内の連続呼び出しならチェックしない。
-                return Result.OK
-            }
-            if(checkOneHost(currentHost)) {
-                return Result.OK
-            }
-        }
-
-        var empty = true
-        for(host in Settings.SecureArchive.hosts) {
-            empty = false
-            if (checkOneHost(host)) {
-                activeHost = host
-                lastCheckTime = System.currentTimeMillis()
-                return Result.OK
-            }
-        }
-        activeHost = null
-        return if(empty) Result.NO_HOST else Result.NO_ACTIVE_HOST
-    }
-
-    val activeHostLabel:String
-
-        get() {
-            val active = activeHost ?: return "NO HOST"
-            val match = when(active.address) {
-                Settings.SecureArchive.primaryHost?.address->"Primary"
-                Settings.SecureArchive.secondaryHost?.address->"Secondary"
-                else -> return "NO HOST"
-            }
-            val hostname = active.hostname
-            return if (hostname.isNullOrBlank()) {
-                "$match ${active.address}"
-            } else {
-                "$match ${hostname} ${active.address}"
-            }
-        }
-
-//    val isPrimaryActive:Boolean
-//        get() = activeHost?.address == Settings.SecureArchive.primaryHost?.address
-
-//    /**
-//     * アクセス可能なホストのリストを返す。
-//     */
-//    suspend fun enumerateHosts():List<String> {
-//        val list = mutableListOf<String>()
-//        for(host in Settings.SecureArchive.hosts) {
-//            if(checkOneHost(host)) {
-//                list.add(host)
-//            }
-//        }
-//        return list
-//    }
-
-    /**
-     * アクセス可能なホストを見つけて認証する。
-     */
-    private suspend fun authenticate(preferPrimary: Boolean):Result {
-        checkHost(preferPrimary).let { if(!it.succeeded) return it }
-        if(checkAuthToken()) return Result.OK
-        return if(PasswordDialog.authenticate(activeHostLabel)) Result.OK else Result.CANCELLED
-    }
-
-    /**
-     * 認証の調停者
-     * UI操作やバックグラウンドで実行される通信処理などから、同時に認証が要求されたとき、
-     * 最初の要求のみ処理して、その他の要求は、最初の認証の結果を共有できるようにするクラス。
-     */
-    object AuthMediator {
-        val mutex = Mutex()
-        val result = MutableStateFlow<Boolean?>(null)
-        var processing = false
-
-        suspend fun authenticate(preferPrimary: Boolean):Boolean {
-            val generalAgent = mutex.withLock {
-                if(!processing) {
-                    processing = true
-                    result.value = null
-                    true        // 最初の要求
-                } else false    // ２つ目以降の要求
-            }
-            if (generalAgent) {
-                val r = internalAuthenticateAndMessage(preferPrimary)
-                result.value = r
+        ;
+        suspend fun message():Boolean {
+            if (error) {
                 mutex.withLock {
-                    processing = false
+                    UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
+                        showConfirmMessageBox(null, msg)
+                        true
+                    }
                 }
-                return r
             }
-            return result.filterNotNull().first()
+            return succeeded
         }
     }
 
-    suspend fun authenticateAndMessage(preferPrimary: Boolean):Boolean {
-        return AuthMediator.authenticate(preferPrimary)
+    /**
+     * primary/secondaryのうち、接続可能なホストに対して認証い、エラーメッセージも表示する。
+     */
+    suspend fun authAndMessage():AuthHost? {
+        return if (authenticate().message()) {
+            currentHost
+        } else null
     }
 
-
-
-    private suspend fun internalAuthenticateAndMessage(preferPrimary: Boolean):Boolean {
-        suspend fun showMessage(msg:String):Boolean {
-            UtImmortalTask.awaitTaskResult("authenticateAndMessage") {
-                showConfirmMessageBox(null, msg)
-                true
-            }
-            return false
+    /**
+     * primary/secondaryのうち、接続可能なホストに対して認証を行う。
+     */
+    suspend fun authenticate():Result {
+        when (currentHost?.authenticate()) {
+            AuthHost.AuthResult.AUTHORIZED-> return Result.OK
+            AuthHost.AuthResult.CANCELLED-> return Result.CANCELLED
+            else -> {}
         }
-        return logger.chronos(level = Log.INFO) {
-            when(authenticate(preferPrimary)) {
-                Result.OK -> true
-                Result.NO_HOST -> showMessage("No hosts are registered.")
-                Result.NO_ACTIVE_HOST -> showMessage("No hosts are active.")
-                Result.CANCELLED -> false
+        if (hosts.isEmpty()) return Result.NO_HOST
+        for(host in hosts) {
+            if (host == currentHost) continue
+            val r = authenticate(host)
+            if (r.error) continue
+            return r
+        }
+        return Result.NO_ACTIVE_HOST
+    }
+
+    /**
+     * 指定したホストに対して認証を行う
+     */
+    suspend fun authenticate(authHost:AuthHost):Result {
+        return mutex.withLock {
+            when (authHost.authenticate()) {
+                AuthHost.AuthResult.AUTHORIZED -> {
+                    logger.info("select ${authHost.displayName}")
+                    currentHost = authHost
+                    Result.OK
+                }
+
+                AuthHost.AuthResult.OFFLINE -> Result.NO_ACTIVE_HOST
+                AuthHost.AuthResult.CANCELLED -> Result.CANCELLED
             }
         }
     }

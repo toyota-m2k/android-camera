@@ -41,6 +41,7 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="15dp"
                 android:paddingVertical="0dp"
+                android:layout_marginBottom="10dp"
                 android:background="@drawable/shape_round"
                 android:clipToOutline="true"
                 tools:targetApi="31">
@@ -51,7 +52,7 @@
                     android:layout_weight="1"
                     android:layout_gravity="center_vertical"
                     android:textSize="18sp"
-                    android:textColor="?attr/colorPrimary"
+                    android:textColor="?attr/colorOnTertiary"
                     tools:text="Slot-N"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -61,6 +62,8 @@
                     android:paddingHorizontal="8dp"
                     android:paddingTop="6dp"
                     android:foregroundGravity="center"
+                    android:backgroundTint="?attr/colorTertiaryContainer"
+                    app:iconTint="?attr/colorOnTertiaryContainer"
                     app:icon="@drawable/ic_setting"
                     />
 

@@ -14,7 +14,6 @@ import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.immortalTaskContext
-import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.lib.media.editor.dialog.VideoPreviewDialog
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.secureCamera.R
@@ -35,8 +34,8 @@ class DetailMessageDialog : UtDialogEx() {
         val showDetailMessage = MutableStateFlow(false)
         lateinit var inputFile: File
         var chapters: List<IChapter>? = null
-        val commandPlay = LiteUnitCommand() {
-            immortalTaskContext.launchSubTask {
+        val commandPlay = LiteUnitCommand {
+            launchSubTask {
                 VideoPreviewDialog.show(inputFile.toUri().toString(), "preview", chapters) { builder ->
                     builder.enableSeekSmall(0,0)    // step by frame
                     builder.enableSeekMedium(1000, 1000)

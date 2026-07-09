@@ -12,6 +12,11 @@
         android:id="@+id/editor_player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        app:ampAttrsByParent="true"
+        app:ampButtonTintColor="?attr/colorTertiary"
+        app:ampRailLeftColor="?attr/colorTertiary"
+        app:ampRailRightColor="?attr/colorTertiaryContainer"
+        app:ampRangeEnabledColor="?attr/colorPrimary"
         />
 
     <!-- Guard View -->

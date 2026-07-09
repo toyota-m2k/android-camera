@@ -10,18 +10,43 @@
     android:gravity="center"
     tools:context=".ServerActivity">
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:background="@drawable/shape_round"
+        android:clipToOutline="true"
+        android:paddingHorizontal="15dp"
+        android:paddingVertical="0dp"
+        tools:targetApi="31"
+        >
+        <TextView
+            android:id="@+id/server_address"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:textColor="?attr/colorOnTertiary"
+            tools:text="192.168.0.12:5001"
+            />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/host_button"
+            android:layout_width="33dp"
+            android:layout_height="40dp"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="6dp"
+            android:foregroundGravity="center"
+            android:backgroundTint="?attr/colorTertiaryContainer"
+            app:iconTint="?attr/colorOnTertiaryContainer"
+            app:icon="@drawable/ic_setting"
+            />
+    </LinearLayout>
     <TextView
         android:id="@+id/server_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
         tools:text="Server Status: Listening..."
-        />
-    <TextView
-        android:id="@+id/server_address"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        tools:text="192.168.0.12:5001"
-        android:layout_marginTop="20dp"
         />
     <Button
         android:id="@+id/backup_button"

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
  * touch() したら、duration だけ延長する。
  * hold = true にすると、falseにされるまで、フラグは off にならない。
  */
+@OptIn(ExperimentalForInheritanceCoroutinesApi::class)
 class TimerFlag(private val duration: Long, private val innerFlow:MutableStateFlow<Boolean> = MutableStateFlow(false)) : StateFlow<Boolean> by innerFlow {
     private val scope = CoroutineScope(Dispatchers.IO+ SupervisorJob())
     private var startTick:Long = 0L

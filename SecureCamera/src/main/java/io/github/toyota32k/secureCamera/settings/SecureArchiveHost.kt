@@ -25,6 +25,7 @@ data class SecureArchiveHost(
     }
     val isPairedHost get() = !serviceName.isNullOrBlank()
     val displayName get() = if (isPairedHost) "$serviceName - $address" else address
+    val shortDisplayName get() = if (isPairedHost) serviceName else address
     val isValid get() = address.isNotBlank()
 
     companion object {

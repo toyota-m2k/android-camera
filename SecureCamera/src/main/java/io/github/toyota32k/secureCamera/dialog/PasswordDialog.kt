@@ -20,9 +20,8 @@ import io.github.toyota32k.dialog.task.getStringOrNull
 import io.github.toyota32k.dialog.task.immortalTaskContext
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.logger.UtLog
-import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
-import io.github.toyota32k.secureCamera.client.auth.Authentication
+import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.settings.HashGenerator
@@ -48,7 +47,8 @@ class PasswordDialog : UtDialogEx() {
 
         var mode: Mode = Mode.NEW_PASSWORD
         lateinit var passwordToCheck:String
-        var targetName:String? = null
+        lateinit var authHost:AuthHost
+//        val targetName:String get() = authHost.label
 
         val password = MutableStateFlow("")
         val passwordConf = MutableStateFlow("")
@@ -92,7 +92,7 @@ class PasswordDialog : UtDialogEx() {
 //        }
         suspend fun authenticate():Boolean {
             if(password.value.isEmpty()) return false
-            return Authentication.authWithPassword(password.value)
+            return authHost.tryAuthWithPassword(password.value)
         }
 
         companion object {
@@ -106,10 +106,10 @@ class PasswordDialog : UtDialogEx() {
                     passwordToCheck = hashedPassword
                 } ?: throw IllegalStateException("no task")
             }
-            fun createForAuthentication(taskName:String, targetName: String): PasswordViewModel {
+            fun createForAuthentication(taskName:String, authHost: AuthHost): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
                     mode = Mode.SA_AUTH
-                    this.targetName = targetName
+                    this.authHost = authHost
                 } ?: throw IllegalStateException("no task")
             }
 
@@ -127,11 +127,7 @@ class PasswordDialog : UtDialogEx() {
         heightOption = HeightOption.COMPACT
 //        title = requireActivity().getString(if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) R.string.authentication else R.string.password)
         title = if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) {
-            if(!viewModel.targetName.isNullOrEmpty()) {
-                viewModel.targetName
-            } else {
-                requireActivity().getString(R.string.authentication)
-            }
+            "${viewModel.authHost.label}-${viewModel.authHost.activeHost.displayName}"
         } else {
             requireActivity().getString(R.string.password)
         }
@@ -272,9 +268,9 @@ class PasswordDialog : UtDialogEx() {
             }
         }
 
-        suspend fun authenticate(targetName:String):Boolean {
+        suspend fun authenticate(authHost: AuthHost):Boolean {
             return UtImmortalTask.awaitTaskResult("auth") {
-                PasswordViewModel.createForAuthentication(taskName, targetName)
+                PasswordViewModel.createForAuthentication(taskName, authHost)
                 showDialog(taskName) { PasswordDialog() }.status.ok
             }
         }

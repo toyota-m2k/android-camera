@@ -29,6 +29,7 @@ import io.github.toyota32k.lib.camera.TcVideoResolution
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.TcClient
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogSettingBinding
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.utils.IUtPropOwner
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.enums.enumEntries
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
@@ -67,11 +69,11 @@ class SettingDialog : UtDialogEx() {
             ;
             object Resolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
-                    return enumValues<CameraTapAction>().find { it.selfieId==id }?.value
+                    return enumEntries<CameraTapAction>().find { it.selfieId==id }?.value
                 }
 
                 override fun value2id(v: Int): Int {
-                    return enumValues<CameraTapAction>().find { it.value==v }?.selfieId ?: NONE.selfieId
+                    return enumEntries<CameraTapAction>().find { it.value==v }?.selfieId ?: NONE.selfieId
                 }
             }
         }
@@ -85,10 +87,10 @@ class SettingDialog : UtDialogEx() {
 
             object Resolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
-                    return enumValues<CameraAspect>().find { it.btnId==id }?.value
+                    return enumEntries<CameraAspect>().find { it.btnId==id }?.value
                 }
                 override fun value2id(v: Int): Int {
-                    return enumValues<CameraAspect>().find { it.value == v }?.btnId ?: DEFAULT.btnId
+                    return enumEntries<CameraAspect>().find { it.value == v }?.btnId ?: DEFAULT.btnId
                 }
             }
             companion object {
@@ -102,25 +104,25 @@ class SettingDialog : UtDialogEx() {
 
             object CameraResolutionResolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
-                    return enumValues<Resolution>().find { it.cameraResolutionButtonId==id }?.value
+                    return enumEntries<Resolution>().find { it.cameraResolutionButtonId==id }?.value
                 }
                 override fun value2id(v: Int): Int {
-                    return enumValues<Resolution>().find { it.value == v }?.cameraResolutionButtonId ?: HIGH.cameraResolutionButtonId
+                    return enumEntries<Resolution>().find { it.value == v }?.cameraResolutionButtonId ?: HIGH.cameraResolutionButtonId
                 }
             }
 
             object SnapshotResolutionResolver : IIDValueResolver<Int> {
                 override fun id2value(id: Int): Int? {
-                    return enumValues<Resolution>().find { it.snapshotResolutionButtonId==id }?.value
+                    return enumEntries<Resolution>().find { it.snapshotResolutionButtonId==id }?.value
                 }
                 override fun value2id(v: Int): Int {
-                    return enumValues<Resolution>().find { it.value == v }?.snapshotResolutionButtonId ?: HIGH.snapshotResolutionButtonId
+                    return enumEntries<Resolution>().find { it.value == v }?.snapshotResolutionButtonId ?: HIGH.snapshotResolutionButtonId
                 }
             }
 
             companion object {
                 fun fromValue(v:Int):Resolution {
-                    return enumValues<Resolution>().find { it.value==v } ?: HIGH
+                    return enumEntries<Resolution>().find { it.value==v } ?: HIGH
                 }
             }
         }
@@ -255,9 +257,12 @@ class SettingDialog : UtDialogEx() {
                 Settings.Server.myPort = port.value
                 Settings.Server.ssl = ssl.value
             }
+            Authentication.resetWithSettings()
             if (deviceNameChanged) {
                 UtImmortalTask.launchTask {
-                    TcClient.registerOwnerToSecureArchive()
+                    Authentication.connectableHosts().forEach {
+                        TcClient.registerOwnerToSecureArchive(it.activeHost)
+                    }
                 }
             }
         }

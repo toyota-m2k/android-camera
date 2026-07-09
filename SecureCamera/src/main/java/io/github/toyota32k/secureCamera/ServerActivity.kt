@@ -20,16 +20,15 @@ import io.github.toyota32k.binder.multiEnableBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskBase
 import io.github.toyota32k.dialog.task.createViewModel
-import io.github.toyota32k.dialog.task.launchSubTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
 import io.github.toyota32k.dialog.task.showRadioSelectionBox
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.TcClient
-import io.github.toyota32k.secureCamera.client.TcClient.DeviceInfo
+import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.ActivityServerBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
@@ -41,14 +40,11 @@ import io.github.toyota32k.secureCamera.server.TcServer
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
-import io.github.toyota32k.utils.GenericCloseable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.collections.map
-import kotlin.collections.toTypedArray
 
 class ServerActivity : UtMortalActivity() {
     companion object {
@@ -60,24 +56,39 @@ class ServerActivity : UtMortalActivity() {
         val ssl = Settings.Server.ssl
         val server = TcServer(port)
         lateinit var address: String
-        val hostAddressText = MutableStateFlow("unknown")
+        val myAddressText = MutableStateFlow("unknown")
         val statusString = MutableStateFlow("Starting...")
         val backupCommand = LiteUnitCommand(::backup)
         val purgeCommand = LiteUnitCommand(::purge)
         val repairCommand = LiteUnitCommand(::repair)
         val migrateCommand = LiteUnitCommand(::migrate)
         val backupDbCommand = LiteUnitCommand(::backupDB)
+        val selectHostCommand = LiteUnitCommand {
+            viewModelScope.launch {
+                if (isBusy.value) return@launch
+                isBusy.value = true
+                try {
+                    selectHost(silent = false)
+                } finally {
+                    isBusy.value = false
+                }
+            }
+        }
         val isBusy = MutableStateFlow(false)
         val isMaintenanceMode = MutableStateFlow(false)
 
+        val selectedHost = MutableStateFlow<AuthHost?>(null)
         init {
             try {
                 logger.debug("start server")
+                isBusy.value = true
                 server.start()
-                statusString.value = "Running"
+                statusString.value = "Ready"
                 viewModelScope.launch {
                     address = NetworkUtils.getIpAddress(application)
-                    hostAddressText.value = "${if(ssl) "HTTPS" else "HTTP"} - $address:$port"
+                    myAddressText.value = "${if(ssl) "HTTPS" else "HTTP"} - $address:$port"
+                    selectHost(silent=true)
+                    isBusy.value = false
                 }
             } catch(e:Throwable) {
                 statusString.value = "Error"
@@ -85,13 +96,54 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
+        private suspend fun selectHostCore(silent:Boolean):AuthHost? {
+            if (Authentication.hosts.isEmpty()) {
+                if (!silent) {
+                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "No host registered.") }
+                }
+                return null
+            }
+            val connectables = Authentication.connectableHosts()
+            if (connectables.isEmpty()) {
+                if (!silent) {
+                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "No active host found.") }
+                }
+                return null
+            }
+            if (connectables.size == 1) {
+                val host = connectables.first()
+                if (!silent) {
+                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "${host.displayName}: single host") }
+                }
+                return host
+            }
+            return UtImmortalTask.awaitTaskResult {
+                val items = connectables.map { it.displayName }.toTypedArray()
+                val sel = showRadioSelectionBox("Select Host", items, 0)
+                if (sel<0||connectables.size<=sel) {
+                    if (!silent) {
+                        showConfirmMessageBox(null, "No host selected.")
+                    }
+                    null
+                } else connectables[sel]
+            }
+        }
+        private suspend fun selectHost(silent:Boolean):AuthHost? {
+            selectedHost.value = selectHostCore(silent)
+            return selectedHost.value
+        }
+        private suspend fun authenticatedHost():AuthHost? {
+            val sel = selectedHost.value ?: selectHost(silent=false) ?: return null
+            if (!Authentication.authenticate(sel).message()) {
+                return null
+            }
+            return sel
+        }
+
         private suspend fun backupCore(title:String, message:String, backupReq:suspend (String)->Unit) {
             if (isBusy.value) return
             isBusy.value = true
             try {
-                if (!Authentication.authenticateAndMessage(preferPrimary = true)) {
-                    return
-                }
                 val decision = UtImmortalTask.awaitTaskResult("Server.backup") {
                     showOkCancelMessageBox(
                         title,
@@ -115,14 +167,11 @@ class ServerActivity : UtMortalActivity() {
          */
         private fun backup() {
             viewModelScope.launch {
-                if (!Authentication.authenticateAndMessage(preferPrimary = true)) {
-                    return@launch
-                }
+                val host = authenticatedHost() ?: return@launch
                 backupCore(
                     "Backup Media Files",
-                    "Backup all media files to ${Authentication.activeHostLabel}",
-                    TcClient::requestBackupData
-                )
+                    "Backup all media files to ${host.displayName}",
+                ) { TcClient.requestBackupData(host, it) }
             }
         }
 
@@ -133,11 +182,11 @@ class ServerActivity : UtMortalActivity() {
          */
         private fun backupDB() {
             viewModelScope.launch {
+                val host = authenticatedHost() ?: return@launch
                 backupCore(
                     "Backup Databases",
-                    "Backup databases to ${Authentication.activeHostLabel}",
-                    TcClient::requestBackupDB
-                )
+                    "Backup databases to ${host.displayName}",
+                ) { TcClient.requestBackupDB(host,it)}
             }
         }
 
@@ -165,14 +214,15 @@ class ServerActivity : UtMortalActivity() {
             isBusy.value = true
             viewModelScope.launch {
                 try {
-                    val itemsOnServer = TcClient.getListForRepair(SlotSettings.currentSlotIndex) ?: return@launch
+                    val host = authenticatedHost() ?: return@launch
+                    val itemsOnServer = TcClient.getListForRepair(host, SlotSettings.currentSlotIndex) ?: return@launch
                     val itemsOnLocal = metaDb.list(PlayerActivity.ListMode.ALL).fold(mutableMapOf<Int, MetaData>()) { map, item -> map.apply { put(item.id, item)} }
                     var count = 0
                     for(item in itemsOnServer) {
                         if(!itemsOnLocal.contains(item.originalId)) {
                             // サーバーにのみ存在するレコード
                             logger.debug("found target item: ${item.name} / ${item.id}")
-                            metaDb.repairWithBackup(SCApplication.instance, item)
+                            metaDb.repairWithBackup(SCApplication.instance, item, host)
                             count++
                         }
                     }
@@ -195,9 +245,10 @@ class ServerActivity : UtMortalActivity() {
             UtImmortalTask.launchTask("migrate") {
                 isBusy.value = true
                 try {
+                    val host = authenticatedHost() ?: return@launchTask
                     // ターゲットデバイスを選択し、サーバーに対してマイグレーションの開始を宣言する。
                     val migration = try {
-                        prepareMigration(this)
+                        prepareMigration(host, this)
                     } catch(e:Throwable) {
                         logger.error(e, "migration cannot be started")
                         showConfirmMessageBox(
@@ -225,7 +276,7 @@ class ServerActivity : UtMortalActivity() {
                         // プログレスダイアログを閉じる
                         pvm.closeCommand.invoke(succeeded)
                         // サーバーに対して、マイグレーションの終了を宣言する
-                        TcClient.endMigration(migration.handle)
+                        TcClient.endMigration(migration)
                     }
                 } finally {
                     isBusy.value = false
@@ -242,8 +293,8 @@ class ServerActivity : UtMortalActivity() {
             }
         }
 
-        private suspend fun prepareMigration(task:UtImmortalTaskBase) : TcClient.MigrationInfo? {
-            val devices = TcClient.getDeviceListForMigration()
+        private suspend fun prepareMigration(host: AuthHost, task: IUtImmortalTask) : TcClient.MigrationInfo? {
+            val devices = TcClient.getDeviceListForMigration(host)
             var message:String? = null
             while (true) {
                 if (devices.isNullOrEmpty()) {
@@ -270,7 +321,7 @@ class ServerActivity : UtMortalActivity() {
 
                 val device = devices[index]
 
-                val migration = TcClient.startMigration(device)
+                val migration = TcClient.startMigration(host,device)
                 if (migration == null) {
                     message = "Failed to start migration."
                     break
@@ -288,12 +339,12 @@ class ServerActivity : UtMortalActivity() {
             return null
         }
 
-        private suspend fun migrateCore(task:UtImmortalTaskBase, migration:TcClient.MigrationInfo, pvm:ProgressDialog.ProgressViewModel):Boolean {
+        private suspend fun migrateCore(task: IUtImmortalTask, migration:TcClient.MigrationInfo, pvm:ProgressDialog.ProgressViewModel):Boolean {
             var cancelled = false
             pvm.message.value = "Migrating..."
             pvm.cancelCommand.bindForever { cancelled = true }
             // プログレスダイアログをモーダル表示
-            task.launchSubTask {
+            task.subTask().launchTask {
                 showDialog(ProgressDialog())
             }
 
@@ -312,7 +363,7 @@ class ServerActivity : UtMortalActivity() {
                         // 端末側DBに移行データのエントリーを作る
                         val data = dbCache[SlotIndex.fromIndex(entry.slot)].migrateOne(migration.handle, entry)
                         // DB的に移行が出来たことをサーバーに知らせる
-                        val result = TcClient.reportMigratedOne(migration.handle, entry, data.id)
+                        val result = TcClient.reportMigratedOne(migration, entry, data.id)
                         if (!result) {
                             // この状態になったら
                             // - この端末内に、エントリーが追加されている
@@ -340,7 +391,6 @@ class ServerActivity : UtMortalActivity() {
         }
     }
 
-
     private val viewModel by viewModels<ServerViewModel>()
     private lateinit var controls: ActivityServerBinding
     private val binder = Binder()
@@ -362,14 +412,14 @@ class ServerActivity : UtMortalActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binder.owner(this)
-//            .bindCommand(LiteUnitCommand(),controls.closeButton) { finish() }
-            .textBinding(controls.serverStatus, viewModel.statusString.map { "Server Status: $it"})
-            .textBinding(controls.serverAddress, viewModel.hostAddressText)
+            .textBinding(controls.serverStatus, viewModel.statusString.map { "Status: $it"})
+            .textBinding(controls.serverAddress, viewModel.selectedHost.map { it?.displayName ?: "Host is not selected." })
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
             .bindCommand(viewModel.repairCommand, controls.repairButton)
             .bindCommand(viewModel.migrateCommand, controls.migrateButton)
             .bindCommand(viewModel.backupDbCommand, controls.backupDbButton)
+            .bindCommand(viewModel.selectHostCommand, controls.hostButton)
             .checkBinding(controls.maintenanceCheckbox, viewModel.isMaintenanceMode)
             .multiEnableBinding(arrayOf(controls.purgeButton,controls.backupButton, controls.repairButton, controls.migrateButton), viewModel.isBusy, boolConvert = BoolConvert.Inverse)
             .combinatorialVisibilityBinding(viewModel.isMaintenanceMode) {
@@ -378,5 +428,4 @@ class ServerActivity : UtMortalActivity() {
             }
             .visibilityBinding(controls.progressRing, viewModel.isBusy, hiddenMode = VisibilityBinding.HiddenMode.HideByInvisible)
     }
-
 }

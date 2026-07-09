@@ -6,7 +6,6 @@ import androidx.work.WorkerParameters
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.Canceller
 import io.github.toyota32k.secureCamera.client.NetClient
-import io.github.toyota32k.secureCamera.client.TcClient.sizeInKb
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
@@ -15,10 +14,8 @@ import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.utils.worker.UtTaskWorker
 import io.github.toyota32k.utils.worker.WorkerParams
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import okhttp3.Request
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
@@ -27,10 +24,9 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
     companion object {
         val logger = UtLog("Downloader", null, Downloader::class.java)
         val exclusiveRunner = ExclusiveRunner(logger, "Downloader")
-        fun download(context: Context, item: ItemEx, filePath: String, updateFileStatus: Boolean) {
-            val data = DLTargetParams(item, filePath, updateFileStatus).produce()
+        fun download(context: Context, item: ItemEx, filePath: String, updateFileStatus: Boolean, serverUri:String) {
+            val data = DLTargetParams(item, filePath, updateFileStatus, serverUri).produce()
             executeOneTimeWorker<Downloader>(context, data)
-            logger.debug("request accepted: slot=${item.slot}, itemId=${item.id}, url=${item.serverUri}, filePath=$filePath, updateFileStatus=$updateFileStatus")
         }
 
         fun File.safeDelete() {
@@ -52,10 +48,10 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
         var filePath: String? by delegate.stringNullable
         var updateFileStatus: Boolean by delegate.booleanFalse
 
-        constructor(item: ItemEx, filePath: String, updateFileStatus: Boolean) : this(null) {
+        constructor(item: ItemEx, filePath: String, updateFileStatus: Boolean, serverUri:String) : this(null) {
             this.slot = item.slot
             this.itemId = item.id
-            this.url = item.serverUri
+            this.url = serverUri
             this.name = item.name
             this.filePath = filePath
             this.updateFileStatus = updateFileStatus
@@ -76,7 +72,7 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
 
     override suspend fun doWork(): Result {
         val target = DLTargetParams(inputData)
-        if (!Authentication.authenticateAndMessage(preferPrimary = false)) return error("not authenticated")
+        val host = Authentication.authAndMessage() ?: return error("not authenticated")
         val itemId = target.itemId
         val slot = target.slot
         if (slot < 0 || itemId < 0) return error("invalid item")
@@ -101,7 +97,7 @@ class Downloader(context: Context, params: WorkerParameters) : UtTaskWorker(cont
                         val request = Request.Builder()
                             .url(target.url)
                             .build()
-                        NetClient.executeAsync(request, canceller).use { response ->
+                        NetClient.executeAsync(request, host.activeHost, canceller).use { response ->
                             if (response.isSuccessful) {
                                 response.body.use { body ->
                                     val totalLength =

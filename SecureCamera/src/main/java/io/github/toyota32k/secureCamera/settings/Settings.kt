@@ -8,6 +8,7 @@ import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.TcAspect
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.R
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.utils.IThemeList
 import io.github.toyota32k.secureCamera.utils.ThemeInfo
@@ -28,6 +29,7 @@ object Settings {
         if(SecureArchive.clientId.isEmpty()) {
             SecureArchive.clientId = UUID.randomUUID().toString()
         }
+        Authentication.resetWithSettings()
     }
 
     object ThemeList: IThemeList {
@@ -221,6 +223,7 @@ object Settings {
     }
 
     object PlayListSetting {
+        var listModeKey by spd.pref(0)
         var sortKey by spd.pref(0)  // 0: Date / 1: Size
         var sortOrder by spd.pref(false)    // 日付昇順がデフォルト
         var enableStartDate by spd.pref(false)
@@ -242,6 +245,9 @@ object Settings {
         var endDate:DPDate
             get() = DPDate.fromInt(endDateInt)
             set(v) { endDateInt = v.intValue }
+        var listMode: PlayerActivity.ListMode
+            get() = PlayerActivity.ListMode.fromKey(listModeKey)
+            set(v) { listModeKey = v.key }
 
         fun reset() {
             sortOrder = false

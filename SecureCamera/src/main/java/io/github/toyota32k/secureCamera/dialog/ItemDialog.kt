@@ -5,11 +5,9 @@ import android.view.View
 import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.BindingMode
 import io.github.toyota32k.binder.VisibilityBinding
-import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.ReliableCommand
 import io.github.toyota32k.binder.command.bindCommand
-import io.github.toyota32k.binder.enableBinding
 import io.github.toyota32k.binder.materialRadioUnSelectableButtonGroupBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
@@ -18,11 +16,11 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.dialog.task.showOkCancelMessageBox
-import io.github.toyota32k.media.lib.io.HttpFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
+import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.databinding.DialogItemBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.DBChange
@@ -31,10 +29,13 @@ import io.github.toyota32k.secureCamera.db.Mark
 import io.github.toyota32k.secureCamera.db.MetaDB
 import io.github.toyota32k.secureCamera.db.Rating
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 class ItemDialog : UtDialogEx() {
     class ItemViewModel : UtDialogViewModel() {
@@ -62,14 +63,17 @@ class ItemDialog : UtDialogEx() {
             metaDb.backupToCloud(item.value)
         }
         val informationCommand = LiteUnitCommand {
-            val item = item.value
-            val inFile = if(item.cloud.isFileInLocal) {
-                metaDb.fileOf(item).toAndroidFile()
-            } else {
-                OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item))
+            CoroutineScope(Dispatchers.IO).launch {
+                val item = item.value
+                val inFile = if (item.cloud.isFileInLocal) {
+                    metaDb.fileOf(item).toAndroidFile()
+                } else {
+                    val host = Authentication.authAndMessage() ?: return@launch
+                    OkHttpInputFile(SCApplication.instance, metaDb.urlOf(item, host))
+                }
+                val summary = Analyzer.analyze(inFile)
+                ReportTextDialog.show(item.name, summary.toString())
             }
-            val summary = Analyzer.analyze(inFile)
-            ReportTextDialog.show(item.name, summary.toString())
         }
         val deleteCommand = LiteUnitCommand {
             UtImmortalTask.launchTask {
