@@ -56,6 +56,12 @@ configure<ApplicationExtension> {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
+    packaging {
+        resources {
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/NOTICE.md"
+        }
+    }
 }
 
 kotlin {
