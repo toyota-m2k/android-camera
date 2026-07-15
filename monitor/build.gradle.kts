@@ -7,7 +7,7 @@ plugins {
 
 configure<ApplicationExtension> {
     namespace = "io.github.toyota32k.monitor"
-    compileSdk = 36
+    compileSdk = 37
 
     signingConfigs {
         val properties = Properties()
@@ -31,7 +31,7 @@ configure<ApplicationExtension> {
     defaultConfig {
         applicationId = "io.github.toyota32k.monitor"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -44,6 +44,7 @@ configure<ApplicationExtension> {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val sign = signingConfigs.findByName("release")
             if(sign!=null) {
@@ -58,15 +59,13 @@ configure<ApplicationExtension> {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
+    jvmToolchain(21)
 }
 
 dependencies {

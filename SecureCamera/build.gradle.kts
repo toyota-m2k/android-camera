@@ -11,7 +11,7 @@ plugins {
 
 configure<ApplicationExtension> {
     namespace = "io.github.toyota32k.secureCamera"
-    compileSdk = 36
+    compileSdk = 37
 
     signingConfigs {
         val properties = Properties()
@@ -33,9 +33,9 @@ configure<ApplicationExtension> {
     defaultConfig {
         applicationId = "io.github.toyota32k.secureCamera"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
-        versionName = "2.28.0"
+        versionName = "2.29.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures {
@@ -53,9 +53,13 @@ configure<ApplicationExtension> {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {

@@ -10,7 +10,7 @@ version="1.0"
 
 configure<LibraryExtension> {
     namespace = "io.github.toyota32k.camera"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -28,8 +28,8 @@ configure<LibraryExtension> {
         buildConfig = true
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     publishing {
@@ -38,6 +38,10 @@ configure<LibraryExtension> {
 //            withJavadocJar()
         }
     }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {
