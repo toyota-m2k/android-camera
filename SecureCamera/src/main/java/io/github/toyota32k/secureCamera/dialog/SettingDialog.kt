@@ -17,6 +17,7 @@ import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.sliderBinding
 import io.github.toyota32k.binder.textBinding
 import io.github.toyota32k.binder.visibilityBinding
+import io.github.toyota32k.boodroid.data.ActiveHostTracker
 import io.github.toyota32k.dialog.UtDialogEx
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
@@ -370,6 +371,18 @@ class SettingDialog : UtDialogEx() {
                     .add(UtClickRepeater(controls.skipForwardMinus))
                     .add(UtClickRepeater(controls.skipForwardPlus))
             }
+        }
+    }
+
+    override fun onDialogOpening() {
+        super.onDialogOpening()
+        ActiveHostTracker.stop()
+    }
+
+    override fun onDialogClosed() {
+        super.onDialogClosed()
+        if (Settings.SecureArchive.hasPairedHost) {
+            ActiveHostTracker.start()
         }
     }
 

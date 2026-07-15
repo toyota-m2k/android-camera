@@ -1,7 +1,9 @@
 package io.github.toyota32k.secureCamera
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.PopupMenu
@@ -114,6 +116,7 @@ class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
             viewModel.busy.value = false
         }
     }
+
     private fun setting() {
         viewModel.busy.value = true
         lifecycleScope.launch {

@@ -1,12 +1,17 @@
 package io.github.toyota32k.secureCamera
 
+import android.Manifest
 import android.app.Application
 import android.graphics.Rect
+import android.os.Build
 import android.util.Log
 import io.github.toyota32k.boodroid.data.ActiveHostTracker
 import io.github.toyota32k.dialog.UtDialog
+import io.github.toyota32k.dialog.UtDialogBase
 import io.github.toyota32k.dialog.UtDialogConfig
 import io.github.toyota32k.dialog.UtStandardString
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.withActivity
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.logger.UtLogConfig
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -38,8 +43,10 @@ class SCApplication : Application() {
         Settings.initialize(this)
         UtStandardString.setContext(this)
 
-        if (Settings.SecureArchive.hasPairedHost) {
-            ActiveHostTracker.start()
+        UtImmortalTask.launchTask {
+            if (Settings.SecureArchive.hasPairedHost) {
+                ActiveHostTracker.start()
+            }
         }
     }
 

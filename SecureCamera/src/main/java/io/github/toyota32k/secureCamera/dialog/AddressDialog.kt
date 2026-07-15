@@ -1,6 +1,7 @@
 package io.github.toyota32k.secureCamera.dialog
 
 import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.core.net.toUri
@@ -24,7 +25,10 @@ import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.getViewModel
+import io.github.toyota32k.dialog.task.withActivity
+import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.client.BooTubeDiscovery
@@ -94,9 +98,20 @@ class AddressDialog : UtDialogEx() {
         val discovering = MutableStateFlow<Boolean>(false)
         val commandDiscover = LiteUnitCommand {
             // （開始されていなければ）mDNSの検索を開始する
-            if (!discovering.value) {
-                discovering.value = true
-                discoveryModel.start(viewModelScope)
+            UtImmortalTask.launchTask {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+                    val permitted = withActivity<MainActivity, Boolean> { activity ->
+                        activity.activityBrokers.permissionBroker.requestPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)
+                    }
+                    if (!permitted) {
+                        logger.warn("ACCESS_LOCAL_NETWORK permission denied.")
+                        return@launchTask
+                    }
+                }
+                if (!discovering.value) {
+                    discovering.value = true
+                    discoveryModel.start(viewModelScope)
+                }
             }
         }
 
@@ -233,9 +248,7 @@ class AddressDialog : UtDialogEx() {
                 viewModel.pairingHost = pairing.toHost()
             }
         }
-
     }
-
 
     companion object {
         data class Result(val status:Boolean, val host: SecureArchiveHost?)

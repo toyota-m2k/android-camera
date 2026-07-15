@@ -1,6 +1,12 @@
 package io.github.toyota32k.boodroid.data
 
+import android.Manifest
+import android.os.Build
+import io.github.toyota32k.dialog.UtDialogBase
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.withActivity
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.secureCamera.MainActivity
 import io.github.toyota32k.secureCamera.client.BooTubeDiscovery
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -36,28 +42,36 @@ object ActiveHostTracker {
     private var collectorJob: Job? = null
 
     fun start() {
-        synchronized(this) {
-            if (discovery != null) return
-            val d = BooTubeDiscovery()
-            discovery = d
-            d.start()
-            collectorJob = CoroutineScope(Dispatchers.IO).launch {
-                d.services.collect { servers ->
-                    handleServerUpdates(servers)
+        UtImmortalTask.launchTask {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+                val permitted = withActivity<MainActivity, Boolean> { activity ->
+                    activity.activityBrokers.permissionBroker.requestPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)
+                }
+                if (!permitted) {
+                    UtDialogBase.logger.warn("ACCESS_LOCAL_NETWORK permission denied.")
+                    return@launchTask
                 }
             }
-            logger.debug("ActiveHostTracker started")
+
+            if (discovery != null) return@launchTask
+            discovery = BooTubeDiscovery().apply {
+                start()
+                collectorJob = CoroutineScope(Dispatchers.IO).launch {
+                    services.collect { servers ->
+                        handleServerUpdates(servers)
+                    }
+                }
+                logger.debug("ActiveHostTracker started")
+            }
         }
     }
 
     fun stop() {
-        synchronized(this) {
-            collectorJob?.cancel()
-            collectorJob = null
-            discovery?.stop()
-            discovery = null
-            logger.debug("ActiveHostTracker stopped")
-        }
+        collectorJob?.cancel()
+        collectorJob = null
+        discovery?.stop()
+        discovery = null
+        logger.debug("ActiveHostTracker stopped")
     }
 
     private fun handleServerUpdates(servers: List<BooTubeDiscovery.DiscoveredServer>) {
