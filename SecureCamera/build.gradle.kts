@@ -11,7 +11,10 @@ plugins {
 
 configure<ApplicationExtension> {
     namespace = "io.github.toyota32k.secureCamera"
-    compileSdk = 37
+    compileSdk {
+        version = release(37)
+        compileSdkMinor = 1
+    }
 
     signingConfigs {
         val properties = Properties()

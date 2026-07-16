@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="5dp"
+    android:paddingVertical="10dp"
+    android:background="@color/color_list_item_background"
+    >
+    <CheckBox
+        android:id="@+id/check_box"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:clickable="false"
+        android:checked="false"
+        android:buttonTint="@color/color_icon_options"
+        />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        >
+    <ImageView
+        android:id="@+id/icon_view"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_type_photo"
+        app:tint="@color/color_icon_accent"
+        android:contentDescription="@string/file_type" />
+    <ImageView
+        android:id="@+id/icon_mark"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/icon_view"
+        tools:src="@drawable/ic_mark_flag"
+        app:tint="@color/color_icon_options"
+        android:layout_marginTop="10dp"
+        android:contentDescription="@string/file_type" />
+
+    <TextView
+        android:id="@+id/text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@+id/icon_view"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        android:layout_marginStart="10dp"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/color_list_item_text"
+        tools:text="mov-2023.05.01-19:20:30.mp4"
+        />
+    <TextView
+        android:id="@+id/size_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@+id/icon_mark"
+        app:layout_constraintTop_toTopOf="@+id/icon_mark"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
+        android:layout_marginStart="10dp"
+        android:textSize="14sp"
+        android:textColor="@color/color_list_item_text_variant"
+        tools:text="1.234 MB"
+        />
+    <ImageView
+        android:id="@+id/icon_rating"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        app:tint="@color/color_icon_options"
+        tools:src="@drawable/ic_rating_3"
+        android:contentDescription="@string/rating_desc" />
+
+    <ImageView
+        android:id="@+id/icon_cloud"
+        android:layout_width="@dimen/icon_size_in_list"
+        android:layout_height="@dimen/icon_size_in_list"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintEnd_toStartOf="@+id/icon_rating"
+        app:layout_constraintTop_toTopOf="@+id/icon_view"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_view"
+        tools:src="@drawable/ic_cloud"
+        app:tint="@color/color_icon_options"
+        android:contentDescription="@string/uploaded" />
+
+    <TextView
+        android:id="@+id/duration_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/icon_mark"
+        app:layout_constraintBottom_toBottomOf="@+id/icon_mark"
+        android:textColor="@color/color_list_item_text_variant"
+        tools:text="1.234 sec"
+        />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

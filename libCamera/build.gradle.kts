@@ -10,7 +10,10 @@ version="1.0"
 
 configure<LibraryExtension> {
     namespace = "io.github.toyota32k.camera"
-    compileSdk = 37
+    compileSdk {
+        version = release(37)
+        compileSdkMinor = 1
+    }
 
     defaultConfig {
         minSdk = 26

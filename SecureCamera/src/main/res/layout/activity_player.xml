@@ -87,8 +87,8 @@
                 android:background="?attr/selectableItemBackground"
                 app:tint="?attr/colorPrimaryVariant" />
         </LinearLayout>
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/list_view"
+        <io.github.toyota32k.secureCamera.dialog.ItemListView
+            android:id="@+id/item_list_view"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
