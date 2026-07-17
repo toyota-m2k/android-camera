@@ -728,9 +728,10 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
                     data.id,
                     storedEntry.toChaptersList()
                         .map { ChapterData(0, data.id, it.position, it.label, it.skip) })
-                // 変更イベントを発行
-                DBChange.add(data.id)
                 data
+            }.apply {
+                // 変更イベントを発行
+                DBChange.add(id)
             }
         }
     }

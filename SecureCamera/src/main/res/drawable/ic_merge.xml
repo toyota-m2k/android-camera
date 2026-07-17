@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- drawable/ic_merge.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp" android:width="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#000000" android:pathData="M 8 17L 12 13H 15.2C 15.6 14.2 16.7 15 18 15 19.7 15 21 13.7 21 12S 19.7 9 18 9C 16.7 9 15.6 9.8 15.2 11H 12L 8 7V 3H 3V 8H 6L 10.2 12 6 16H 3V 21H 8V 17Z" />
+</vector>

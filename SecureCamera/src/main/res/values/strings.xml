@@ -184,4 +184,6 @@
     <string name="bottom">Bottom</string>
     <string name="no_jump">Stay</string>
     <string name="stay">Stay</string>
+    <string name="source_text">Sources</string>
+    <string name="destination_text">Marge Targets</string>
 </resources>

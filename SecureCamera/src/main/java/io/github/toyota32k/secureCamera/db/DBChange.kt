@@ -17,20 +17,20 @@ class DBChange(val type:Type, val itemId:Int) {
         Refresh,
     }
     companion object {
-        private val nf = MutableSharedFlow<DBChange>(replay = 0, extraBufferCapacity=1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        private val nf = MutableSharedFlow<DBChange>(replay = 0, extraBufferCapacity=1, onBufferOverflow = BufferOverflow.SUSPEND)
         val observable : Flow<DBChange> = nf
 
-        fun add(itemId:Int) {
-            nf.tryEmit(DBChange(Type.Add,itemId))
+        suspend fun add(itemId:Int) {
+            nf.emit(DBChange(Type.Add,itemId))
         }
-        fun update(itemId:Int) {
-            nf.tryEmit(DBChange(Type.Update,itemId))
+        suspend fun update(itemId:Int) {
+            nf.emit(DBChange(Type.Update,itemId))
         }
-        fun delete(itemId:Int) {
-            nf.tryEmit(DBChange(Type.Delete,itemId))
+        suspend fun delete(itemId:Int) {
+            nf.emit(DBChange(Type.Delete,itemId))
         }
-        fun refresh() {
-            nf.tryEmit(DBChange(Type.Refresh,0))
+        suspend fun refresh() {
+            nf.emit(DBChange(Type.Refresh,0))
         }
 
 //        fun observe(coroutineScope: CoroutineScope, fn:(DBChange)->Unit) {

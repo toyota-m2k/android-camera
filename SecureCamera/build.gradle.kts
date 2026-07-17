@@ -96,6 +96,7 @@ dependencies {
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.view)
 
+    implementation(libs.android.logger)
     implementation(libs.android.utilities)
     implementation(libs.android.binding)
     implementation(libs.android.viewex)

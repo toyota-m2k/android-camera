@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.IdRes
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
@@ -34,12 +35,15 @@ import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
+import io.github.toyota32k.lib.media.editor.model.ChapterEditorHandler
 import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.lib.player.TpLib
 import io.github.toyota32k.lib.player.model.BitmapInfo
 import io.github.toyota32k.lib.player.model.IBitmapInfo
+import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IChapterList
 import io.github.toyota32k.lib.player.model.IMediaFeed
 import io.github.toyota32k.lib.player.model.IMediaMetadataRetrieverSource
@@ -53,9 +57,24 @@ import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
 import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.VisibleAreaParams.Companion.IDENTITY
+import io.github.toyota32k.lib.player.model.addChapter
+import io.github.toyota32k.lib.player.model.chapter.ChapterEditor
 import io.github.toyota32k.lib.player.model.chapter.ChapterList
+import io.github.toyota32k.lib.player.model.chapter.MutableChapterList
 import io.github.toyota32k.logger.UtLog
+import io.github.toyota32k.media.lib.io.HttpInputFile
+import io.github.toyota32k.media.lib.io.IInputMediaFile
 import io.github.toyota32k.media.lib.io.toAndroidFile
+import io.github.toyota32k.media.lib.processor.Analyzer
+import io.github.toyota32k.media.lib.processor.ConcatOptions
+import io.github.toyota32k.media.lib.processor.Processor
+import io.github.toyota32k.media.lib.report.Summary
+import io.github.toyota32k.media.lib.strategy.IVideoStrategy
+import io.github.toyota32k.media.lib.strategy.MaxDefault
+import io.github.toyota32k.media.lib.strategy.MinDefault
+import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
+import io.github.toyota32k.media.lib.strategy.VideoStrategy
+import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
 import io.github.toyota32k.secureCamera.client.TcClient
@@ -68,12 +87,15 @@ import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.ScDB
 import io.github.toyota32k.secureCamera.dialog.ItemDialog
 import io.github.toyota32k.secureCamera.dialog.ItemListView
+import io.github.toyota32k.secureCamera.dialog.MergeVideoDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListOptionsDialog
+import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotSettings
+import io.github.toyota32k.secureCamera.utils.FileUtil
 import io.github.toyota32k.secureCamera.utils.FileUtil.safeDelete
 import io.github.toyota32k.secureCamera.utils.setSecureMode
 import io.github.toyota32k.utils.IUtPropOwner
@@ -84,6 +106,7 @@ import io.github.toyota32k.utils.android.RefBitmap
 import io.github.toyota32k.utils.android.RefBitmap.Companion.toRef
 import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
+import io.github.toyota32k.utils.android.UtJavaFile
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.Direction
@@ -105,6 +128,8 @@ import java.io.File
 import java.util.Date
 import java.util.EnumSet
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.getValue
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -446,6 +471,8 @@ class PlayerActivity : UtMortalActivity() {
             override val enableReOrder: Boolean = false
             override val deletionHandler:RecyclerViewBinding.IDeletionHandler<ItemEx> = ItemDeletionHandler()
             override val commandActionOnItem = LiteCommand<ItemEx>()
+            override val hasPreviewButton: Boolean = false
+            override val noSelectionHighlights: Boolean = false
 
             private var photoSelection:ItemEx? = null
             private var videoSelection:ItemEx? = null
@@ -770,65 +797,6 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.playlist.commandActionOnItem) { item->
                 startEditing(item)
             }
-//            .recyclerViewBindingEx<ItemEx,ListItemBinding>(controls.listView) {
-//                list(viewModel.playlist.itemList)
-//                gestureParams(viewModel.allowDelete.map { RecyclerViewBinding.GestureParams(false,it,itemDeletionHandler)})
-//                inflate { ListItemBinding.inflate(layoutInflater, it, false) }
-//                bindView { ctrls, itemBinder, views, item->
-//                    val isVideo = item.isVideo
-//                    views.isSelected = false
-//                    views.tag = item
-//                    ctrls.textView.text = item.nameForDisplay
-//                    ctrls.sizeView.text = formatSize(item.size)
-//                    if(!isVideo) {
-//                        ctrls.durationView.visibility = View.GONE
-//                    } else {
-//                        ctrls.durationView.text = formatTime(item.duration,item.duration)
-//                        ctrls.durationView.visibility = View.VISIBLE
-//                    }
-//                    ctrls.iconView.setImageDrawable(if(isVideo) icVideo() else icPhoto())
-//                    val markIcon = when(item.mark) {
-//                        Mark.None -> null
-//                        Mark.Star -> icMarkStar()
-//                        Mark.Flag -> icMarkFlag()
-//                        Mark.Check -> icMarkCheck()
-//                    }
-//                    ctrls.iconMark.setImageDrawable(markIcon)
-//                    val ratingIcon = when(item.rating) {
-//                        Rating.RatingNone -> null
-//                        Rating.Rating1 -> icRating1()
-//                        Rating.Rating2 -> icRating2()
-//                        Rating.Rating3 -> icRating3()
-//                        Rating.Rating4 -> icRating4()
-//                    }
-//                    ctrls.iconRating.setImageDrawable(ratingIcon)
-//
-//                    val cloudIcon = when(item.cloud) {
-//                        CloudStatus.Local-> null
-//                        CloudStatus.Uploaded->icCloud()
-//                        CloudStatus.Cloud->icCloudFull()
-//                    }
-//                    ctrls.iconCloud.setImageDrawable(cloudIcon)
-//
-//                    itemBinder
-//                        .owner(this@PlayerActivity)
-//                        .bindCommand(LiteUnitCommand {
-//                            if(item==viewModel.playlist.currentSelection.value) {
-//                                startEditing(item)
-//                            } else {
-//                                viewModel.playlist.select(item, false)
-//                            }
-//                        }, views)
-//                        .bindCommand(LongClickUnitCommand {
-//                            viewModel.playlist.select(item, false)
-//                            startEditing(item)
-//                        }, views )
-//                        .headlessNonnullBinding(viewModel.playlist.currentSelection.map { it?.id == item.id }) { hit->
-//                            views.isSelected = hit
-//                        }
-//
-//                }
-//            }
 
         controls.mediaPlayerView.bindViewModel(viewModel.playerControllerModel, binder)
 
@@ -908,7 +876,7 @@ class PlayerActivity : UtMortalActivity() {
             if(showDialog(taskName) { ItemDialog() }.status.ok) {
                 vm.saveIfNeed()
                 val item2 = vm.item.value
-                when(vm.nextAction) {
+                when (vm.nextAction) {
                     ItemDialog.ItemViewModel.NextAction.EditItem -> editItem(item2)
                     ItemDialog.ItemViewModel.NextAction.PurgeLocal -> viewModel.metaDb.purgeLocalFile(item2)
                     ItemDialog.ItemViewModel.NextAction.RestoreLocal -> {
@@ -929,8 +897,117 @@ class PlayerActivity : UtMortalActivity() {
                         // Item Dialog で確認済み
                         viewModel.metaDb.deleteFile(item)
                     }
+
+                    ItemDialog.ItemViewModel.NextAction.Merge -> {
+                        val videoList = viewModel.metaDb.listEx(ListMode.VIDEO)
+                        val selected = MergeVideoDialog.show(viewModel.metaDb,item2, videoList)
+                        if (selected != null && selected.size>1) {
+                            mergeVideos(selected)
+                        }
+                    }
                     else -> {}
                 }
+            }
+        }
+    }
+
+    private fun mergeVideos(items:List<ItemEx>) {
+        fun getMediaInputFile(item:ItemEx) : IInputMediaFile {
+            val url = viewModel.metaDb.urlOf(item)
+            return url.toUri().run {
+                when (scheme?.lowercase()) {
+                    "http", "https" -> HttpInputFile(applicationContext, url)
+                    else -> toAndroidFile(applicationContext)
+                }
+            }
+        }
+        fun nearestVideoStrategy(inputSummary: Summary): IVideoStrategy {
+            val summary = inputSummary.videoSummary ?: throw IllegalStateException("video summary is not available.")
+            return VideoStrategy(
+                summary.codec ?: throw IllegalStateException("unknown video codec."),
+                summary.profile ?: throw IllegalStateException("unknown video codec profile"),
+                summary.level,
+                null,
+                VideoStrategy.SizeCriteria(Int.MAX_VALUE, Int.MAX_VALUE),
+                MaxDefault(Int.MAX_VALUE,max(summary.bitRate, 768*1000)),
+                MaxDefault(30, max(summary.frameRate, 24)),
+                MinDefault(1, summary.iFrameInterval.takeIf { it > 0 } ?: 30),
+                null,
+                null,)
+        }
+
+        suspend fun replaceVideoFile(outFile: File, replacingItem:ItemEx, newChapterList:List<IChapter>) {
+            val targetFile = viewModel.metaDb.fileOf(replacingItem)
+            if (FileUtil.safeOverwrite(applicationContext, outFile, targetFile)) {
+                // DBを更新
+                viewModel.metaDb.updateFile(replacingItem, newChapterList)
+                logger.debug("overwritten.")
+            } else {
+                logger.error("cannot overwrite")
+            }
+        }
+
+        if (items.size<2) return
+        UtImmortalTask.launchTask {
+            val processor = Processor()
+            val sink = io.github.toyota32k.lib.media.editor.dialog.ProgressDialog.showProgressDialog("Marging", processor)
+            val message = withContext(Dispatchers.IO) {
+                val tempFile = File.createTempFile("SCW", ".mp4", applicationContext.cacheDir)
+                try {
+                    val strategy = nearestVideoStrategy(Analyzer.analyze(getMediaInputFile(items.first())))
+                    val options = ConcatOptions.Builder()
+                        .apply {
+                            items.forEach { item->
+                                addInput(getMediaInputFile(item)) {
+                                    addRangesMs(ChapterEditor(MutableChapterList(item.chapterList?:emptyList())).enabledRanges().map {
+                                            RangeMs(it.start, it.actualEnd(item.duration))
+                                    })
+                                }
+                            }
+                        }
+                        .output(tempFile)
+                        .audioStrategy(PresetAudioStrategies.AACDefault)
+                        .videoStrategy(strategy)
+                        .optimize(applicationContext, true)
+                        .build()
+                    processor.concat(options, sink::onProgress).apply {
+                        if (succeeded) {
+                            // 結合成功
+                            // 先頭ファイルを置き換える
+                            val newChapters = MutableChapterList()
+                            if (subResults.size == items.size) {
+                                val count = items.size
+                                for (i in 0 until count) {
+                                    val s = subResults[i]
+                                    val item = items[i]
+                                    val sm = s.soughtMap ?: continue
+                                    val cl = item.chapterList ?: continue
+                                    val newChapter = ChapterEditorHandler.correctChapterList(sm, ChapterList(cl))
+                                    newChapter.forEach { newChapters.addChapter(it) }
+                                }
+                            }
+                            replaceVideoFile(tempFile, items.first(), newChapters.chapters)
+                            // それ以外のファイルは削除する
+                            items.drop(1).forEach { viewModel.metaDb.deleteFile(it) }
+                        } else {
+                            throw exception ?: CancellationException()
+                        }
+                    }
+                    null
+                } catch(e:Throwable) {
+                    if (e !is CancellationException) {
+                        logger.error(e)
+                        null
+                    } else {
+                        e.message ?: "error on merging files"
+                    }
+                } finally {
+                    sink.complete()
+                    tempFile.safeDelete()
+                }
+            }
+            if (message != null) {
+                showConfirmMessageBox("Error", message)
             }
         }
     }

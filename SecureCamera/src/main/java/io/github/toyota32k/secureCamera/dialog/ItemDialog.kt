@@ -51,6 +51,7 @@ class ItemDialog : UtDialogEx() {
             RestoreLocal,
             Repair,
             Delete,
+            Merge,
         }
 
         var nextAction = NextAction.None
@@ -142,6 +143,7 @@ class ItemDialog : UtDialogEx() {
             .visibilityBinding(controls.removeLocalButton, viewModel.item.map { it.cloud == CloudStatus.Uploaded }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.restoreLocalButton, viewModel.item.map { it.cloud == CloudStatus.Cloud }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
             .visibilityBinding(controls.repairButton, viewModel.item.map { it.cloud != CloudStatus.Cloud && viewModel.enableSyncWithSA }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
+            .visibilityBinding(controls.buttonMerge, viewModel.item.map { it.isVideo }, hiddenMode = VisibilityBinding.HiddenMode.HideByGone)
 //            .enableBinding(controls.editVideoButton, viewModel.item.map { !it.isPhoto})
             .materialRadioUnSelectableButtonGroupBinding(controls.ratingSelector, viewModel.rating, Rating.idResolver, BindingMode.TwoWay)
             .materialRadioUnSelectableButtonGroupBinding(controls.markSelector, viewModel.mark, Mark.idResolver, BindingMode.TwoWay)
@@ -150,6 +152,7 @@ class ItemDialog : UtDialogEx() {
             .bindCommand(viewModel.actionCommand, controls.removeLocalButton, ItemViewModel.NextAction.PurgeLocal)
             .bindCommand(viewModel.actionCommand, controls.restoreLocalButton, ItemViewModel.NextAction.RestoreLocal)
             .bindCommand(viewModel.actionCommand, controls.repairButton, ItemViewModel.NextAction.Repair)
+            .bindCommand(viewModel.actionCommand, controls.buttonMerge, ItemViewModel.NextAction.Merge)
             .bindCommand(viewModel.informationCommand, controls.buttonInfo)
             .bindCommand(viewModel.deleteCommand, controls.buttonDelete)
             .bindCommand(viewModel.completeCommand, ::onPositive)

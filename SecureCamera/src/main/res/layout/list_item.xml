@@ -8,6 +8,9 @@
     android:paddingHorizontal="5dp"
     android:paddingVertical="10dp"
     android:background="@color/color_list_item_background"
+    android:foreground="@drawable/ripple_list_item"
+    android:clickable="true"
+    android:focusable="true"
     >
     <ImageView
         android:id="@+id/icon_view"

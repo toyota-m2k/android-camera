@@ -22,7 +22,6 @@ import io.github.toyota32k.lib.player.common.formatSize
 import io.github.toyota32k.lib.player.common.formatTime
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.R
-import io.github.toyota32k.secureCamera.databinding.ListItemBinding
 import io.github.toyota32k.secureCamera.databinding.ListItemExBinding
 import io.github.toyota32k.secureCamera.databinding.ViewItemListBinding
 import io.github.toyota32k.secureCamera.db.CloudStatus
@@ -45,9 +44,12 @@ class ItemListView @JvmOverloads constructor(
         val currentItem: MutableStateFlow<ItemEx?>
         val enableReOrder: Boolean
         val deletionHandler:RecyclerViewBinding.IDeletionHandler<ItemEx>?
-        val commandActionOnItem: ICommand<ItemEx>
+        val commandActionOnItem: ICommand<ItemEx>?
+        val hasPreviewButton: Boolean
+        val noSelectionHighlights:Boolean
     }
     interface IMultiSelectionViewModel: IViewModel {
+        val selectedForever: ItemEx?
         val selectedItemList: ObservableList<ItemEx>
     }
 
@@ -72,85 +74,102 @@ class ItemListView @JvmOverloads constructor(
         controls.listView.addItemDecoration(DividerItemDecoration(context, LinearLayoutManager(context).orientation))
         binder.recyclerViewBindingEx<ItemEx,ListItemExBinding>(controls.listView) {
             list(viewModel.itemList)
-            if (viewModel.deletionHandler != null) {
-                gestureParams(RecyclerViewBinding.GestureParams(viewModel.enableReOrder, true, viewModel.deletionHandler))
-                inflater(ListItemExBinding::inflate, null)
-                bindView { ctrls, itemBinder, views, item ->
-                    val multiViewModel = viewModel as? IMultiSelectionViewModel
-                    val isVideo = item.isVideo
-                    views.isSelected = false
-                    views.tag = item
-                    ctrls.textView.text = item.nameForDisplay
-                    ctrls.sizeView.text = formatSize(item.size)
-                    if (multiViewModel != null) {
-                        ctrls.checkBox.isVisible = true
-                        ctrls.checkBox.isChecked = multiViewModel.selectedItemList.contains(item)
-                    } else {
-                        ctrls.checkBox.isVisible = false
-                    }
-                    if (!isVideo) {
-                        ctrls.durationView.visibility = View.GONE
-                    } else {
-                        ctrls.durationView.text = formatTime(item.duration, item.duration)
-                        ctrls.durationView.visibility = View.VISIBLE
-                    }
-                    ctrls.iconView.setImageDrawable(if (isVideo) icVideo() else icPhoto())
-                    val markIcon = when (item.mark) {
-                        Mark.None -> null
-                        Mark.Star -> icMarkStar()
-                        Mark.Flag -> icMarkFlag()
-                        Mark.Check -> icMarkCheck()
-                    }
-                    ctrls.iconMark.setImageDrawable(markIcon)
-                    val ratingIcon = when (item.rating) {
-                        Rating.RatingNone -> null
-                        Rating.Rating1 -> icRating1()
-                        Rating.Rating2 -> icRating2()
-                        Rating.Rating3 -> icRating3()
-                        Rating.Rating4 -> icRating4()
-                    }
-                    ctrls.iconRating.setImageDrawable(ratingIcon)
-
-                    val cloudIcon = when (item.cloud) {
-                        CloudStatus.Local -> null
-                        CloudStatus.Uploaded -> icCloud()
-                        CloudStatus.Cloud -> icCloudFull()
-                    }
-                    ctrls.iconCloud.setImageDrawable(cloudIcon)
-
-                    itemBinder
-                        .owner(binder.requireOwner)
-                        .bindCommand(LiteUnitCommand {
-                            if (multiViewModel != null) {
-                                ctrls.checkBox.isChecked = !ctrls.checkBox.isChecked
-                                if (ctrls.checkBox.isChecked) {
-                                    multiViewModel.selectedItemList.add(item)
-                                } else {
-                                    multiViewModel.selectedItemList.remove(item)
-                                }
-                            } else {
-                                val prev = viewModel.currentItem.value
-                                viewModel.currentItem.value = item
-                                if (prev == item) {
-                                    viewModel.commandActionOnItem.invoke(item)
-                                }
-                            }
-                        }, views)
-                        .bindCommand(LongClickUnitCommand {
-                            viewModel.currentItem.value = item
-                            viewModel.commandActionOnItem.invoke(item)
-                        }, views)
-                        .headlessNonnullBinding(viewModel.currentItem.map { it?.id == item.id }) { hit ->
-                            views.isSelected = hit
-                        }
+            gestureParams(RecyclerViewBinding.GestureParams(viewModel.enableReOrder, viewModel.deletionHandler != null, viewModel.deletionHandler))
+            inflater(ListItemExBinding::inflate, null)
+            bindView { ctrls, itemBinder, views, item ->
+                val multiViewModel = viewModel as? IMultiSelectionViewModel
+                val isVideo = item.isVideo
+                views.isSelected = false
+                views.tag = item
+                ctrls.textView.text = item.nameForDisplay
+                ctrls.sizeView.text = formatSize(item.size)
+                if (multiViewModel != null) {
+                    ctrls.checkBox.isVisible = true
+                    ctrls.checkBox.isChecked = multiViewModel.selectedItemList.contains(item)
+                } else {
+                    ctrls.checkBox.isVisible = false
                 }
+                if (!isVideo) {
+                    ctrls.durationView.visibility = View.GONE
+                } else {
+                    ctrls.durationView.text = formatTime(item.duration, item.duration)
+                    ctrls.durationView.visibility = View.VISIBLE
+                }
+                ctrls.iconView.setImageDrawable(if (isVideo) icVideo() else icPhoto())
+                val markIcon = when (item.mark) {
+                    Mark.None -> null
+                    Mark.Star -> icMarkStar()
+                    Mark.Flag -> icMarkFlag()
+                    Mark.Check -> icMarkCheck()
+                }
+                ctrls.iconMark.setImageDrawable(markIcon)
+                val ratingIcon = when (item.rating) {
+                    Rating.RatingNone -> null
+                    Rating.Rating1 -> icRating1()
+                    Rating.Rating2 -> icRating2()
+                    Rating.Rating3 -> icRating3()
+                    Rating.Rating4 -> icRating4()
+                }
+                ctrls.iconRating.setImageDrawable(ratingIcon)
+
+                val cloudIcon = when (item.cloud) {
+                    CloudStatus.Local -> null
+                    CloudStatus.Uploaded -> icCloud()
+                    CloudStatus.Cloud -> icCloudFull()
+                }
+                ctrls.iconCloud.setImageDrawable(cloudIcon)
+                if (multiViewModel==null && !viewModel.noSelectionHighlights) {
+                    ctrls.root.foreground = null
+                }
+                itemBinder
+                    .owner(binder.requireOwner)
+                    .bindCommand(LiteUnitCommand {
+                        if (multiViewModel != null) {
+                            if (multiViewModel.selectedForever == item) {
+                                // 永久選択アイテムは選択解除できない。
+                                return@LiteUnitCommand
+                            }
+                            ctrls.checkBox.isChecked = !ctrls.checkBox.isChecked
+                            if (ctrls.checkBox.isChecked) {
+                                multiViewModel.selectedItemList.add(item)
+                            } else {
+                                multiViewModel.selectedItemList.remove(item)
+                            }
+                        } else {
+                            val prev = viewModel.currentItem.value
+                            viewModel.currentItem.value = item
+                            if (prev == item) {
+                                viewModel.commandActionOnItem?.invoke(item)
+                            }
+                        }
+                    }, views)
+                    .bindCommand(LongClickUnitCommand {
+                        viewModel.currentItem.value = item
+                        viewModel.commandActionOnItem?.invoke(item)
+                    }, views)
+                    .apply {
+                        if (!viewModel.noSelectionHighlights) {
+                            headlessNonnullBinding(viewModel.currentItem.map { it?.id == item.id }) { hit ->
+                                views.isSelected = hit
+                            }
+                        }
+                    }
             }
+        }
+        if (ensureVisibleBeforeBindViewModel>=0) {
+            ensureVisible(ensureVisibleBeforeBindViewModel)
         }
     }
 
+    private var ensureVisibleBeforeBindViewModel:Int = -1
     fun ensureVisible(position:Int) {
-        if (position in viewModel.itemList.indices) {
-            controls.listView.scrollToPosition(position)
+        if (!::viewModel.isInitialized) {
+            ensureVisibleBeforeBindViewModel = position
+        } else {
+            ensureVisibleBeforeBindViewModel = -1
+            if (position in viewModel.itemList.indices) {
+                controls.listView.scrollToPosition(position)
+            }
         }
     }
 }

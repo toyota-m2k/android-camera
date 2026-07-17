@@ -9,19 +9,16 @@ ksp = "2.3.4"
 kotlinSerialization = "2.4.10"
 
 # libraries
-androidUtilitiesVersion = "4.16.0"
-androidBinding = "1.15.0"
-androidServer = "2.1.0"
-androidViewex = "1.2.0"
-androidWorker = "2.4.0"
-androidMediaPlayer = "4.8.0"
-androidDialog = "7.2.0"
-androidMediaProcessor = "5.1.0"
-androidMediaEditor = "0.10.0"
-#androidMediaPlayer = "LOCAL"
-#androidDialog = "LOCAL"
-#androidMediaProcessor = "LOCAL"
-#androidMediaEditor = "LOCAL"
+androidLogger = "2.2.3"
+androidUtilities = "4.16.3"
+androidBinding = "1.15.3"
+androidViewex = "1.2.1"
+androidDialog = "7.2.1"
+androidServer = "2.2.1"
+androidWorker = "2.5.1"
+androidMediaPlayer = "LOCAL"
+androidMediaProcessor = "LOCAL"
+androidMediaEditor = "LOCAL"
 cameraCore = "1.6.1"
 concurrentFuturesKtx = "1.3.0"
 gridlayout = "1.1.0"
@@ -46,10 +43,11 @@ media3DatasourceOkhttp = "1.10.1"
 bouncyCastle = "1.85"
 
 [libraries]
+android-logger = { module = "com.github.toyota-m2k:android-logger", version.ref = "androidLogger" }
+android-utilities = { module = "com.github.toyota-m2k:android-utilities", version.ref = "androidUtilities" }
 android-dialog = { module = "com.github.toyota-m2k:android-dialog", version.ref = "androidDialog" }
 android-viewex = { module = "com.github.toyota-m2k:android-viewex", version.ref = "androidViewex" }
 android-binding = { module = "com.github.toyota-m2k:android-binding", version.ref = "androidBinding" }
-android-utilities = { module = "com.github.toyota-m2k:android-utilities", version.ref = "androidUtilitiesVersion" }
 android-media-player = { module = "com.github.toyota-m2k:android-media-player", version.ref = "androidMediaPlayer" }
 android-media-editor = { module = "com.github.toyota-m2k:android-media-editor", version.ref = "androidMediaEditor" }
 android-server = { module = "com.github.toyota-m2k:android-server", version.ref = "androidServer" }
