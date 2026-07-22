@@ -40,6 +40,7 @@ import io.github.toyota32k.lib.media.editor.model.IOutputFileProvider
 import io.github.toyota32k.lib.media.editor.model.ISaveResult
 import io.github.toyota32k.lib.media.editor.model.IVideoSaveResult
 import io.github.toyota32k.lib.media.editor.model.IVideoSourceInfo
+import io.github.toyota32k.lib.media.editor.model.MaskCoreParams
 import io.github.toyota32k.lib.media.editor.model.MediaEditorModel
 import io.github.toyota32k.lib.media.editor.model.VideoSaveMode
 import io.github.toyota32k.lib.player.model.IChapter
@@ -294,7 +295,7 @@ class EditorActivity : UtMortalActivity() {
                     try {
                         val replacingItem = targetItem ?: throw IllegalStateException("no target")
                         val headTime = replacingItem.creationDate
-                        if (result.succeeded && UtImmortalTask.awaitTaskResult {
+                        if (result.succeeded && UtImmortalTask.awaitTaskResult("splittingMessageTask") {
                                 showOkCancelMessageBox(
                                     "Split File",
                                     "Split into $count files.\nAre you sure to replace these files?"
@@ -392,26 +393,37 @@ class EditorActivity : UtMortalActivity() {
         var prevCropParams: VisibleAreaParams = VisibleAreaParams.IDENTITY
         var savingLock = Mutex()
 
-        suspend fun saveEditingParams() {
+        fun saveEditingParams() {
+            logger.debug()
+            val source = videoSource ?: return
+            val chapters = editorModel.chapterEditorHandler.getChapterList().chapters
+            val crop = editorModel.cropHandler.maskViewModel.getParams()
+            CoroutineScope(Dispatchers.IO).launch {
+                internalSaveEditingParams(source, chapters, crop)   // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
+            }
+        }
+
+        // vodeoSource
+        // editorModel.chapterEditorHandler.getChapterList().chapters
+        private suspend fun internalSaveEditingParams(source: VideoSource, chapters:List<IChapter>, crop: MaskCoreParams) {
             if (!savingLock.tryLock()) return
             try {
-                val source = videoSource  ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
+//                val source = videoSource  ?: return    // 動画コンバート成功後にcurrentSourceはリセットされるが、Chapterは保存済みのはず。
                 val target = source.item.data
                 if (editorModel.chapterEditorHandler.isDirty) {
-                    val chapterList =
-                        editorModel.chapterEditorHandler.getChapterList().chapters.run {
-                            // 先頭の不要なチャプターは削除する
-                            if (size == 1 && this[0].run { position == 0L && !skip && label.isEmpty() }) {
-                                emptyList()
-                            } else {
-                                this
-                            }
+                    val chapterList = chapters.run {
+                        // 先頭の不要なチャプターは削除する
+                        if (size == 1 && this[0].run { position == 0L && !skip && label.isEmpty() }) {
+                            emptyList()
+                        } else {
+                            this
                         }
+                    }
                     metaDb.setChaptersFor(target, chapterList)
                     editorModel.chapterEditorHandler.clearDirty()
                 }
 
-                val crop = editorModel.cropHandler.maskViewModel.getParams()
+//                val crop = editorModel.cropHandler.maskViewModel.getParams()
                 if (crop != prevCropParams) {
                     prevCropParams = crop
                     metaDb.saveCropParams(target.name, crop)
@@ -528,10 +540,10 @@ class EditorActivity : UtMortalActivity() {
 
         binder.owner(this)
 
-        lifecycleScope.launch {
+        viewModel.viewModelScope.launch {
             val name = intent.extras?.getString(KEY_FILE_NAME)
             if (name==null || !viewModel.loadEditingParams(name)) {
-                UtImmortalTask.launchTask { setResultAndFinish(updated=false) }
+                UtImmortalTask.launchTask("cannotStartEditingTask") { setResultAndFinish(updated=false) }
                 return@launch
             }
 
@@ -545,7 +557,7 @@ class EditorActivity : UtMortalActivity() {
                 }
                 .observe(viewModel.finishEditing) { item->
                     if (item!=null) {
-                        UtImmortalTask.launchTask {
+                        UtImmortalTask.launchTask("finishEditingTask") {
                             setResultAndFinish( updated=true, item)
                         }
                     }
@@ -573,7 +585,7 @@ class EditorActivity : UtMortalActivity() {
             }
 
         compatBackKeyDispatcher.register(this) {
-            UtImmortalTask.launchTask {
+            UtImmortalTask.launchTask("backKeyTask") {
                 setResultAndFinish(updated = false)
             }
         }
@@ -626,18 +638,23 @@ class EditorActivity : UtMortalActivity() {
         return true
     }
 
-    var periodicalSaveJob: Job? = null
+    private var periodicalSaveJob: Job? = null
+    private var passwordCanceller: PasswordDialog.IPasswordCanceller? = null
+
     override fun onPause() {
         logger.debug()
         super.onPause()
+        passwordCanceller?.cancel()
+        passwordCanceller = null
         periodicalSaveJob?.cancel()
-        lifecycleScope.launch { viewModel.saveEditingParams() }  // viewModel.playerControllerModel.close()でviewModel.videoSourceがクリアされるので、そのまえに保存する。
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blocking.value = true
         viewModel.playerControllerModel.playerModel.pause()
+        // 編集状態を保存
+        viewModel.saveEditingParams()
         if(isFinishing) {
-            logger.debug("finishing")
-            viewModel.playerControllerModel.close()
+            EditorViewModel.logger.debug("finishing")
+//            viewModel.playerControllerModel.close() // ViewModel#onCleared()でクローズされるので不要かも？
         }
     }
 
@@ -646,7 +663,9 @@ class EditorActivity : UtMortalActivity() {
         super.onResume()
         if(viewModel.blocking.value) {
             lifecycleScope.launch {
-                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
+                passwordCanceller?.cancel()
+                passwordCanceller = PasswordDialog.createCanceller()
+                if(PasswordDialog.checkPassword("Editor", passwordCanceller, SlotSettings.currentSlotIndex)) {
                     viewModel.blocking.value = false
                     if(viewModel.playingBeforeBlocked.value) {
                         viewModel.playingBeforeBlocked.value = false
@@ -654,10 +673,11 @@ class EditorActivity : UtMortalActivity() {
                     }
                 } else {
                     logger.error("Incorrect Password")
-                    UtImmortalTask.launchTask {
+                    UtImmortalTask.launchTask("incorrectPasswordTask") {
                         setResultAndFinish(updated = false)
                     }
                 }
+                passwordCanceller = null
             }
         }
         periodicalSaveJob = lifecycleScope.launch {

@@ -61,7 +61,7 @@ class NumberDialog : UtDialogEx() {
 
     companion object {
         suspend fun getNumber(title:String, initNumber:Int, hint:String="", message:String="") {
-            UtImmortalTask.awaitTaskResult {
+            UtImmortalTask.awaitTaskResult("getNumberTask") {
                 val vm = createViewModel<NumberViewModel> { initialize(title, initNumber, hint, message) }
                 if(showDialog(taskName) { TextDialog() }.status.positive) {
                     vm.number.value

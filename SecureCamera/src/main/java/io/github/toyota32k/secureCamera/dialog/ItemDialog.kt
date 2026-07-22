@@ -77,7 +77,7 @@ class ItemDialog : UtDialogEx() {
             }
         }
         val deleteCommand = LiteUnitCommand {
-            UtImmortalTask.launchTask {
+            UtImmortalTask.launchTask("deleteItemTask") {
                 if (showOkCancelMessageBox("Delete Item", "Are you sure to delete this item?")) {
                     actionCommand.invoke(NextAction.Delete)
                 }

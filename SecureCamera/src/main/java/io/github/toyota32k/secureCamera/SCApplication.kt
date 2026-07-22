@@ -43,7 +43,7 @@ class SCApplication : Application() {
         Settings.initialize(this)
         UtStandardString.setContext(this)
 
-        UtImmortalTask.launchTask {
+        UtImmortalTask.launchTask("ActiveHostTrackerRootTask") {
             if (Settings.SecureArchive.hasPairedHost) {
                 ActiveHostTracker.start()
             }

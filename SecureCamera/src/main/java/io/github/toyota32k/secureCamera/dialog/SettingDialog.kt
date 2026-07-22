@@ -260,7 +260,7 @@ class SettingDialog : UtDialogEx() {
             }
             Authentication.resetWithSettings()
             if (deviceNameChanged) {
-                UtImmortalTask.launchTask {
+                UtImmortalTask.launchTask("saveSettingViewModelTask") {
                     Authentication.connectableHosts().forEach {
                         TcClient.registerOwnerToSecureArchive(it.activeHost)
                     }
@@ -417,7 +417,7 @@ class SettingDialog : UtDialogEx() {
         val logger = UtLog("Setting", null, this::class.java)
         suspend fun show() {
             UtImmortalTask.awaitTask (this::class.java.name) {
-                if(!PasswordDialog.checkPassword()) {
+                if(!PasswordDialog.checkPassword("Settings", canceller = null)) {
                     return@awaitTask
                 }
                 createViewModel<SettingViewModel>()

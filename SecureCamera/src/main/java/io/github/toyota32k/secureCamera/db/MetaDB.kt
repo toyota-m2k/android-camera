@@ -418,11 +418,14 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
                 }
             }
         }
-
-        const val KEY_EDIT_TARGET_NAME:String="EditTargetName";
-        const val KEY_EDIT_CROP_PARAMS:String="EditCropParams"
-
     }
+
+    object KVKey {
+        const val CURRENT_ITEM = "CurrentItem"
+        const val EDIT_TARGET_NAME:String="EditTargetName";
+        const val EDIT_CROP_PARAMS:String="EditCropParams"
+    }
+
     @Suppress("PrivatePropertyName")
     private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -505,18 +508,18 @@ class ScDB(val slotIndex:SlotIndex) : AutoCloseable {
 
     suspend fun saveCropParams(name:String, crop:VisibleAreaParams) {
         if (!crop.isIdentity) {
-            KV.put(KEY_EDIT_TARGET_NAME, name)
-            KV.put(KEY_EDIT_CROP_PARAMS, crop.serialize() ?: "")
+            KV.put(KVKey.EDIT_TARGET_NAME, name)
+            KV.put(KVKey.EDIT_CROP_PARAMS, crop.serialize() ?: "")
         } else {
-            KV.del(KEY_EDIT_TARGET_NAME)
-            KV.del(KEY_EDIT_CROP_PARAMS)
+            KV.del(KVKey.EDIT_TARGET_NAME)
+            KV.del(KVKey.EDIT_CROP_PARAMS)
         }
     }
 
 
     suspend fun loadCropParams(name:String):VisibleAreaParams {
-        return if (name == KV.get(KEY_EDIT_TARGET_NAME)) {
-            KV.get(KEY_EDIT_CROP_PARAMS)?.let { s ->
+        return if (name == KV.get(KVKey.EDIT_TARGET_NAME)) {
+            KV.get(KVKey.EDIT_CROP_PARAMS)?.let { s ->
                 return VisibleAreaParams.fromJson(s)
             } ?: VisibleAreaParams.IDENTITY
         } else {
@@ -1014,8 +1017,8 @@ object MetaDB {
     val cache = mutableMapOf<SlotIndex, ScDB>()
     operator fun get(slotIndex: SlotIndex): ScDB {
         return synchronized(cache) {
-            cache.getOrPut(slotIndex) { ScDB(slotIndex) }
-        }.apply { open() }
+            cache.getOrPut(slotIndex) { ScDB(slotIndex) }.apply { open() }
+        }
     }
 
     /**
@@ -1071,12 +1074,9 @@ object MetaDB {
      * @return fnの戻り値
      */
     inline fun <T> withDB(slotIndex: SlotIndex = SlotSettings.currentSlotIndex, fn: (ScDB) -> T): T {
-        val db = get(slotIndex)
-        return try {
+        return get(slotIndex).use { db ->
             db.open()
             fn(db)
-        } finally {
-            db.close()
         }
     }
     /**
@@ -1088,13 +1088,7 @@ object MetaDB {
      * @return fnの戻り値
      */
     inline fun <T> withDB(slot: Int, fn: (ScDB) -> T): T {
-        val db = get(SlotIndex.fromIndex(slot))
-        return try {
-            db.open()
-            fn(db)
-        } finally {
-            db.close()
-        }
+        return withDB(SlotIndex.fromIndex(slot), fn)
     }
 
     interface IVisitor {

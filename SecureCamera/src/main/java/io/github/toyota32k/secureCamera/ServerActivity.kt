@@ -99,25 +99,25 @@ class ServerActivity : UtMortalActivity() {
         private suspend fun selectHostCore(silent:Boolean):AuthHost? {
             if (Authentication.hosts.isEmpty()) {
                 if (!silent) {
-                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "No host registered.") }
+                    UtImmortalTask.awaitTask("selectHostCore-error1") { showConfirmMessageBox(null, "No host registered.") }
                 }
                 return null
             }
             val connectables = Authentication.connectableHosts()
             if (connectables.isEmpty()) {
                 if (!silent) {
-                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "No active host found.") }
+                    UtImmortalTask.awaitTask("selectHostCore-error2") { showConfirmMessageBox(null, "No active host found.") }
                 }
                 return null
             }
             if (connectables.size == 1) {
                 val host = connectables.first()
                 if (!silent) {
-                    UtImmortalTask.awaitTask { showConfirmMessageBox(null, "${host.displayName}: single host") }
+                    UtImmortalTask.awaitTask("selectHostCore-error3") { showConfirmMessageBox(null, "${host.displayName}: single host") }
                 }
                 return host
             }
-            return UtImmortalTask.awaitTaskResult {
+            return UtImmortalTask.awaitTaskResult("selectHostCore") {
                 val items = connectables.map { it.displayName }.toTypedArray()
                 val sel = showRadioSelectionBox("Select Host", items, 0)
                 if (sel<0||connectables.size<=sel) {

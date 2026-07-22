@@ -98,7 +98,7 @@ class AddressDialog : UtDialogEx() {
         val discovering = MutableStateFlow<Boolean>(false)
         val commandDiscover = LiteUnitCommand {
             // （開始されていなければ）mDNSの検索を開始する
-            UtImmortalTask.launchTask {
+            UtImmortalTask.launchTask("commandDiscoverTask") {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
                     val permitted = withActivity<MainActivity, Boolean> { activity ->
                         activity.activityBrokers.permissionBroker.requestPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)

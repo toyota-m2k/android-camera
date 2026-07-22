@@ -57,6 +57,7 @@ class ItemListView @JvmOverloads constructor(
     lateinit var viewModel: IViewModel
 
     fun bindViewModel(viewModel: IViewModel, binder: Binder) {
+        this.viewModel = viewModel
         // アイテム毎にDrawableを作る。
         // １つのDrawableをアイテム間で共用していると、isSelected で tint を変更すると、意図せず、他のアイテムの表示も変わってしまう。
         fun icPhoto() = AppCompatResources.getDrawable(context, R.drawable.ic_type_photo)!!

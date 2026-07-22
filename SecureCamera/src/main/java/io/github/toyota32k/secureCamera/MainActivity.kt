@@ -95,10 +95,13 @@ class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
         startActivity(Intent(this, CameraActivity::class.java))
     }
 
+    private var passwordCanceller: PasswordDialog.IPasswordCanceller? = null
     private fun startPlayer() {
         viewModel.busy.value = true
         lifecycleScope.launch {
-            if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
+            passwordCanceller?.cancel()
+            passwordCanceller = PasswordDialog.createCanceller()
+            if(PasswordDialog.checkPassword("Player", canceller=null, slot = SlotSettings.currentSlotIndex)) {
                 startActivity(Intent(this@MainActivity, PlayerActivity::class.java))
             } else {
                 logger.error("Incorrect Password")
@@ -110,7 +113,7 @@ class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
     private fun startServer() {
         viewModel.busy.value = true
         lifecycleScope.launch {
-            if(PasswordDialog.checkPassword()) {
+            if(PasswordDialog.checkPassword("Server", canceller=null)) {
                 startActivity(Intent(this@MainActivity, ServerActivity::class.java))
             }
             viewModel.busy.value = false

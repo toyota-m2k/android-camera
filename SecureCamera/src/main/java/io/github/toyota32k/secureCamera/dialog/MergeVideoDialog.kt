@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.collection.ObjectList
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.datasource.DataSource
 import io.github.toyota32k.binder.RecyclerViewBinding
 import io.github.toyota32k.binder.command.LiteCommand
 import io.github.toyota32k.binder.list.ObservableList
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.map
 class MergeVideoDialog : UtDialogEx() {
     class ViewModel : UtDialogViewModel() {
         lateinit var metaDb: ScDB
+        lateinit var dataSourceFactory: DataSource.Factory
         val targetItems = ObservableList<ItemEx>()
         val targetCount = MutableStateFlow(0)
         val sources = ObservableList<ItemEx>()
@@ -45,8 +47,10 @@ class MergeVideoDialog : UtDialogEx() {
             override val enableReOrder: Boolean = true
             override val deletionHandler = DstDeletionHandler()
             override val commandActionOnItem = LiteCommand<ItemEx> { item->
-                UtImmortalTask.launchTask {
-                    VideoPreviewDialog.show(metaDb.urlOf(item), item.name, item.chapterList)
+                UtImmortalTask.launchTask("commandActionOnItemTask") {
+                    VideoPreviewDialog.show(metaDb.urlOf(item), item.name, item.chapterList) { builder->
+                        builder.dataSourceFactory(dataSourceFactory)
+                    }
                 }
             }
             override val hasPreviewButton: Boolean = true
@@ -101,18 +105,22 @@ class MergeVideoDialog : UtDialogEx() {
         binder.owner(requireActivity())
         controls.sourceList.bindViewModel(viewModel.srcViewModel, binder)
         controls.destinationList.bindViewModel(viewModel.dstViewModel, binder)
+        if (viewModel.selectedForever != null) {
+            controls.sourceList.ensureVisible(viewModel.sources.indexOf(viewModel.selectedForever))
+        }
         binder.dialogRightButtonEnable(viewModel.targetCount.map { it>1 })
         return controls.root
     }
 
     companion object {
-        suspend fun show(db:ScDB, target:ItemEx, videoList:List<ItemEx>): List<ItemEx>? {
+        suspend fun show(db:ScDB, dataSourceFactory: DataSource.Factory, target:ItemEx, videoList:List<ItemEx>): List<ItemEx>? {
             return UtImmortalTask.awaitTaskResultCatching<List<ItemEx>?>(this::class.java.name, null) {
                 val vm = createViewModel<ViewModel> {
                     sources.replace(videoList)
                     selectedForever = target
                     targetItems.replace(listOf(target))
                     metaDb = db
+                    this.dataSourceFactory = dataSourceFactory
                 }
                 if (showDialog(taskName) { MergeVideoDialog() }.status.ok) {
                     vm.targetItems.toList()

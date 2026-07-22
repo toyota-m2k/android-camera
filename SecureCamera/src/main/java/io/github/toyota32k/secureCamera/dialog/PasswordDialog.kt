@@ -36,8 +36,33 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class PasswordDialog : UtDialogEx() {
+    interface IPasswordCanceller {
+        fun cancel()
+    }
+    class Canceller : IPasswordCanceller {
+        private var cancelled:Boolean = false
+        private var callback: (() -> Unit)? = null
+
+        override fun cancel() {
+            logger.info("canceller cancelled.")
+            cancelled = true
+            callback?.invoke()
+        }
+
+        fun attach(callback: () -> Unit) {
+            logger.debug()
+            if(cancelled) {
+                logger.info("canceller already cancelled. call callback immediately.")
+                callback()
+            } else {
+                this.callback = callback
+            }
+        }
+    }
+
     class PasswordViewModel : UtDialogViewModel() {
         enum class Mode {
             NEW_PASSWORD,       // パスワード登録用（入力後、確認のためもう一回がでるやつ）
@@ -53,6 +78,9 @@ class PasswordDialog : UtDialogEx() {
         val password = MutableStateFlow("")
         val passwordConf = MutableStateFlow("")
         val message = MutableStateFlow("")
+        var subTitle: String? = null
+
+
 //        val completeCommand = ReliableUnitCommand()
 
         enum class CheckPasswordResult {
@@ -95,15 +123,21 @@ class PasswordDialog : UtDialogEx() {
             return authHost.tryAuthWithPassword(password.value)
         }
 
+        var canceller: Canceller? = null
+        fun attachCanceller(callback: () -> Unit) {
+            canceller?.attach(callback)
+        }
+
         companion object {
             fun createForNewPassword(taskName:String): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel() ?: throw IllegalStateException("no task")
             }
 
-            fun createForCheckPassword(taskName:String, hashedPassword:String): PasswordViewModel {
+            fun createForCheckPassword(taskName:String, hashedPassword:String, canceller: IPasswordCanceller?, subTitle:String?): PasswordViewModel {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
                     mode = Mode.CHECK_PASSWORD
                     passwordToCheck = hashedPassword
+                    this.canceller = canceller as? Canceller
                 } ?: throw IllegalStateException("no task")
             }
             fun createForAuthentication(taskName:String, authHost: AuthHost): PasswordViewModel {
@@ -125,16 +159,26 @@ class PasswordDialog : UtDialogEx() {
         gravityOption = GravityOption.CENTER
         widthOption = WidthOption.LIMIT(400)
         heightOption = HeightOption.COMPACT
-//        title = requireActivity().getString(if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) R.string.authentication else R.string.password)
         title = if(viewModel.mode == PasswordViewModel.Mode.SA_AUTH) {
             "${viewModel.authHost.label}-${viewModel.authHost.activeHost.displayName}"
         } else {
-            requireActivity().getString(R.string.password)
+            val defTitle = requireActivity().getString(R.string.password)
+            if (viewModel.subTitle.isNullOrBlank()) {
+                defTitle
+            } else {
+                "$defTitle - ${viewModel.subTitle}"
+            }
         }
         enableFocusManagement()
             .setInitialFocus(R.id.password)
             .register(R.id.password)
             .register(R.id.password_confirm)
+
+        viewModel.attachCanceller {
+            lifecycleScope.launch {
+                onNegative()
+            }
+        }
     }
 
     lateinit var controls: DialogPasswordBinding
@@ -239,10 +283,13 @@ class PasswordDialog : UtDialogEx() {
     companion object {
         val logger = UtLog("PWD", null, PasswordDialog::class.java)
 
-        suspend fun checkPassword(slot:SlotIndex=SlotIndex.DEFAULT):Boolean {
+        fun createCanceller(): IPasswordCanceller {
+            return Canceller()
+        }
+        suspend fun checkPassword(subTitle:String?, canceller:IPasswordCanceller?, slot:SlotIndex=SlotIndex.DEFAULT):Boolean {
             if(!Settings.Security.enablePassword || !SlotSettings[slot].secure) return true
-            return UtImmortalTask.awaitTaskResult("checkPassword") {
-                val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password)
+            return UtImmortalTask.awaitTaskResult("checkPassword", allowSequential = true) {
+                val vm = PasswordViewModel.createForCheckPassword(taskName, Settings.Security.password, canceller, subTitle)
                 if(showDialog(taskName) { PasswordDialog() }.status.ok) {
                     when (vm.checkResult) {
                         PasswordViewModel.CheckPasswordResult.NG -> false

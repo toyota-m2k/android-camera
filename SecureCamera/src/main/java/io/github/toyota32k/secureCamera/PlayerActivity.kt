@@ -68,12 +68,8 @@ import io.github.toyota32k.media.lib.io.toAndroidFile
 import io.github.toyota32k.media.lib.processor.Analyzer
 import io.github.toyota32k.media.lib.processor.ConcatOptions
 import io.github.toyota32k.media.lib.processor.Processor
-import io.github.toyota32k.media.lib.report.Summary
-import io.github.toyota32k.media.lib.strategy.IVideoStrategy
-import io.github.toyota32k.media.lib.strategy.MaxDefault
-import io.github.toyota32k.media.lib.strategy.MinDefault
+import io.github.toyota32k.media.lib.processor.StrategyAdjuster
 import io.github.toyota32k.media.lib.strategy.PresetAudioStrategies
-import io.github.toyota32k.media.lib.strategy.VideoStrategy
 import io.github.toyota32k.media.lib.types.RangeMs
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.OkHttpInputFile
@@ -90,7 +86,6 @@ import io.github.toyota32k.secureCamera.dialog.ItemListView
 import io.github.toyota32k.secureCamera.dialog.MergeVideoDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.PlayListOptionsDialog
-import io.github.toyota32k.secureCamera.dialog.ProgressDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SnapshotDialog
 import io.github.toyota32k.secureCamera.settings.Settings
@@ -106,7 +101,6 @@ import io.github.toyota32k.utils.android.RefBitmap
 import io.github.toyota32k.utils.android.RefBitmap.Companion.toRef
 import io.github.toyota32k.utils.android.RefBitmapHolder
 import io.github.toyota32k.utils.android.UtFitter
-import io.github.toyota32k.utils.android.UtJavaFile
 import io.github.toyota32k.utils.android.hideActionBar
 import io.github.toyota32k.utils.android.hideStatusBar
 import io.github.toyota32k.utils.gesture.Direction
@@ -173,10 +167,7 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    data class SortOptions(
-        val key:Key,
-        val order:Order,
-    ) {
+    data class SortOptions(val key:Key,val order:Order,) {
         constructor(src: SortOptions, key: Key = src.key, order: Order = src.order) : this(
             key,
             order
@@ -244,7 +235,8 @@ class PlayerActivity : UtMortalActivity() {
         val markFlags:Int,
         val offline:Boolean,
         val unbackedUp:Boolean,
-        ) {
+        )
+    {
 
         // filter
         fun filter(item: ItemEx):Boolean {
@@ -284,7 +276,7 @@ class PlayerActivity : UtMortalActivity() {
 
     class PlayerViewModel(application: Application): AndroidViewModel(application) {
         companion object {
-            const val KEY_CURRENT_ITEM = "CurrentItem"
+//            const val KEY_CURRENT_ITEM = "CurrentItem"
             var maskParams: MaskCoreParams? = null
 
             suspend fun saveSnapshot(db:ScDB, item: MetaData, pos:Long, snapshot: RefBitmap):MetaData? {
@@ -541,6 +533,7 @@ class PlayerActivity : UtMortalActivity() {
                     ListMode.PHOTO -> photoSelection
                 }
                 currentItem.value = item
+                ensureVisibleCommand.invoke()
             }
             // endregion
 
@@ -681,14 +674,6 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        init {
-            viewModelScope.launch {
-                val name = metaDb.KV.get(KEY_CURRENT_ITEM) ?: return@launch
-                val item = metaDb.itemExOf(name) ?: return@launch
-                playlist.currentItem.value = item
-            }
-        }
-
         val currentIndex:Int
             get() = playlist.currentIndex()
 
@@ -707,25 +692,33 @@ class PlayerActivity : UtMortalActivity() {
             }
         }
 
-        fun saveListModeAndSelection() {
-//            val listMode = this.listMode.value
+        fun saveCurrentSelection() {
             val currentItem = playlist.currentItem.value
 
-            // onCleared で metaDb.close() されるので、MetaDB を新たに取得しておく
-            val db = MetaDB[SlotSettings.currentSlotIndex]
+            // launchしているうちに、onCleared で metaDb.close() されるので、
+            // metaDB を open して参照カウンタを上げておく。--> use (close) で参照カウンタを下げる。
+            metaDb.open()
             CoroutineScope(Dispatchers.IO).launch {
-                db.use { _ ->
-//                    metaDb.KV.put(KEY_CURRENT_LIST_MODE, listMode.toString())
+                metaDb.use { _ ->
                     if (currentItem != null) {
-                        metaDb.KV.put(KEY_CURRENT_ITEM, currentItem.name)
+                        metaDb.KV.put(ScDB.KVKey.CURRENT_ITEM, currentItem.name)
                     }
                 }
             }
         }
 
+        suspend fun restoreCurrentSelection(): ItemEx? {
+            val name = metaDb.KV.get(ScDB.KVKey.CURRENT_ITEM) ?: return null
+            val item = metaDb.itemExOf(name) ?: return null
+            if (item!=playlist.currentItem.value) {
+                playlist.currentItem.value = item
+            }
+            return item
+        }
+
         override fun onCleared() {
             super.onCleared()
-            saveListModeAndSelection()
+            saveCurrentSelection()
             metaDb.close()
             playerControllerModel.close()
         }
@@ -779,7 +772,7 @@ class PlayerActivity : UtMortalActivity() {
             .bindCommand(viewModel.gotoBottomCommand, controls.gotoBottomButton)
             .bindCommand(viewModel.playlistSettingCommand, controls.listSettingButton)
             .bindCommand(viewModel.editPhotoCommand, this::editPhoto)
-            .observe(viewModel.playlist.currentItem) { item->
+            .observe(viewModel.playlist.currentItem) { _ ->
                 manipulationAgent.resetScrollAndScale()
             }
             .headlessBinding(viewModel.playerControllerModel.playerModel.rotation) {
@@ -818,8 +811,6 @@ class PlayerActivity : UtMortalActivity() {
             or WindowManager.LayoutParams.FLAG_SECURE  // キャプチャーを禁止（タスクマネージャで見えないようにする）
         )
 
-        ensureVisible()
-
         DBChange.observable.onEach(::onDataChanged).launchIn(lifecycleScope)
 
         // Back Key の動作をカスタマイズ
@@ -828,6 +819,13 @@ class PlayerActivity : UtMortalActivity() {
                 viewModel.playerControllerModel.setWindowMode(PlayerControllerModel.WindowMode.NORMAL)
             } else {
                 finish()
+            }
+        }
+
+        if (savedInstanceState==null) {
+            lifecycleScope.launch {
+                viewModel.playlist.updateList()
+                viewModel.restoreCurrentSelection()
             }
         }
     }
@@ -862,7 +860,12 @@ class PlayerActivity : UtMortalActivity() {
      * EditorActivity から戻ってきたときにアイテムを選択する
      */
     private suspend fun ensureSelectItem(name:String, update:Boolean=false) {
-        val item = viewModel.metaDb.itemExOf(name) ?: return
+        logger.debug("name=$name update=$update")
+        val item = viewModel.metaDb.itemExOf(name)
+        if (item==null) {
+            logger.warn("item not found: $name")
+            return
+        }
         if(update) {
             viewModel.playlist.replaceItem(item)
         }
@@ -899,8 +902,8 @@ class PlayerActivity : UtMortalActivity() {
                     }
 
                     ItemDialog.ItemViewModel.NextAction.Merge -> {
-                        val videoList = viewModel.metaDb.listEx(ListMode.VIDEO)
-                        val selected = MergeVideoDialog.show(viewModel.metaDb,item2, videoList)
+                        val videoList = viewModel.playlist.itemList.filter { it.isVideo }
+                        val selected = MergeVideoDialog.show(viewModel.metaDb, viewModel.mediaDataSourceFactory,item2, videoList)
                         if (selected != null && selected.size>1) {
                             mergeVideos(selected)
                         }
@@ -921,20 +924,6 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
         }
-        fun nearestVideoStrategy(inputSummary: Summary): IVideoStrategy {
-            val summary = inputSummary.videoSummary ?: throw IllegalStateException("video summary is not available.")
-            return VideoStrategy(
-                summary.codec ?: throw IllegalStateException("unknown video codec."),
-                summary.profile ?: throw IllegalStateException("unknown video codec profile"),
-                summary.level,
-                null,
-                VideoStrategy.SizeCriteria(Int.MAX_VALUE, Int.MAX_VALUE),
-                MaxDefault(Int.MAX_VALUE,max(summary.bitRate, 768*1000)),
-                MaxDefault(30, max(summary.frameRate, 24)),
-                MinDefault(1, summary.iFrameInterval.takeIf { it > 0 } ?: 30),
-                null,
-                null,)
-        }
 
         suspend fun replaceVideoFile(outFile: File, replacingItem:ItemEx, newChapterList:List<IChapter>) {
             val targetFile = viewModel.metaDb.fileOf(replacingItem)
@@ -948,13 +937,13 @@ class PlayerActivity : UtMortalActivity() {
         }
 
         if (items.size<2) return
-        UtImmortalTask.launchTask {
+        UtImmortalTask.launchTask("mergeVideosRootTask") {
             val processor = Processor()
             val sink = io.github.toyota32k.lib.media.editor.dialog.ProgressDialog.showProgressDialog("Marging", processor)
             val message = withContext(Dispatchers.IO) {
                 val tempFile = File.createTempFile("SCW", ".mp4", applicationContext.cacheDir)
                 try {
-                    val strategy = nearestVideoStrategy(Analyzer.analyze(getMediaInputFile(items.first())))
+                    val strategy = StrategyAdjuster.nearestVideoStrategy(Analyzer.analyze(getMediaInputFile(items.first())))
                     val options = ConcatOptions.Builder()
                         .apply {
                             items.forEach { item->
@@ -1030,12 +1019,13 @@ class PlayerActivity : UtMortalActivity() {
 
     private suspend fun IUtImmortalTask.editItem(item:ItemEx) {
         if (item.isVideo) {
-            viewModel.saveListModeAndSelection()
+            viewModel.saveCurrentSelection()
             viewModel.playlist.currentItem.value = null
             viewModel.playerControllerModel.playerModel.killPlayer()
             controls.mediaPlayerView.dissociatePlayer()
             val name = editorActivityBroker.invoke(item.name)
             (getActivity() as? PlayerActivity)?.let { _ ->
+                logger.debug("returned from EditorActivity, name=$name")
                 ensureSelectItem(item.name, name != null)
             }
         } else {
@@ -1120,7 +1110,12 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
+    private var passwordCanceller: PasswordDialog.IPasswordCanceller? = null
+
     override fun onPause() {
+        passwordCanceller?.cancel()
+        passwordCanceller = null
+        viewModel.saveCurrentSelection()
         viewModel.playingBeforeBlocked.value = viewModel.playerControllerModel.playerModel.isPlaying.value
         viewModel.blockingAt.value = System.currentTimeMillis()
         viewModel.playerControllerModel.playerModel.pause()
@@ -1129,27 +1124,31 @@ class PlayerActivity : UtMortalActivity() {
 
     override fun onResume() {
         super.onResume()
-        fun afterUnblocked() {
+        suspend fun afterUnblocked() {
             viewModel.blockingAt.value = 0
-            if(viewModel.playerControllerModel.playerModel.revivePlayer()) {
+            if (viewModel.playerControllerModel.playerModel.revivePlayer()) {
+                viewModel.playlist.updateList()
                 controls.mediaPlayerView.associatePlayer()
-                lifecycleScope.launch { viewModel.playlist.updateList() }
-            } else if(viewModel.playingBeforeBlocked.value) {
+            } else if (viewModel.playingBeforeBlocked.value) {
                 viewModel.playingBeforeBlocked.value = false
                 viewModel.playerControllerModel.playerModel.play()
             }
         }
-        if(System.currentTimeMillis() - viewModel.blockingAt.value>3000) {
-            lifecycleScope.launch {
-                if(PasswordDialog.checkPassword(SlotSettings.currentSlotIndex)) {
+
+        lifecycleScope.launch {
+            if (System.currentTimeMillis() - viewModel.blockingAt.value > 3000) {
+                passwordCanceller?.cancel()
+                passwordCanceller = PasswordDialog.createCanceller()
+                if (PasswordDialog.checkPassword("Player", passwordCanceller!!, SlotSettings.currentSlotIndex)) {
                     afterUnblocked()
                 } else {
                     logger.error("Incorrect Password")
                     finish()
                 }
+                passwordCanceller = null
+            } else {
+                afterUnblocked()
             }
-        } else {
-            afterUnblocked()
         }
     }
 }

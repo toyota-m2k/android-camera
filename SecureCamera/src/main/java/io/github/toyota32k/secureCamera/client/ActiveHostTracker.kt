@@ -42,7 +42,7 @@ object ActiveHostTracker {
     private var collectorJob: Job? = null
 
     fun start() {
-        UtImmortalTask.launchTask {
+        UtImmortalTask.launchTask("ActiveHostTracker") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
                 val permitted = withActivity<MainActivity, Boolean> { activity ->
                     activity.activityBrokers.permissionBroker.requestPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)
