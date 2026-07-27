@@ -137,6 +137,7 @@ class PasswordDialog : UtDialogEx() {
                 return UtImmortalTaskManager.taskOf(taskName)?.task?.createViewModel<PasswordViewModel>()?.apply {
                     mode = Mode.CHECK_PASSWORD
                     passwordToCheck = hashedPassword
+                    this.subTitle = subTitle
                     this.canceller = canceller as? Canceller
                 } ?: throw IllegalStateException("no task")
             }

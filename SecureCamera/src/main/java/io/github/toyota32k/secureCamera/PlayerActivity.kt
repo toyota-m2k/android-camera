@@ -1017,16 +1017,18 @@ class PlayerActivity : UtMortalActivity() {
         }
     }
 
-    private suspend fun IUtImmortalTask.editItem(item:ItemEx) {
+    private fun IUtImmortalTask.editItem(item:ItemEx) {
         if (item.isVideo) {
             viewModel.saveCurrentSelection()
             viewModel.playlist.currentItem.value = null
             viewModel.playerControllerModel.playerModel.killPlayer()
             controls.mediaPlayerView.dissociatePlayer()
-            val name = editorActivityBroker.invoke(item.name)
-            (getActivity() as? PlayerActivity)?.let { _ ->
-                logger.debug("returned from EditorActivity, name=$name")
-                ensureSelectItem(item.name, name != null)
+            UtImmortalTask.launchTask("editVideo") {
+                val name = editorActivityBroker.invoke(item.name)
+                (getActivity() as? PlayerActivity)?.let { _ ->
+                    logger.debug("returned from EditorActivity, name=$name")
+                    ensureSelectItem(item.name, name != null)
+                }
             }
         } else {
             val bitmap = viewModel.playerControllerModel.playerModel.shownBitmap.value?.takeIf { it.hasBitmap } ?: return
