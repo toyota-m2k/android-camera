@@ -7,13 +7,14 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.Inet4Address
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 object NetworkUtils {
     suspend fun getIpAddress(context:Context) : String {
-        return suspendCoroutine<String> { cont->
+        return suspendCancellableCoroutine<String> { cont->
             var unregister:(()->Unit)? = null
             val networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onLinkPropertiesChanged(
@@ -40,6 +41,9 @@ object NetworkUtils {
             val manager: ConnectivityManager = context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             unregister = {
                 manager.unregisterNetworkCallback(networkCallback)
+            }
+            cont.invokeOnCancellation {
+                unregister.invoke()
             }
             manager.registerNetworkCallback(request, networkCallback)
         }

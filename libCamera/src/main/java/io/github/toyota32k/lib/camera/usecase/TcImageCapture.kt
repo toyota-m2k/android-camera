@@ -18,17 +18,19 @@ import io.github.toyota32k.lib.camera.TcImageQualityHint
 import io.github.toyota32k.lib.camera.TcImageResolution
 import io.github.toyota32k.lib.camera.TcLib
 import io.github.toyota32k.lib.camera.utils.ImageUtils
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-class ImageCaptureCallback(private val continuation: Continuation<Bitmap>): OnImageCapturedCallback() {
+class ImageCaptureCallback(private val continuation: CancellableContinuation<Bitmap>): OnImageCapturedCallback() {
     override fun onCaptureSuccess(imageProxy: ImageProxy) {
         imageProxy.use {
             val bitmap = ImageUtils.imageToBitmap(imageProxy, 0f)
             if (bitmap != null) {
-                continuation.resume(bitmap)
+                continuation.resume(bitmap) {_,bmp,_ -> bmp.recycle() }
             } else {
                 continuation.resumeWithException(IllegalStateException("cannot convert image to bitmap."))
             }
@@ -46,13 +48,13 @@ class ImageCaptureCallback(private val continuation: Continuation<Bitmap>): OnIm
  * @return 取得したBitmap
  */
 suspend fun ImageCapture.take(): Bitmap {
-    return suspendCoroutine<Bitmap> {cont->
+    return suspendCancellableCoroutine<Bitmap> { cont->
         takePicture(ContextCompat.getMainExecutor(TcLib.applicationContext), ImageCaptureCallback(cont))
     }
 }
 
 
-class ImageSavedCallback(private val continuation: Continuation<Uri>) : ImageCapture.OnImageSavedCallback {
+class ImageSavedCallback(private val continuation: CancellableContinuation<Uri>) : ImageCapture.OnImageSavedCallback {
     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
         val uri = outputFileResults.savedUri
         if(uri!=null) {
@@ -84,7 +86,7 @@ suspend fun ImageCapture.takeInMediaStore(displayName:String): Uri {
         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
         contentValues).build()
 
-    return suspendCoroutine<Uri> {cont->
+    return suspendCancellableCoroutine<Uri> { cont->
         takePicture(option, ContextCompat.getMainExecutor(TcLib.applicationContext), ImageSavedCallback(cont))
     }
 }
