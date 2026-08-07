@@ -354,7 +354,7 @@ class PlayerActivity : UtMortalActivity() {
             }
             .enableRotateRight()
             .enableRotateLeft()
-            .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward)
+            .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward, 100)
             .enablePhotoViewer(Duration.INFINITE, photoSizeOption = PhotoSizeOption.LimitByScreen)
             .customPhotoLoader(object: IPhotoLoader {
                 override suspend fun loadBitmap(src: IMediaSource): IBitmapInfo? {
