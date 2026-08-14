@@ -1,14 +1,13 @@
 package io.github.toyota32k.secureCamera.server
 
-import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.PlayerActivity
 import io.github.toyota32k.secureCamera.SCApplication
 import io.github.toyota32k.secureCamera.db.CloudStatus
 import io.github.toyota32k.secureCamera.db.ItemEx
 import io.github.toyota32k.secureCamera.db.MetaDB
-import io.github.toyota32k.secureCamera.db.MetaData
 import io.github.toyota32k.secureCamera.db.ScDB
+import io.github.toyota32k.secureCamera.settings.PasswordUtil
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
@@ -32,8 +31,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.file.Path
 import java.util.Date
+import java.util.UUID
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 class TcServer(val port:Int) : AutoCloseable {
     companion object {
@@ -82,12 +83,12 @@ class TcServer(val port:Int) : AutoCloseable {
         }
         // -------------------------------------------------------------------------------
 
-        private fun videoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest):IHttpResponse {
-            return downloadProcCore(request, "video/mp4")
-        }
-        private fun photoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest): IHttpResponse {
-            return downloadProcCore(request, "image/jpeg")
-        }
+//        private fun videoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest):IHttpResponse {
+//            return downloadProcCore(request, "video/mp4")
+//        }
+//        private fun photoDownloadProc(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest): IHttpResponse {
+//            return downloadProcCore(request, "image/jpeg")
+//        }
 
         private inline fun <T> withDB( fn:(db:ScDB)->T):T {
             return MetaDB[SlotSettings.currentSlotIndex].use { db->
@@ -109,15 +110,17 @@ class TcServer(val port:Int) : AutoCloseable {
             return m?.groups["slot"]?.value?.toIntOrNull() ?: -1
         }
 
-        private fun downloadProcCore(request: HttpRequest, type: String):IHttpResponse {
+        private fun downloadProcCore(@Suppress("UNUSED_PARAMETER") route: Route, request: HttpRequest):IHttpResponse {
             val p = QueryParams.parse(request.url)
             if(p["auth"]!= authToken) {
-                return HttpErrorResponse.unauthorized();
+                return unauthorizedResponseWithChallenge()
             }
             val id = p["id"]?.toIntOrNull() ?: return HttpErrorResponse.badRequest("id is not specified")
             return withDB(getSlot(request)) { db ->
+                var type: String = "video/mp4"
                 val item = runBlocking {
                     db.itemAt(id)?.run {
+                        type = if (this.type==0) "image/jpeg" else "video/mp4"
                         if (CloudStatus.valueOf(cloud).isFileInLocal) this else null
                     }
                 } ?: return HttpErrorResponse.notFound()
@@ -134,31 +137,39 @@ class TcServer(val port:Int) : AutoCloseable {
             }
         }
 
+        private var challenge:String = UUID.randomUUID().toString()
+
         val routes = arrayOf<Route>(
+            Route("NOP", HttpMethod.GET, "/nop") { _,_ ->
+                TextHttpResponse(StatusCode.Ok, CT_TEXT_PLAIN,"SC Server running.")
+            },
             Route("Capability", HttpMethod.GET, "(/slot\\d+)?/capability") { _, _ ->
                 TextHttpResponse(
                     StatusCode.Ok,
                     JSONObject()
                         .put("cmd", "capability")
                         .put("serverName", "SecCamera")
-                        .put("version", 1)
+                        .put("version", 2)
                         .put("root", "/")
                         .put("category", false)
                         .put("rating", false)
                         .put("mark", false)
                         .put("chapter", true)
+                        .put("reputation", 0)
+                        .put("diff", false)
                         .put("sync", false)
                         .put("acceptRequest", false)
                         .put("backup", false)
                         .put("hasView", false)
                         .put("authentication", true)
-                        // .put("challenge", ) todo
+                        .put("challenge", challenge)
+                        .put("types", "vp")
                 )
             },
             Route("List", HttpMethod.GET, Regex("(/slot\\d+)?/list(\\?.+)*")) { _, request ->
                 val p = QueryParams.parse(request.url)
                 if(p["auth"]!= authToken) {
-                    return@Route HttpErrorResponse.unauthorized();
+                    return@Route unauthorizedResponseWithChallenge()
                 }
                 val type = when(p["type"]) {
                     "all"->PlayerActivity.ListMode.ALL
@@ -179,12 +190,15 @@ class TcServer(val port:Int) : AutoCloseable {
                                 put("name", item.name)
                                 put("size", size)
                                 put("date", "${item.date}")
-                                put("creationDate", "${ItemEx.creationDate(item.data)}")
                                 put("duration", item.duration)
                                 put("type", if (item.type == 0) "jpg" else "mp4")
-                                put("cloud", item.data.cloud)
-                                put("attrDate", "${item.data.attr_date}")
-                                put("slot", "${item.slot}")
+                                put("media", if (item.type == 0) "p" else "v")
+                                if (backup) {
+                                    put("creationDate", "${ItemEx.creationDate(item.data)}")
+                                    put("cloud", item.data.cloud)
+                                    put("attrDate", "${item.data.attr_date}")
+                                    put("slot", "${item.slot}")
+                                }
                             })
                         }
                     }
@@ -197,8 +211,9 @@ class TcServer(val port:Int) : AutoCloseable {
                         .put("date", "${Date().time}")
                 )
             },
-            Route("Video", HttpMethod.GET,"(/slot\\d+)?/video\\?.+", ::videoDownloadProc),
-            Route("Photo", HttpMethod.GET,"(/slot\\d+)?/photo\\?.+", ::photoDownloadProc),
+            Route("Item", HttpMethod.GET,"(/slot\\d+)?/item\\?.+", ::downloadProcCore),
+            Route("Video", HttpMethod.GET,"(/slot\\d+)?/video\\?.+", ::downloadProcCore),
+            Route("Photo", HttpMethod.GET,"(/slot\\d+)?/photo\\?.+", ::downloadProcCore),
             Route("Chapter", HttpMethod.GET, "(/slot\\d+)?/chapter\\?.+") { _, request->
                 val p = QueryParams.parse(request.url)
                 val id = p["id"]?.toIntOrNull() ?: return@Route HttpErrorResponse.badRequest("id is required.")
@@ -237,7 +252,7 @@ class TcServer(val port:Int) : AutoCloseable {
                 val json = JSONObject(content)
                 val auth = json.optString("auth")
                 if(auth!= authToken) {
-                    return@Route HttpErrorResponse.unauthorized()
+                    return@Route unauthorizedResponseWithChallenge()
                 }
                 val ownerId = json.optString("owner")
                 if(ownerId != Settings.SecureArchive.clientId) {
@@ -274,23 +289,57 @@ class TcServer(val port:Int) : AutoCloseable {
             Route("Request DB backup", HttpMethod.GET, "/db/backup\\?.+") { _, request ->
                 val p = QueryParams.parse(request.url)
                 if(p["auth"]!= authToken) {
-                    return@Route HttpErrorResponse.unauthorized();
+                    return@Route unauthorizedResponseWithChallenge()
                 }
                 val file = ScDB.zipDbFiles() ?: return@Route HttpErrorResponse.notFound()
                 StreamingHttpResponse(StatusCode.Ok, "application/zip", file, 0L, 0L) {
                     file.delete()
                 }
             },
+            Route("Check Auth Token", HttpMethod.GET, "/auth/.*",) { _, request ->
+                if (request.url.length > 6) {
+                    // with token
+                    val token = request.url.substring(6)
+                    if (token == authToken) {
+                        // 認証済み
+                        return@Route TextHttpResponse(StatusCode.Ok, CT_TEXT_PLAIN, "ok")
+                    }
+                }
+                // 要認証 --> challenge を返す
+                unauthorizedResponseWithChallenge()
+            },
+            Route("Authentication", HttpMethod.PUT, "/auth") { _, request ->
+                val passPhrase = request.contentAsString().trim()
+                if (PasswordUtil.getPassPhraseWithHashedPassword(Settings.Security.password, challenge) == passPhrase) {
+                    val tick = System.currentTimeMillis()
+                    TextHttpResponse(StatusCode.Ok,
+                        JSONObject()
+                            .put("cmd", "auth")
+                            .put("token", authToken)
+                            .put("term",tick+30.minutes.inWholeMilliseconds)
+                        )
+                } else {
+                    unauthorizedResponseWithChallenge()
+                }
+            }
         )
+
+        fun unauthorizedResponseWithChallenge(): IHttpResponse {
+            return TextHttpResponse(StatusCode.Unauthorized,
+                JSONObject().put("challenge", challenge))
+        }
     }
 
-    val httpServer = HttpServer(routes)
 
-    fun start() {
+    val httpServer = HttpServer(routes).apply {
+        httpProcessor.allowCors()
+    }
+
+    fun start(ssl:Boolean) {
         val pfx = loadOrCreatePfx()
         fingerprint = pfx.getFingerprint()
         logger.info("Starting HTTPS on port $port (fp=$fingerprint)")
-        httpServer.start(port, pfx.createSSLContext())
+        httpServer.start(port, if (ssl) pfx.createSSLContext() else null)
     }
 
     override fun close() {

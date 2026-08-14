@@ -82,7 +82,7 @@ class ServerActivity : UtMortalActivity() {
             try {
                 logger.debug("start server")
                 isBusy.value = true
-                server.start()
+                server.start(ssl)
                 statusString.value = "Ready"
                 viewModelScope.launch {
                     address = NetworkUtils.getIpAddress(application)
@@ -414,6 +414,7 @@ class ServerActivity : UtMortalActivity() {
         binder.owner(this)
             .textBinding(controls.serverStatus, viewModel.statusString.map { "Status: $it"})
             .textBinding(controls.serverAddress, viewModel.selectedHost.map { it?.displayName ?: "Host is not selected." })
+            .textBinding(controls.ipAddress, viewModel.myAddressText)
             .bindCommand(viewModel.backupCommand, controls.backupButton)
             .bindCommand(viewModel.purgeCommand, controls.purgeButton)
             .bindCommand(viewModel.repairCommand, controls.repairButton)

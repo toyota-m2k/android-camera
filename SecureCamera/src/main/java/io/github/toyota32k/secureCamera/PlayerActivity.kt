@@ -30,12 +30,14 @@ import io.github.toyota32k.binder.materialRadioButtonGroupBinding
 import io.github.toyota32k.binder.observe
 import io.github.toyota32k.binder.visibilityBinding
 import io.github.toyota32k.dialog.UtDialogConfig
+import io.github.toyota32k.dialog.UtMessageBox
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
 import io.github.toyota32k.dialog.task.getActivity
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
+import io.github.toyota32k.dialog.task.showYesNoMessageBox
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartition
 import io.github.toyota32k.lib.media.editor.dialog.SliderPartitionDialog
 import io.github.toyota32k.lib.media.editor.model.ChapterEditorHandler
@@ -519,10 +521,11 @@ class PlayerActivity : UtMortalActivity() {
                 }
             }
 
-            suspend fun updateList() {
+            suspend fun updateList(showEmptyWarning:Boolean=false) {
                 val current = currentSource.value as MediaSource?
                 val listMode = listMode.value
-                val newList = metaDb.listEx(listMode).filter {
+                val rawList = metaDb.listEx(listMode)
+                val newList = rawList.filter {
                     filter(it)
                 }
                 sorter.replace(newList)
@@ -534,6 +537,12 @@ class PlayerActivity : UtMortalActivity() {
                 }
                 currentItem.value = item
                 ensureVisibleCommand.invoke()
+
+                if (showEmptyWarning && newList.isEmpty() && rawList.isNotEmpty()) {
+                    UtImmortalTask.launchTask("emptyWarning") {
+                        showConfirmMessageBox( null, "Filters cause empty list.")
+                    }
+                }
             }
             // endregion
 
@@ -824,7 +833,7 @@ class PlayerActivity : UtMortalActivity() {
 
         if (savedInstanceState==null) {
             lifecycleScope.launch {
-                viewModel.playlist.updateList()
+                viewModel.playlist.updateList(true)
                 viewModel.restoreCurrentSelection()
             }
         }

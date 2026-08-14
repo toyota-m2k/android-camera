@@ -24,7 +24,7 @@ import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.auth.AuthHost
 import io.github.toyota32k.secureCamera.databinding.DialogPasswordBinding
 import io.github.toyota32k.secureCamera.db.MetaDB
-import io.github.toyota32k.secureCamera.settings.HashGenerator
+import io.github.toyota32k.secureCamera.settings.PasswordUtil
 import io.github.toyota32k.secureCamera.settings.Settings
 import io.github.toyota32k.secureCamera.settings.SlotIndex
 import io.github.toyota32k.secureCamera.settings.SlotSettings
@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 class PasswordDialog : UtDialogEx() {
     interface IPasswordCanceller {
@@ -100,13 +99,13 @@ class PasswordDialog : UtDialogEx() {
         fun checkPasswords():Boolean {
             if(mode!= Mode.CHECK_PASSWORD) throw IllegalStateException("entering new password")
             if(password.value.isEmpty()) return false
-            return passwordToCheck == HashGenerator.hash(password.value)
+            return passwordToCheck == PasswordUtil.getHashedPassword(password.value)
         }
 
         fun getPassword():String? {
             if(mode!= Mode.NEW_PASSWORD) throw IllegalStateException("checking passwords")
             if(password.value.isEmpty()) return null
-            return HashGenerator.hash(password.value)
+            return PasswordUtil.getHashedPassword(password.value)
         }
 
 //        fun authenticate() {

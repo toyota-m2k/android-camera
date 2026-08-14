@@ -4,12 +4,9 @@ import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.client.NetClient
 import io.github.toyota32k.secureCamera.client.TcClient
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
+import io.github.toyota32k.secureCamera.settings.PasswordUtil
 import io.github.toyota32k.secureCamera.settings.SecureArchiveHost
-import io.github.toyota32k.secureCamera.utils.HashUtils
-import io.github.toyota32k.secureCamera.utils.HashUtils.encodeBase64
-import io.github.toyota32k.secureCamera.utils.HashUtils.encodeHex
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -21,12 +18,10 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
-import kotlin.time.Duration.Companion.seconds
 
 class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or Secondary*/) {
     companion object {
         val logger = UtLog("Auth", TcClient.logger, this::class.java)
-        const val PWD_SEED = "y6c46S/PBqd1zGFwghK2AFqvSDbdjl+YL/DKXgn/pkECj0x2fic5hxntizw5"
 
         suspend fun isHostInService(host: SecureArchiveHost):Boolean {
             val scheme = if (host.isHttps) "https" else "http"
@@ -121,7 +116,7 @@ class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or 
     suspend fun tryAuthWithPassword(password:String) : Boolean {
         return withContext(Dispatchers.IO) {
             val challenge = challenge ?: getChallenge() ?: return@withContext false
-            val passPhrase = getPassPhrase(password, challenge)
+            val passPhrase = PasswordUtil.getPassPhrase(password, challenge)
             val req = Request.Builder()
                 .url(authUrl)
                 .put(passPhrase.toRequestBody("text/plain".toMediaType()))
@@ -225,10 +220,10 @@ class AuthHost(val activeHost: SecureArchiveHost, val label:String /*Primary or 
         }
     }
 
-    private fun getPassPhrase(password:String, challenge:String) : String {
-        val hashedPassword = HashUtils.sha256(password, PWD_SEED).encodeHex()
-        return HashUtils.sha256(challenge, hashedPassword).encodeBase64()
-    }
+//    private fun getPassPhrase(password:String, challenge:String) : String {
+//        val hashedPassword = HashUtils.sha256(password, PWD_SEED).encodeHex()
+//        return HashUtils.sha256(challenge, hashedPassword).encodeBase64()
+//    }
 
     private suspend fun checkAuthToken():Boolean {
         val token = authToken ?: return false
