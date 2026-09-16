@@ -23,5 +23,12 @@ dependencyResolutionManagement {
 
 rootProject.name = "TryCamera"
 include(":libCamera")
-include(":monitor")
-include(":secureCamera")
+// jitpackではライブラリ(libCamera)だけ公開できればよいので、secureCameraはincludeしない。
+// （JITPACK環境変数はjitpackのビルド時のみ true が設定される）
+// また、secureCameraの実フォルダが SecureCamera （Sが大文字）になっていて、
+// Linux(jitpack)ではそのままだとエラーになるため、projectDirで実フォルダを明示している。
+if (System.getenv("JITPACK") == null) {
+    include(":monitor")
+    include(":secureCamera")
+    project(":secureCamera").projectDir = file("SecureCamera")
+}
