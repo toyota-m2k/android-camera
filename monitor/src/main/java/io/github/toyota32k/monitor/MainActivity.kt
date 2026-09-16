@@ -28,6 +28,7 @@ import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.lib.camera.TcFacing
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.monitor.databinding.ActivityMainBinding
+import io.github.toyota32k.utils.UtLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        UtLib.initialize(applicationContext)
         enableEdgeToEdge()  // 最近(2024/3/28現在)のAndroid Studioのテンプレートが書き出すコード（１）。。。タブレットでステータスバーなどによってクライアント領域が不正になる現象が回避できるっぽい。、
 
         controls = ActivityMainBinding.inflate(layoutInflater)
@@ -71,7 +73,7 @@ class MainActivity : UtMortalActivity(), ICameraGestureOwner {
 
         // UtPermissionBroker で application が必要なので、事前に設定する。
         // 通常は onResume で設定されるが、それでは間に合わない。
-        UtImmortalTaskManager.application = application
+        // UtImmortalTaskManager.application = application
 
         gestureScope.launch {
             if(permissionsBroker.requestPermission(Manifest.permission.CAMERA)) {

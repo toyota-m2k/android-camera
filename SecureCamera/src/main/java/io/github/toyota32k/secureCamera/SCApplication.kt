@@ -15,6 +15,7 @@ import io.github.toyota32k.dialog.task.withActivity
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.logger.UtLogConfig
 import io.github.toyota32k.secureCamera.settings.Settings
+import io.github.toyota32k.utils.UtLib
 
 class SCApplication : Application() {
     companion object {
@@ -41,7 +42,7 @@ class SCApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Settings.initialize(this)
-        UtStandardString.setContext(this)
+        UtLib.initialize(this)
 
         UtImmortalTask.launchTask("ActiveHostTrackerRootTask") {
             if (Settings.SecureArchive.hasPairedHost) {
