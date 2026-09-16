@@ -412,7 +412,7 @@ class CameraActivity : UtMortalActivity(), ICameraGestureOwner {
         // タッチイベントをエミュレートして表示させる。
         controls.exposureSlider.apply {
             // Sliderは左右に 24dp 程度のマージンがあるので、これを差し引いて x座標を求める必要がある。
-            val margin = 24.dp.px(this@CameraActivity)
+            val margin = 24.dp.px()
             val x = margin + (this.width-margin*2) * (newValue - min) / (max-min)
             val y = this.height / 2f
             val tick = System.currentTimeMillis()
