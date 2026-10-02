@@ -114,8 +114,7 @@
             android:layout_height="match_parent"
             app:ampButtonTintColor="?attr/colorTertiary"
             app:ampRailLeftColor="?attr/colorTertiary"
-            app:ampRailRightColor="?attr/colorTertiaryContainer"
-            app:ampRangeEnabledColor="?attr/colorPrimary"
+            app:ampRailRightColor="?attr/colorSecondary"
             />
     </FrameLayout>
 
