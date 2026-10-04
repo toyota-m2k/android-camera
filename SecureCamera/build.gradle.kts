@@ -38,7 +38,7 @@ configure<ApplicationExtension> {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "2.36.3"
+        versionName = "2.37.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures {
@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.android.binding)
     implementation(libs.android.viewex)
     implementation(libs.android.dialog)
+    implementation(libs.android.themes)
     implementation(libs.android.media.processor)
     implementation(libs.android.server)
     implementation(libs.android.media.player)

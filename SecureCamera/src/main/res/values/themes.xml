@@ -12,7 +12,7 @@
         <item name="ampPanelPaddingStart">15dp</item>
         <item name="ampPanelPaddingEnd">15dp</item>
     </style>
-    <style name="DefaultTheme" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <style name="DynamicTheme" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
         <item name="iconColor">?attr/colorPrimary</item>
         <item name="iconAltColor">?attr/colorTertiary</item>
         <item name="noRecIconColor">@color/orange_300</item>

@@ -23,10 +23,10 @@ import io.github.toyota32k.dialog.broker.UtActivityBrokerStore
 import io.github.toyota32k.dialog.broker.UtPermissionBroker
 import io.github.toyota32k.dialog.broker.pickers.UtCreateFilePicker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
+import io.github.toyota32k.lib.themes.ColorVariationDialog
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.databinding.ActivityMainBinding
 import io.github.toyota32k.secureCamera.dialog.BulseDialog
-import io.github.toyota32k.secureCamera.dialog.ColorVariationDialog
 import io.github.toyota32k.secureCamera.dialog.PasswordDialog
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
 import io.github.toyota32k.secureCamera.dialog.SlotDialog
@@ -147,7 +147,7 @@ class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
             val sel = selection.first { it != null }
             when(sel) {
                 R.id.settings -> SettingDialog.show()
-                R.id.colors -> ColorVariationDialog.show()
+                R.id.colors -> colorVariation()
                 R.id.bulse -> BulseDialog.bulse()
                 else -> {}
             }
@@ -157,11 +157,6 @@ class MainActivity : UtMortalActivity(), IUtActivityBrokerStoreProvider {
     }
 
     private fun colorVariation() {
-        ColorVariationDialog.show()
+        ColorVariationDialog.show(Settings.Design)
     }
-
-    private fun bulse() {
-        BulseDialog.bulse()
-    }
-
 }

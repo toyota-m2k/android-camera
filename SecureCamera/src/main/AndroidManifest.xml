@@ -19,7 +19,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/BlueberryTheme"
+        android:theme="@style/DynamicTheme"
         tools:ignore="UnusedAttribute">
         <activity
             android:name=".ServerActivity"

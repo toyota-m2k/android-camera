@@ -1,23 +1,21 @@
 package io.github.toyota32k.secureCamera.settings
 
 import android.app.Application
-import android.net.Uri
 import android.os.Build
 import androidx.fragment.app.FragmentActivity
 import io.github.toyota32k.binder.DPDate
 import io.github.toyota32k.lib.camera.TcAspect
+import io.github.toyota32k.lib.themes.BuiltInThemeList
+import io.github.toyota32k.lib.themes.ContrastLevel
+import io.github.toyota32k.lib.themes.IThemeList
+import io.github.toyota32k.lib.themes.IThemeSettings
+import io.github.toyota32k.lib.themes.NightMode
+import io.github.toyota32k.lib.themes.ThemeData
+import io.github.toyota32k.lib.themes.ThemeDelegate
 import io.github.toyota32k.secureCamera.PlayerActivity
-import io.github.toyota32k.secureCamera.R
 import io.github.toyota32k.secureCamera.client.auth.Authentication
 import io.github.toyota32k.secureCamera.dialog.SettingDialog
-import io.github.toyota32k.secureCamera.utils.IThemeList
-import io.github.toyota32k.secureCamera.utils.ThemeInfo
-import io.github.toyota32k.secureCamera.utils.ThemeSelector
-import io.github.toyota32k.secureCamera.utils.ThemeSelector.ContrastLevel
-import io.github.toyota32k.secureCamera.utils.ThemeSelector.NightMode
 import io.github.toyota32k.utils.android.SharedPreferenceDelegate
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.util.UUID
 
 object Settings {
@@ -31,19 +29,6 @@ object Settings {
         }
         Authentication.resetWithSettings()
     }
-
-    object ThemeList: IThemeList {
-        override val themes: List<ThemeInfo> = listOf(
-            ThemeInfo("Default", R.style.DefaultTheme, null, null),
-            ThemeInfo("Cherry", R.style.CherryTheme, R.style.CherryTheme_MediumContrast, R.style.CherryTheme_HighContrast),
-            ThemeInfo("Grape", R.style.GrapeTheme, R.style.GrapeTheme_MediumContrast, R.style.GrapeTheme_HighContrast),
-            ThemeInfo("Blueberry", R.style.BlueberryTheme, R.style.BlueberryTheme_MediumContrast, R.style.BlueberryTheme_HighContrast),
-            ThemeInfo("Melon", R.style.MelonTheme, R.style.MelonTheme_MediumContrast, R.style.MelonTheme_HighContrast),
-            ThemeInfo("Orange", R.style.OrangeTheme, R.style.OrangeTheme_MediumContrast, R.style.OrangeTheme_HighContrast),
-            ThemeInfo("Soda", R.style.SodaTheme, R.style.SodaTheme_MediumContrast, R.style.SodaTheme_HighContrast),
-        )
-    }
-
 
     object Camera {
         const val TAP_NONE = 0
@@ -195,7 +180,9 @@ object Settings {
         val SecureArchiveHost.isPrimary:Boolean get() = primaryHost!=null && primaryHost == this
     }
 
-    object Design {
+    object Design : IThemeSettings {
+        override val themeDelegate: ThemeDelegate get() = ThemeDelegate.defaultDelegate
+        override val colorVariationList: IThemeList get() = BuiltInThemeList
         var themeName:String by spd.pref("Default")
         var contrastLevelName by spd.pref("System")
         var nightModeInt by spd.pref(-1)
@@ -206,19 +193,21 @@ object Settings {
             nightModeInt = -1
         }
 
-        var themeInfo: ThemeInfo
-            get() = ThemeList.themeOf(themeName)
-            set(v) { themeName = v.label }
-        var contrastLevel: ContrastLevel
+        override val themeData: ThemeData
+            get() = BuiltInThemeList.themeOf(themeName)
+        override val contrastLevel: ContrastLevel
             get() = ContrastLevel.parse(contrastLevelName) ?: ContrastLevel.System
-            set(v) { contrastLevelName = v.name }
-        var nightMode: NightMode
+        override val dayNightMode: NightMode
             get() = NightMode.ofMode(nightModeInt) ?: NightMode.System
-            set(v) { nightModeInt = v.mode }
+
+        override fun update(themeData: ThemeData?, contrastLevel: ContrastLevel?, dayNightMode: NightMode?) {
+            this.themeName = themeData?.label ?: colorVariationList.defaultTheme.label
+            this.nightModeInt = dayNightMode?.mode ?: NightMode.System.mode
+            this.contrastLevelName = contrastLevel?.name ?: ContrastLevel.System.name
+        }
 
         fun applyToActivity(activity: FragmentActivity) {
-            ThemeSelector.defaultInstance.applyNightMode(nightMode)
-            ThemeSelector.defaultInstance.applyTheme(themeInfo, contrastLevel, activity)
+            themeDelegate.applyTheme(activity, themeData, contrastLevel, dayNightMode, ThemeDelegate.ApplyMode.IMMEDIATE)
         }
     }
 
