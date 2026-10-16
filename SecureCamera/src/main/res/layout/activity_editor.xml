@@ -15,6 +15,8 @@
         app:ampButtonTintColor="?attr/colorTertiary"
         app:ampRailLeftColor="?attr/colorTertiary"
         app:ampRailRightColor="?attr/colorSecondary"
+        app:ampThumbIcon="@drawable/ic_slider_thumb"
+        app:ampThumbVerticalOffset="0dp"
         />
 
     <!-- Guard View -->

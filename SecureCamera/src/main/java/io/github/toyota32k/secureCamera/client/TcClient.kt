@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import io.github.toyota32k.lib.player.model.IChapter
+import io.github.toyota32k.lib.player.model.PhotoDecoder
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.secureCamera.ServerActivity
 import io.github.toyota32k.secureCamera.client.NetClient.executeAndGetJsonAsync
@@ -71,7 +72,7 @@ object TcClient {
                     if (response.isSuccessful) {
                         response.body.use { body ->
                             body.byteStream().use { inStream ->
-                                BitmapFactory.decodeStream(inStream)
+                                PhotoDecoder.decodeBitmap(inStream)
                             }
                         }
                     } else {

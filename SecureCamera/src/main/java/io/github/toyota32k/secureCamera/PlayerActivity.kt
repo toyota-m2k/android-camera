@@ -57,6 +57,7 @@ import io.github.toyota32k.lib.player.model.PhotoSizeOption
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
 import io.github.toyota32k.lib.player.model.Rotation
+import io.github.toyota32k.lib.player.model.StandardPhotoLoader
 import io.github.toyota32k.lib.player.model.VisibleAreaParams
 import io.github.toyota32k.lib.player.model.VisibleAreaParams.Companion.IDENTITY
 import io.github.toyota32k.lib.player.model.addChapter
@@ -358,22 +359,40 @@ class PlayerActivity : UtMortalActivity() {
             .enableRotateLeft()
             .enableSeekMedium(Settings.Player.spanOfSkipBackward, Settings.Player.spanOfSkipForward, 100)
             .enablePhotoViewer(Duration.INFINITE, photoSizeOption = PhotoSizeOption.LimitByScreen)
-            .customPhotoLoader(object: IPhotoLoader {
-                override suspend fun loadBitmap(src: IMediaSource): IBitmapInfo? {
-                    val source = src as? MediaSource ?: return null
-                    if(source.item.cloud.loadFromCloud) {
-                        val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
-                        if (bmp==null) {
-                            return BitmapInfo.asError
-                        } else {
-                            return BitmapInfo.withBitmap(bmp)
-                        }
+//            .customPhotoLoader(object: IPhotoLoader {
+//                override suspend fun loadBitmap(src: IMediaSource): IBitmapInfo? {
+//                    val source = src as? MediaSource ?: return null
+//                    if(source.item.cloud.loadFromCloud) {
+//                        val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
+//                        if (bmp==null) {
+//                            return BitmapInfo.asError
+//                        } else {
+//                            return BitmapInfo.withBitmap(bmp)
+//                        }
+//                    } else {
+//                        // file の sha1 hash を cacheヒントとして使う場合はこちら
+////                        return BitmapInfo.useGlide(src.uri)
+//                        // file のタイムスタンプをヒントとして使う場合はこちら
+//                        return BitmapInfo.useGlideWithCustomHint(src.item.date)
+//                    }
+//                }
+//            })
+            .customPhotoLoader(StandardPhotoLoader { src->
+                // 認証＋SSLを使うためのカスタムPhotoLoaderを設定
+                // httpStreamProvider のカスタマイズだけでイケる気もするが。。。
+                val source = src as? MediaSource ?: return@StandardPhotoLoader null
+                if(source.item.cloud.loadFromCloud) {
+                    val bmp = TcClient.getPhoto(metaDb, source.item)?.toRef()
+                    if (bmp==null) {
+                        BitmapInfo.asError
                     } else {
-                        // file の sha1 hash を cacheヒントとして使う場合はこちら
-//                        return BitmapInfo.useGlide(src.uri)
-                        // file のタイムスタンプをヒントとして使う場合はこちら
-                        return BitmapInfo.useGlideWithCustomHint(src.item.date)
+                        BitmapInfo.withBitmap(bmp)
                     }
+                } else {
+                    // file の sha1 hash を cacheヒントとして使う場合はこちら
+//                        return BitmapInfo.useGlide(src.uri)
+                    // file のタイムスタンプをヒントとして使う場合はこちら
+                    BitmapInfo.useGlideWithCustomHint(src.item.date)
                 }
             })
             .supportFullscreen()

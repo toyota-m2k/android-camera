@@ -36,7 +36,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@drawable/ic_type_photo"
-        app:tint="@color/color_icon_accent"
+        app:tint="@color/color_icon_options"
         android:contentDescription="@string/file_type" />
     <ImageView
         android:id="@+id/icon_mark"
