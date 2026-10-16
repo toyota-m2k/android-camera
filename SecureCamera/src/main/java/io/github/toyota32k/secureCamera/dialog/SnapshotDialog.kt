@@ -150,7 +150,7 @@ class SnapshotDialog : UtDialogEx() {
         controls = DialogSnapshotBinding.inflate(inflater.layoutInflater, null, false)
         controls.cropOverlay.bindViewModel(viewModel.maskViewModel, viewModel.viewModelScope)
         controls.image.setImageBitmap(viewModel.bitmapScaler.sourceBitmap?.bitmap)
-        viewModel.bitmapScaler.enable(lifecycleScope)
+//        viewModel.bitmapScaler.enable(lifecycleScope)
         binder
             .owner(this)
             .textBinding(controls.sizeText, viewModel.sizeText)
