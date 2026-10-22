@@ -16,6 +16,7 @@ import androidx.lifecycle.application
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.VisibilityBinding
@@ -46,6 +47,7 @@ import io.github.toyota32k.lib.media.editor.model.VideoSaveMode
 import io.github.toyota32k.lib.player.model.IChapter
 import io.github.toyota32k.lib.player.model.IMediaMetadataRetrieverSource
 import io.github.toyota32k.lib.player.model.IMediaSource
+import io.github.toyota32k.lib.player.model.IMediaSourcePreparer
 import io.github.toyota32k.lib.player.model.IMutableChapterList
 import io.github.toyota32k.lib.player.model.PlayerControllerModel
 import io.github.toyota32k.lib.player.model.Range
@@ -118,6 +120,7 @@ class EditorActivity : UtMortalActivity() {
                 val sp = SliderPartitionDialog.show(SliderPartition.fromModel(orgModel, duration))
                 if (sp==null) orgModel else sp.toModel()
             }
+            itemErrorRecoveringHandler(::recoverItemError)
         }
         .supportChapterEditor()
         .supportCrop()
@@ -127,6 +130,17 @@ class EditorActivity : UtMortalActivity() {
         .setOutputFileSelector(FileSelector())
         .enableBuiltInMagnifySlider()
         .build()
+
+        private suspend fun recoverItemError(e:Throwable, item: IMediaSource): IMediaSource? {
+            val cause = e.cause ?: return null
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                if (cause.responseCode == 401) {
+                    return item
+                }
+            }
+            return null
+        }
+
         private fun stringInKb(size: Long): String {
             return if (size<0) "uav" else String.format(Locale.US, "%,d KB", size / 1000L)
         }
@@ -488,7 +502,7 @@ class EditorActivity : UtMortalActivity() {
             HttpInputFile.deleteAllTempFile(getApplication())
         }
 
-        inner class VideoSource(val item: ItemEx) : IMediaSourceWithMutableChapterList, IMediaMetadataRetrieverSource {
+        inner class VideoSource(val item: ItemEx) : IMediaSourceWithMutableChapterList, IMediaMetadataRetrieverSource, IMediaSourcePreparer {
             override val name:String
                 get() = item.name
 //            private val file: File = item.file
@@ -510,6 +524,19 @@ class EditorActivity : UtMortalActivity() {
                     fn(it)
                 }
             }
+
+            // region IMediaSourcePreparer
+            override suspend fun onSourceLoading(): Boolean {
+                if (item.cloud.loadFromCloud) {
+                    if (Authentication.authAndMessage()==null) return false
+                }
+                return true
+            }
+
+            override suspend fun onSourceLoaded() {
+                // nothing to do.
+            }
+            // endregion
         }
 
         companion object {

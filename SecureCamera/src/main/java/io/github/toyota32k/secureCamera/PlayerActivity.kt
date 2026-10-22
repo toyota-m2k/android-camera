@@ -15,6 +15,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.DPDate
@@ -396,6 +397,7 @@ class PlayerActivity : UtMortalActivity() {
                 }
             })
             .supportFullscreen()
+            .itemErrorRecoveringHandler(::recoverItemError)
             .build()
         val ensureVisibleCommand = LiteUnitCommand()
         val playlistSettingCommand = LiteUnitCommand {
@@ -704,6 +706,16 @@ class PlayerActivity : UtMortalActivity() {
 
         val currentIndex:Int
             get() = playlist.currentIndex()
+
+        private suspend fun recoverItemError(e:Throwable, item: IMediaSource): IMediaSource? {
+            val cause = e.cause ?: return null
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                if (cause.responseCode == 401) {
+                    return item
+                }
+            }
+            return null
+        }
 
         private fun onSnapshot(pos:Long, bitmap: RefBitmap) {
             CoroutineScope(Dispatchers.IO).launch {
